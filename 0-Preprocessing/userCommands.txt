@@ -1,0 +1,302 @@
+% -------------------------------------------------------------------------
+% KLAB PRE-PROCESSING TOOLBOX
+% USER COMMANDS FILE
+% VERSION 3
+% 06.05.2025
+% AUTHOR: Florent Moissenet
+% -------------------------------------------------------------------------
+
+% -------------------------------------------------------------------------
+% SET UNITS
+% -------------------------------------------------------------------------
+% Set units used in the output C3D files
+Units.output = 'm';
+
+% -------------------------------------------------------------------------
+% C3D FILES
+% Convertion table between QTM file names and toolbox file names
+% -------------------------------------------------------------------------
+staticTypes = {'Static_reference1'  'CALIBRATION1'; ...
+               'Static_reference2'  'CALIBRATION2'; ...
+              };
+trialTypes  = {'Static_reference3'  'CALIBRATION3'; ...
+               'Calibration_force'  'CALIBRATION4'; ...
+               'Isometric_right'    'CALIBRATION5'; ...
+               'Isometric_left'     'CALIBRATION6'; ...
+               'Elevation_coronal'  'ANALYTIC2'; ...
+              };
+
+% -------------------------------------------------------------------------
+% AVI FILES
+% Convertion table between QTM file names and toolbox file names
+% -------------------------------------------------------------------------
+videoTypes = {'Miqus_10_29797' 'frontView'; ...
+              'Miqus_11_29807' 'sideView'; ...
+              'Miqus_12_27517' 'topView'; ...
+              'Miqus_13_27529' 'backView'};
+
+% -------------------------------------------------------------------------
+% EVENT
+% -------------------------------------------------------------------------
+% event:    Active (1) or Inactive (0)
+% eventSet: Event name (one per line)
+event = 1;
+eventSet = { ...
+    'Remote' ...
+};
+
+% -------------------------------------------------------------------------
+% MARKER
+% -------------------------------------------------------------------------
+% marker:            Active (1) or Inactive (0)
+% markerSet:         See following descriptions
+% Column 1:          Marker name
+% Column 2:          Landmark type
+%                    'landmark':        Marker related to a rigid body
+%                    'semi-landmark':   Marker related to a curve
+%                    'hybrid-landmark': Marker related to a curve and a rigid body
+%                    'technical':       Marker not used for anatomical description
+% Column 3:          Related rigid segment
+%                    Use 'none' instead
+% Column 4/5:        Related curve
+%                    Only used with semi-landmark and hybrid-landmarks markers ('none' instead')
+%                    Syntax: Curve named followed by order number on the curve 
+% fmethod:           Fill gap the 3D trajectories
+% fmethod.type:      Fill gap method
+%                    'none':       No fill gap
+%                    'linear':     Linear interpolation (1 point before and 1 point after gap are required)   
+%                    'spline':     Cubic spline interpolation (10 points before and 10 points after gap are required)   
+%                    'pchip':      Shape-preserving piecewise cubic interpolation (10 points before and 10 points after gap are required)
+%                    'makima':     Modified Akima cubic Hermite interpolation (10 points before and 10 points after gap are required)   
+%                    'intercor':   Marker trajectories intercorrelation (https://doi.org/10.1371/journal.pone.0152616)
+%                    'rigid':      Apply rigid body transformation of the related segment on missing trajectories
+%                                  (The missing trajectories must be part of a marker related to a rigid body)
+%                                  (At least 3 other markers, without gap, are needed on each segment)
+%                    'kalman':     Low dimensional Kalman smoothing (http://dx.doi.org/10.1016/j.jbiomech.2016.04.016)
+%                                  NOT AVAILABLE YET
+% fmethod.parameter: Fill gap parameter
+%                    'none':       No parameter ([])
+%                    'linear':     Maximum authorised gap width (number of frames)
+%                    'spline':     Maximum authorised gap width (number of frames)  
+%                    'pchip':      Maximum authorised gap width (number of frames) 
+%                    'makima':     Maximum authorised gap width (number of frames)  
+%                    'intercor':   No parameter ([])
+%                    'rigid':      No parameter ([])
+%                    'kalman':     No parameter ([])
+% smethod.type:      Smoothing method
+%                    'none':       No smoothing
+%                    'butterLow2': Low pass filter (Butterworth 2nd order, [smethod.parameter] Hz)
+%                    'movmedian':  Moving median (window of [smethod.parameter] frames)
+%                    'movmean':    Moving mean (window of [smethod.parameter] frames)
+%                    'gaussian':   Gaussian-weighted moving average (window of [smethod.parameter] frames)
+%                    'rloess':     Robust quadratic regression (window of [smethod.parameter] frames)
+%                    'sgolay':     Savitzky-Golay filter (window of [smethod.parameter] frames)
+% smethod.parameter: Smoothing parameter
+%                    'none':       No parameter ([])
+%                    'butterLow2': Cut-off frequency (Hz)
+%                    'movmedian':  Window width (number of frames)
+%                    'movmean':    Window width (number of frames)
+%                    'gaussian':   Window width (number of frames)
+%                    'rloess':     Window width (number of frames)
+%                    'sgolay':     Window width (number of frames)
+
+marker = 1;
+markerSet = { ...
+    'SJN','landmark','Thorax','none',nan; ... % 1
+    'SME','landmark','Thorax','none',nan; ... % 2
+    'SXS','landmark','Thorax','none',nan; ... % 3
+    'CV7','landmark','Thorax','none',nan; ... % 4
+    'TV3','landmark','Thorax','none',nan; ... % 5
+    'TV5','landmark','Thorax','none',nan; ... % 6
+    'TV8','landmark','Thorax','none',nan; ... % 7
+    'S1','landmark','Thorax','none',nan; ... % 8
+    'RCAS','landmark','Thorax','none',nan; ... % 9
+    'RCAJ','landmark','RScapula','none',nan; ...  % 10
+    'Cluster_RS_01','landmark','RScapula','none',nan; ... % 11
+    'Cluster_RS_02','landmark','RScapula','none',nan; ... % 12
+    'Cluster_RS_03','landmark','RScapula','none',nan; ... % 13
+    'RSIA','landmark','RScapula','none',nan; ... % 14
+    'RSRS','landmark','RScapula','none',nan; ... % 15
+    'RSAA','landmark','RScapula','none',nan; ... % 16
+    'RSCT','landmark','RScapula','none',nan; ... % 17
+    'Cluster_RA_01','landmark','RHumerus','none',nan; ... % 18
+    'Cluster_RA_02','landmark','RHumerus','none',nan; ... % 19
+    'Cluster_RA_03','landmark','RHumerus','none',nan; ... % 20
+    'Cluster_RA_04','landmark','RHumerus','none',nan; ... % 21
+    'Cluster_RA_05','landmark','RHumerus','none',nan; ... % 22
+    'RHME','landmark','RHumerus','none',nan; ... % 23
+    'RHLE','landmark','RHumerus','none',nan; ... % 24
+    'Cluster_RF_01','landmark','RForearm','none',nan; ... % 25
+    'Cluster_RF_02','landmark','RForearm','none',nan; ... % 26
+    'Cluster_RF_03','landmark','RForearm','none',nan; ... % 27
+    'Cluster_RF_04','landmark','RForearm','none',nan; ... % 38
+    'Cluster_RF_05','landmark','RForearm','none',nan; ... % 29
+    'RRSP','landmark','RForearm','none',nan; ... % 30
+    'RUSP','landmark','RForearm','none',nan; ... % 31
+    'LCAS','landmark','Thorax','none',nan; ... % 32
+    'LCAJ','landmark','LScapula','none',nan; ...  % 33
+    'Cluster_LS_01','landmark','LScapula','none',nan; ... % 34
+    'Cluster_LS_02','landmark','LScapula','none',nan; ... % 35
+    'Cluster_LS_03','landmark','LScapula','none',nan; ... % 36
+    'LSIA','landmark','LScapula','none',nan; ... % 37
+    'LSRS','landmark','LScapula','none',nan; ... % 38
+    'LSAA','landmark','LScapula','none',nan; ... % 39
+    'LSCT','landmark','LScapula','none',nan; ... % 40
+    'Cluster_LA_01','landmark','LHumerus','none',nan; ... % 41
+    'Cluster_LA_02','landmark','LHumerus','none',nan; ... % 42
+    'Cluster_LA_03','landmark','LHumerus','none',nan; ... % 43
+    'Cluster_LA_04','landmark','LHumerus','none',nan; ... % 44
+    'Cluster_LA_05','landmark','LHumerus','none',nan; ... % 45
+    'LHME','landmark','LHumerus','none',nan; ... % 46
+    'LHLE','landmark','LHumerus','none',nan; ... % 47
+    'Cluster_LF_01','landmark','LForearm','none',nan; ... % 48
+    'Cluster_LF_02','landmark','LForearm','none',nan; ... % 49
+    'Cluster_LF_03','landmark','LForearm','none',nan; ... % 50
+    'Cluster_LF_04','landmark','LForearm','none',nan; ... % 51
+    'Cluster_LF_05','landmark','LForearm','none',nan; ... % 52
+    'LRSP','landmark','LForearm','none',nan; ... % 53
+    'LUSP','landmark','LForearm','none',nan; ... % 54
+};
+Processing.Marker.fmethod.type      = 'intercor';
+Processing.Marker.fmethod.parameter = [];
+Processing.Marker.smethod.type      = 'movmean';
+Processing.Marker.smethod.parameter = 15; 
+
+% -------------------------------------------------------------------------
+% EMG
+% -------------------------------------------------------------------------
+% emg:               Active (1) or Inactive (0)
+% emgSet:            See following descriptions
+% Column 1:          Channel number (CHi)
+% Column 2:          Related EMG name
+% zmethod.type:      Zeroing method
+%                    'none':        No zeroing
+%                    'mean':        Remove mean of the whole recording
+%                    'frames':      Remove mean of a part of the recording
+% zmethod.parameter: Zeroing parameter
+%                    'none':        No parameter ([])
+%                    'mean':        No parameter ([])
+%                    'frames':      First and last frame of interest (e.g. [10 54])
+% fmethod.type:      Filtering method
+%                    'none':        No filtering
+%                    'butterBand4': Band pass filter (Butterworth 4nd order, [fmethod.parameter fmethod.parameter] Hz)
+% fmethod.parameter: Filtering parameter
+%                    'none':        No parameter ([])
+%                    'butterBand4': Minimum and maximum cut-off frequencies (Hz)  (e.g. [10 450])
+% rmethod.type:      Rectification method
+%                    'none':        No rectification
+%                    'abs':         Absolute value
+% smethod.type:      Smoothing method
+%                    'none':        No smoothing
+%                    'butterLow2':  Low pass filter (Butterworth 2nd order, [smethod.parameter] Hz)
+%                    'movmean':     Moving mean (window of [smethod.parameter] frames)
+%                    'movmedian':   Moving median (window of [smethod.parameter] frames) 
+%                    'rms':         Signal root mean square (RMS) (window of [smethod.parameter] frames)  
+% smethod.parameter: Smoothing parameter
+%                    'none':        No parameter ([])
+%                    'butterLow2':  Cut-off frequency (Hz)
+%                    'movmean':     Window width (number of frames)
+%                    'movmedian':   Window width (number of frames)
+%                    'rms':         Window width (number of frames)          
+emg = 1;
+emgSet = { ... % Convertion table between QTM file names and toolbox file names
+    'CH1_EMG_1','TRAPS'; ...
+    'CH2_EMG_1','TRAPM'; ...
+    'CH3_EMG_1','TRAPI'; ...
+    'CH4_EMG_1','SYNCHRO'; ...
+    'CH7_EMG_1','SERRA'; ...
+};
+Processing.EMG.zmethod.type      = 'mean';
+Processing.EMG.zmethod.parameter = [];
+Processing.EMG.fmethod.type      = 'none';
+Processing.EMG.fmethod.parameter = [];
+Processing.EMG.rmethod.type      = 'none';
+Processing.EMG.smethod.type      = 'none';
+Processing.EMG.smethod.parameter = [];
+
+% -------------------------------------------------------------------------
+% Force
+% -------------------------------------------------------------------------
+% force:             Active (1) or Inactive (0)
+% forceSet:          See following descriptions
+% Column 1:          Channel number (CHi)
+% Column 2:          Related force name
+% zmethod.type:      Zeroing method
+%                    'none':        No zeroing
+%                    'mean':        Remove mean of the whole recording
+%                    'frames':      Remove mean of a part of the recording
+% zmethod.parameter: Zeroing parameter
+%                    'none':        No parameter ([])
+%                    'mean':        No parameter ([])
+%                    'frames':      First and last frame of interest (e.g. [10 54])
+% fmethod.type:      Filtering method
+%                    'none':        No filtering
+%                    'butterBand4': Band pass filter (Butterworth 4nd order, [fmethod.parameter fmethod.parameter] Hz)
+% fmethod.parameter: Filtering parameter
+%                    'none':        No parameter ([])
+%                    'butterBand4': Minimum and maximum cut-off frequencies (Hz)  (e.g. [10 450])
+% smethod.type:      Smoothing method
+%                    'none':        No smoothing
+%                    'butterLow2':  Low pass filter (Butterworth 2nd order, [smethod.parameter] Hz)
+%                    'movmean':     Moving mean (window of [smethod.parameter] frames)
+%                    'movmedian':   Moving median (window of [smethod.parameter] frames) 
+%                    'rms':         Signal root mean square (RMS) (window of [smethod.parameter] frames)  
+% smethod.parameter: Smoothing parameter
+%                    'none':        No parameter ([])
+%                    'butterLow2':  Cut-off frequency (Hz)
+%                    'movmean':     Window width (number of frames)
+%                    'movmedian':   Window width (number of frames)
+%                    'rms':         Window width (number of frames)          
+force = 1;
+forceSet = { ...
+    'CH16_FORCE','FORCE'; ...
+};
+Processing.Force.zmethod.type      = 'none';
+Processing.Force.zmethod.parameter = [];
+Processing.Force.fmethod.type      = 'none';
+Processing.Force.fmethod.parameter = [];
+Processing.Force.smethod.type      = 'butterLow2';
+Processing.Force.smethod.parameter = 10;
+
+% -------------------------------------------------------------------------
+% GRF
+% -------------------------------------------------------------------------
+% grf:               Active (1) or Inactive (0)
+% grfSet:            Set the number of the forceplates for the ones you want to export data
+% zmethod.type:      Zeroing method
+%                    'none':        No zeroing
+%                    'frames':      Remove mean of a part of the recording
+%                    'offset':      Remove the offset defined during calibration
+%                                   NOT AVAILABLE YET
+% zmethod.parameter: Zeroing parameter
+%                    'none':        No parameter ([])
+%                    'frames':      First and last frame of interest (e.g. [10 54])
+%                    'offset':      No parameter ([])
+% fmethod.type:      Filtering method
+%                    'none':        No filtering
+%                    'threshold':   Vertical force threshold ([fmethod.parameter] N)
+% fmethod.parameter: Filtering parameter
+%                    'none':        No parameter ([])
+%                    'threshold':   Force threshold (N)
+% smethod.type:      Smoothing method
+%                    'none':        No smoothing
+%                    'butterLow2':  Low pass filter (Butterworth 2nd order, [smethod.parameter] Hz) 
+% smethod.parameter: Smoothing parameter
+%                    'none':        No parameter ([])
+%                    'butterLow2':  Cut-off frequency (Hz)
+% rmethod.type:      Resampling method
+%                    'none':        No resampling
+%                    'marker':      Resampled at marker trajectories sampling rate
+% rmethod.parameter: Smoothing parameter
+%                    'none':        No parameter ([])
+%                    'marker':      No parameter ([])
+grf = 0;
+grfSet = [];
+Processing.GRF.zmethod.type       = 'none';
+Processing.GRF.zmethod.parameter  = [];
+Processing.GRF.fmethod.type       = 'none';
+Processing.GRF.fmethod.parameter  = [];
+Processing.GRF.smethod.type       = 'none';
+Processing.GRF.smethod.parameter  = [];
+Processing.GRF.rmethod.type       = 'none';
+Processing.GRF.rmethod.parameter  = [];
