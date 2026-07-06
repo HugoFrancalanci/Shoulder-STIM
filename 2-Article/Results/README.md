@@ -128,9 +128,16 @@ Pour chaque patient :
 - Y : Protraction (+) / Rétraction (−)
 - Z : Bascule postérieure (+) / antérieure (−)
 
+**Accumulateurs internes :**
+- `condData.(cond)` : cell de matrices (3×101), une par block valide — utilisé pour les figures individuelles et le SPM1D individuel
+- `globalData.(cond)` : accumulation inter-patients, utilisé pour la figure globale
+- `patientMeans.(cond)` : moyenne des blocks par patient (3×101), N=10 pour le SPM1D groupé
+
 **Sorties :**
-- 1 figure par patient : 3 DOF × 7 conditions
+- 1 figure par patient : 3 DOF × 7 conditions (moyenne ± ET, courbes colorées)
+- 1 figure SPM1D par patient : même layout + barres de significativité (N=3 blocks, exploratoire)
 - 1 figure globale P1–P10 : cycle moyen inter-patients ± ET
+- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 patients)
 
 ---
 
@@ -140,19 +147,68 @@ Pour chaque patient :
 
 | Étape | Détail |
 |-------|--------|
-| 1. Retrait FES | Sur `Signal.full` — identique à l'étape 2 (conditions FES uniquement) |
+| 1. Retrait FES | Sur `sig_proc` (signal nettoyé) — détection MAD×6, blanking 8ms, interpolation pchip |
 | 2. Segmentation | `Trial.Rcycle(k).range` (frames caméra) → indices EMG (ratio 2200/100 = 22) |
 | 3. Normalisation temps | Interpolation `pchip` → 101 points par cycle |
 | 4. Enveloppe linéaire | Rectification onde entière + Butterworth passe-bas 2e ordre 6 Hz |
-| 5. Normalisation amplitude | Enveloppe / (mean + 3×std) des 50 premières frames cinématiques |
+| 5. Normalisation amplitude | `sig_env / (mean + 3×std)` des 50 premières frames cinématiques × 100 → **% baseline** |
 | 6. Moyenne | `nanmean` sur les N cycles valides du trial |
 
 **Référence enveloppe :** Winter DA (2009) — *Biomechanics and Motor Control of Human Movement*, 4e éd.
 
-**Canaux analysés :** TRAPS, TRAPM, TRAPI, SERRA
+**Normalisation amplitude :** référence = période de repos pré-mouvement (50 premières frames, 100 Hz). Exprimée en % : une valeur de 150 % = 1,5× le niveau de repos. Ce n'est pas un % CMV.
+
+**Canaux analysés :** TRAPS, TRAPM, TRAPI, SERRA (SYNCHRO exclu)
+
+**Accumulateurs internes :**
+- `condData.(cond).(muscle)` : cell de vecteurs (1×101), un par block valide — utilisé pour les figures individuelles et le SPM1D individuel
+- `globalData.(cond).(muscle)` : accumulation inter-patients, utilisé pour la figure globale
+- `patientMeans.(cond).(muscle)` : moyenne des blocks par patient (1×101), N=10 pour le SPM1D groupé
 
 **Sorties :**
-- 1 figure par patient : 4 muscles × 7 conditions (moyenne ± ET en bande semi-transparente)
+- 1 figure par patient : 4 muscles × 7 conditions (moyenne ± ET, courbes colorées)
+- 1 figure SPM1D par patient : même layout + barres de significativité (N=3 blocks, exploratoire)
+- 1 figure globale P1–P10 : cycle moyen inter-patients ± ET
+- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 patients)
+
+---
+
+---
+
+## Analyses SPM1D
+
+Les deux scripts (`extract_emg_cycles.m` et `extract_scapular_kinematics.m`) intègrent chacun deux niveaux d'analyse SPM1D.
+
+### SPM1D groupé (N=10 patients)
+
+**Design :** ANOVA à mesures répétées à 1 facteur (7 conditions) sur les courbes moyennes par patient.
+
+| Étape | Détail |
+|-------|--------|
+| Données | `patientMeans` — 1 vecteur (ou matrice 3×101 pour kin) par patient par condition |
+| Test omnibus | `spm1d.stats.anova1rm(all_mat, group_vec, subj_vec)` — inférence α=0.05 RFT |
+| Post-hoc | `spm1d.stats.ttest_paired` — chaque condition FES vs No FES |
+| Correction | Bonferroni sur 6 comparaisons : α = 0.05/6 ≈ 0.0083 |
+| Résultat | Barres colorées sous chaque subplot (une couleur par condition FES) aux instants significatifs |
+
+**Référence :** Pataky TC (2010). *Generalized n-dimensional biomechanical field analysis using statistical parametric mapping.* Journal of Biomechanics.
+
+### SPM1D individuel (N=3 blocks, exploratoire)
+
+**Design :** ANOVA à mesures répétées sur les 3 blocks d'un même patient, traités comme observations indépendantes.
+
+| Étape | Détail |
+|-------|--------|
+| Données | `condData` — jusqu'à 3 vecteurs (ou matrices) par condition, pour le patient courant |
+| Test omnibus | `spm1d.stats.anova1rm` — même logique que le groupé |
+| Post-hoc | `ttest_paired` FES vs No FES, uniquement si ANOVA significative |
+| Correction | Bonferroni identique (α = 0.0083) |
+
+> **Limitation :** N=3 implique des degrés de liberté très faibles. Le seuil RFT est élevé et la puissance statistique insuffisante pour détecter la plupart des effets. Ces figures sont à interpréter comme **exploratoires** (visualisation des tendances intra-patient) et non comme une analyse formelle.
+
+### Librairie
+
+`spm1dmatlab-master/` dans le dossier Results — ajoutée automatiquement au path au lancement des scripts.
 
 ---
 

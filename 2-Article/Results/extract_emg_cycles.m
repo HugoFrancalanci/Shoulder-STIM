@@ -1,12 +1,12 @@
 % =========================================================================
 % extract_emg_cycles.m
-% Visualisation du cycle EMG moyen par patient et par condition
+% Cycles EMG traites par patient et par condition — enveloppe + SPM1D
 % Projet STIM_KC | K-LAB toolbox Protocol01
 %
 % Pipeline par trial :
-%   1. Retrait artefact FES  : sur Signal.full — detection pics (MAD x6) +
-%                              blanking 8ms + interpolation spline cubique
-%                              (conditions FES uniquement)
+%   1. Retrait artefact FES  : sur sig_proc (Signal.full nettoye) —
+%                              detection pics MAD x6, blanking 8ms,
+%                              interpolation pchip (conditions FES uniquement)
 %   2. Segmentation cycles   : Trial.Rcycle(k).range ou Lcycle(k).range
 %                              (indices frames camera) convertis en indices
 %                              EMG via FS_EMG / FS_KIN (2200/100 = 22)
@@ -16,11 +16,20 @@
 %                              (Winter DA, 2009 — Biomechanics and Motor
 %                               Control of Human Movement, 4e ed.)
 %   5. Normalisation ampl.   : enveloppe / (mean + 3*std) des 50 premieres
-%                              frames cinematiques (meme reference que K-LAB)
+%                              frames cinematiques x 100 → % baseline
+%                              (ref = repos pre-mouvement, pas % CMV)
 %   6. Moyenne cycles        : nanmean sur les N cycles valides du trial
 %
-% Pour chaque patient : 1 figure, 4 sous-graphiques (TRAPS TRAPM TRAPI SERRA)
-%   7 courbes colorees (1 par condition, 3 blocks moyennes)
+% Canaux : TRAPS, TRAPM, TRAPI, SERRA (SYNCHRO exclu)
+%
+% Sorties :
+%   - 1 figure par patient : 4 muscles x 7 conditions (moyenne +- ET)
+%   - 1 figure SPM1D par patient : meme layout + barres sig. (N=3 blocs,
+%     exploratoire — puissance limitee par les ddl faibles)
+%   - 1 figure globale P1-P10 : cycle moyen inter-patients +- ET
+%   - 1 figure SPM1D groupee : ANOVA RM + post-hoc vs No FES (N=10)
+%     Correction Bonferroni sur 6 comparaisons (alpha = 0.05/6)
+%     Reference : Pataky TC (2010), J Biomech
 % =========================================================================
 
 clear; clc; close all;
@@ -84,6 +93,10 @@ for ic = 1:length(CONDITIONS_ORDERED)
         patientMeans.(fld).(EMG_LABELS{im}) = {};
     end
 end
+
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
+BAR_COLORS    = COLORS(2:end, :);
 
 % -------------------------------------------------------------------------
 % BOUCLE PATIENTS
@@ -270,6 +283,100 @@ for ip = 1:length(PATIENT_IDS)
     end
 
     sgtitle(sprintf('%s  —  Cycles EMG moyens  (enveloppe lineaire, FES retire)', patientID), ...
+            'FontSize', 13, 'FontWeight', 'bold');
+
+    % --- Figure patient SPM1D (N=3 blocs par condition) ---
+    figure('Name', [patientID ' - SPM1D'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
+
+    for im = 1:nMuscles
+        mLabel = EMG_LABELS{im};
+        subplot(1, nMuscles, im);
+        hold on;
+        legendHandles_spm = gobjects(length(CONDITIONS_ORDERED), 1);
+        y_min_pt = Inf; y_max_pt = -Inf;
+
+        for ic = 1:length(CONDITIONS_ORDERED)
+            fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+            trials_cond = condData.(fld).(mLabel);
+            if isempty(trials_cond), continue; end
+            stack = cat(1, trials_cond{:});
+            mc = nanmean(stack, 1);
+            sc = nanstd(stack, 0, 1);
+            fill([X_CYCLE fliplr(X_CYCLE)], [mc+sc fliplr(mc-sc)], ...
+                 COLORS(ic,:), 'FaceAlpha', 0.10, 'EdgeColor','none','HandleVisibility','off');
+            legendHandles_spm(ic) = plot(X_CYCLE, mc, 'Color', COLORS(ic,:), 'LineWidth', 2, ...
+                                         'DisplayName', CONDITIONS_ORDERED{ic});
+            y_min_pt = min(y_min_pt, min(mc-sc));
+            y_max_pt = max(y_max_pt, max(mc+sc));
+        end
+
+        % Construire matrices pour ANOVA RM (blocs = observations)
+        all_mat_pt = []; group_vec_pt = []; subj_vec_pt = [];
+        for ic = 1:length(CONDITIONS_ORDERED)
+            fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+            trials_cond = condData.(fld).(mLabel);
+            if isempty(trials_cond), continue; end
+            mat_ic = cat(1, trials_cond{:});
+            n_ic   = size(mat_ic, 1);
+            all_mat_pt   = [all_mat_pt;   mat_ic];
+            group_vec_pt = [group_vec_pt; repmat(ic, n_ic, 1)];
+            subj_vec_pt  = [subj_vec_pt;  (1:n_ic)'];
+        end
+
+        bar_h_pt     = 0.02;
+        y_bar_top_pt = y_min_pt - 0.02;
+        anova_sig_pt = false;
+
+        if length(unique(group_vec_pt)) >= 2
+            try
+                spm_F_pt  = spm1d.stats.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
+                spmi_F_pt = spm_F_pt.inference(0.05, 'interp', true);
+                anova_sig_pt = ~isempty(spmi_F_pt.clusters);
+            catch
+            end
+        end
+
+        if anova_sig_pt
+            fld_nofes = matlab.lang.makeValidName('No FES');
+            data_nofes_pt = condData.(fld_nofes).(mLabel);
+            if ~isempty(data_nofes_pt)
+                data_nofes_mat = cat(1, data_nofes_pt{:});
+                for fc = 1:length(FES_CONDS)
+                    fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
+                    if ~isfield(condData, fld_fes) || isempty(condData.(fld_fes).(mLabel)), continue; end
+                    data_fes_mat = cat(1, condData.(fld_fes).(mLabel){:});
+                    if size(data_fes_mat,1) ~= size(data_nofes_mat,1), continue; end
+                    try
+                        spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
+                        spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                        if ~isempty(spmi_t_pt.clusters)
+                            y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.005);
+                            for cl = 1:length(spmi_t_pt.clusters)
+                                ep = spmi_t_pt.clusters{cl}.endpoints;
+                                rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
+                                          'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none','FaceAlpha',0.85);
+                            end
+                        end
+                    catch
+                    end
+                end
+            end
+        end
+
+        bar_zone_pt = length(FES_CONDS) * (bar_h_pt + 0.005);
+        if isfinite(y_min_pt)
+            ylim([y_min_pt - bar_zone_pt - 0.04, y_max_pt + 0.04]);
+        end
+
+        xlabel('% cycle');
+        ylabel('EMG normalise (u.a.)');
+        title(mLabel, 'FontSize', 11, 'FontWeight', 'bold');
+        valid_h = legendHandles_spm(arrayfun(@(h) isvalid(h) && ~strcmp(h.DisplayName,''), legendHandles_spm));
+        legend(valid_h, 'Location','best', 'FontSize', 7);
+        grid on; box on; hold off;
+    end
+
+    sgtitle(sprintf('%s  —  SPM1D individuel (N=3 blocs par condition)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
 
 end % ip

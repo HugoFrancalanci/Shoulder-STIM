@@ -1,9 +1,9 @@
 % =========================================================================
 % extract_scapular_kinematics.m
-% Cinématique scapulaire (3 DOF) par patient et par condition
+% Cinématique scapulaire (3 DOF) par patient et par condition — SPM1D
 % Projet STIM_KC | K-LAB toolbox Protocol01
 %
-% Données source : Trial.Joint(jscap).Euler.rcycle / lcycle
+% Donnees source : Trial.Joint(jscap).Euler.rcycle / lcycle
 %   Shape MATLAB : (3, 1, 101, N_cycles) — deja normalises en temps
 %   jscap = 3 (RST, cote droit) ou 8 (LST, cote gauche)
 %   Sequence YXZ :
@@ -14,11 +14,16 @@
 % Pipeline par trial :
 %   1. Extraction cycles  : squeeze(Euler.rcycle) → (3, 101, N)
 %   2. Moyenne cycles     : nanmean sur N → (3, 101) par trial
-%   3. Moyenne conditions : nanmean sur les 3 blocks valides par condition
+%   3. Stockage par block : condData.(cond){end+1} = (3, 101)
 %
 % Sorties :
-%   - 1 figure par patient (P1-P10) : 3 subplots DOF, 7 courbes conditions
-%   - 1 figure globale P1-P10 : cycle moyen inter-patients ± ET par condition
+%   - 1 figure par patient : 3 DOF x 7 conditions (moyenne +- ET)
+%   - 1 figure SPM1D par patient : meme layout + barres sig. (N=3 blocs,
+%     exploratoire — puissance limitee par les ddl faibles)
+%   - 1 figure globale P1-P10 : cycle moyen inter-patients +- ET
+%   - 1 figure SPM1D groupee : ANOVA RM + post-hoc vs No FES (N=10)
+%     Correction Bonferroni sur 6 comparaisons (alpha = 0.05/6)
+%     Reference : Pataky TC (2010), J Biomech
 % =========================================================================
 
 clear; clc; close all;
@@ -69,6 +74,10 @@ patientMeans = struct();
 for ic = 1:length(CONDITIONS_ORDERED)
     patientMeans.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic})) = {};
 end
+
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
+BAR_COLORS    = COLORS(2:end, :);
 
 % -------------------------------------------------------------------------
 % BOUCLE PATIENTS
@@ -202,6 +211,110 @@ for ip = 1:length(PATIENT_IDS)
     end
 
     sgtitle(sprintf('Comparaison des conditions de stimulation : %s (côté %s)', patientID, side), ...
+            'FontSize', 13, 'FontWeight', 'bold');
+
+    % --- Figure patient SPM1D (N=3 blocs par condition) ---
+    figure('Name', [patientID ' - SPM1D Kin'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
+
+    for idof = 1:3
+        subplot(1, 3, idof);
+        hold on;
+        legendHandles_spm = gobjects(length(CONDITIONS_ORDERED), 1);
+        y_min_pt = Inf; y_max_pt = -Inf;
+
+        for ic = 1:length(CONDITIONS_ORDERED)
+            cond = CONDITIONS_ORDERED{ic};
+            fld  = matlab.lang.makeValidName(cond);
+            trials_cond = condData.(fld);
+            if isempty(trials_cond), continue; end
+            stack = cat(3, trials_cond{:}); % (3, 101, n_blocks)
+            mc = squeeze(nanmean(stack(idof,:,:), 3));  % (1,101)
+            sc = squeeze(nanstd(stack(idof,:,:), 0, 3));
+            fill([x fliplr(x)], [mc+sc fliplr(mc-sc)], ...
+                 COLORS(ic,:), 'FaceAlpha', 0.12, 'EdgeColor','none','HandleVisibility','off');
+            legendHandles_spm(ic) = plot(x, mc, 'Color', COLORS(ic,:), 'LineWidth', 2, ...
+                                         'DisplayName', COND_LABELS{ic});
+            y_min_pt = min(y_min_pt, min(mc-sc));
+            y_max_pt = max(y_max_pt, max(mc+sc));
+        end
+
+        % Construire matrices (n_blocks × 101) pour ANOVA RM
+        all_mat_pt = []; group_vec_pt = []; subj_vec_pt = [];
+        for ic = 1:length(CONDITIONS_ORDERED)
+            fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+            trials_cond = condData.(fld);
+            if isempty(trials_cond), continue; end
+            mat_ic = zeros(length(trials_cond), 101);
+            for kb = 1:length(trials_cond)
+                mat_ic(kb,:) = trials_cond{kb}(idof,:);
+            end
+            n_ic = size(mat_ic, 1);
+            all_mat_pt   = [all_mat_pt;   mat_ic];
+            group_vec_pt = [group_vec_pt; repmat(ic, n_ic, 1)];
+            subj_vec_pt  = [subj_vec_pt;  (1:n_ic)'];
+        end
+
+        bar_h_pt     = 0.3;
+        y_bar_top_pt = y_min_pt - 0.5;
+        anova_sig_pt = false;
+
+        if length(unique(group_vec_pt)) >= 2
+            try
+                spm_F_pt  = spm1d.stats.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
+                spmi_F_pt = spm_F_pt.inference(0.05, 'interp', true);
+                anova_sig_pt = ~isempty(spmi_F_pt.clusters);
+            catch
+            end
+        end
+
+        if anova_sig_pt
+            fld_nofes = matlab.lang.makeValidName('No FES');
+            trials_nofes = condData.(fld_nofes);
+            if ~isempty(trials_nofes)
+                data_nofes_mat = zeros(length(trials_nofes), 101);
+                for kb = 1:length(trials_nofes)
+                    data_nofes_mat(kb,:) = trials_nofes{kb}(idof,:);
+                end
+                for fc = 1:length(FES_CONDS)
+                    fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
+                    if ~isfield(condData, fld_fes) || isempty(condData.(fld_fes)), continue; end
+                    trials_fes = condData.(fld_fes);
+                    if length(trials_fes) ~= length(trials_nofes), continue; end
+                    data_fes_mat = zeros(length(trials_fes), 101);
+                    for kb = 1:length(trials_fes)
+                        data_fes_mat(kb,:) = trials_fes{kb}(idof,:);
+                    end
+                    try
+                        spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
+                        spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                        if ~isempty(spmi_t_pt.clusters)
+                            y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.1);
+                            for cl = 1:length(spmi_t_pt.clusters)
+                                ep = spmi_t_pt.clusters{cl}.endpoints;
+                                rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
+                                          'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none','FaceAlpha',0.85);
+                            end
+                        end
+                    catch
+                    end
+                end
+            end
+        end
+
+        bar_zone_pt = length(FES_CONDS) * (bar_h_pt + 0.1);
+        if isfinite(y_min_pt)
+            ylim([y_min_pt - bar_zone_pt - 1, y_max_pt + 1]);
+        end
+
+        xlabel('% cycle');
+        ylabel('Angle (°)');
+        title(DOF_LABELS{idof});
+        valid_h = legendHandles_spm(arrayfun(@(h) isvalid(h) && ~strcmp(h.DisplayName,''), legendHandles_spm));
+        legend(valid_h, 'Location','best', 'FontSize', 8);
+        grid on; box on; hold off;
+    end
+
+    sgtitle(sprintf('%s  —  SPM1D individuel cinématique (N=3 blocs)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
 
 end % ip
