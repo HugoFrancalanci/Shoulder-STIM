@@ -39,7 +39,7 @@ disp(' ');
 % SET FOLDERS
 % -------------------------------------------------------------------------
 disp('Définition des répertoires de travail');
-MainFolder           = 'C:\Users\franc\Desktop\Programming\02_Collaborations\C01_STIM_KC\Kevin_Dev\';
+MainFolder           = 'C:\Users\franc\Desktop\Programming\02_Collaborations\C01_STIM_KC\Stim_Dev\';
 Folder.preprocessing = [MainFolder,'0-Preprocessing\'];
 Folder.toolbox       = [MainFolder,'1-Processing\Protocol01\'];
 Folder.data          = uigetdir(); % Patient folder defined by GUI
