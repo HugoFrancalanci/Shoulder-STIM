@@ -94,10 +94,27 @@ Appliqué sur `Signal.full` (signal brut 2200 Hz) pour chaque canal EMG, chaque 
 | Interpolation | Spline cubique (`pchip`) sur les 3 points voisins valides de chaque côté |
 | | Trous > 20ms non interpolés (artefact trop large) |
 
+**Figures produites par `preprocess_fes_removal.m` (un patient, toutes conditions FES) :**
+
+Pour chacune des 6 conditions FES (block `VERIFY_BLOCK = 1`), 2 figures :
+- **Signal complet** : noir = No FES (référence), gris = brut FES, bleu = nettoyé FES
+  — ylim adapté aux signaux d'intérêt (artefacts bruts hors cadre pour lisibilité)
+- **Zoom 300ms** : pleine échelle pour voir le retrait pulse par pulse
+
+Soit **12 figures** au total permettant de comparer visuellement l'effet du retrait FES
+condition par condition, avec le signal No FES comme référence.
+
 **Références :**
+- Hines A.E. et al. (1996) : substitution sur signal rectifié, 25ms pré/post artefact
 - Cliquet A. et al. (1989) : principe blanking sur signal EMG-FES
 - Langzam E. et al. (2006) : gated sampling + interpolation
 - Mak J.N. et al. (2011) : seuil adaptatif MAD pour transitoires EMG
+
+> **Note méthodologique :** notre approche travaille sur le signal **brut** (avant rectification),
+> contrairement à Hines 1996 (signal rectifié). L'interpolation PCHIP sur signal brut est plus
+> précise pour reconstruire la forme du signal ; la rectification intervient ensuite dans le
+> pipeline enveloppe. Les paramètres sont identiques dans `preprocess_fes_removal.m` et
+> `extract_emg_cycles.m`.
 
 **Limitation connue :**
 - P001 : 4 trials FES avec SYNCHRO inactif — traitement identique, à vérifier manuellement

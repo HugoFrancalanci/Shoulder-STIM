@@ -1,36 +1,32 @@
 % =========================================================================
 % preprocess_fes_removal.m
 %
-% RETRAIT DE L'ARTEFACT FES DU SIGNAL EMG
-% ----------------------------------------
+% VERIFICATION DU RETRAIT DE L'ARTEFACT FES — signal brut EMG
+% ------------------------------------------------------------
 % Methode : detection de pics + blanking + interpolation cubique
+% Parametres identiques a extract_emg_cycles.m
 %
 % Principe :
-%   1. DETECTION  : reperer chaque spike FES dans le signal brut via un
-%                   seuil adaptatif (N x MAD — median absolute deviation).
-%                   La MAD est robuste au signal musculaire car les spikes
-%                   FES sont rares et tres intenses.
+%   1. DETECTION  : seuil adaptatif MAD_FACTOR x MAD(signal).
+%                   Pics positifs ET negatifs (spike biphasique).
+%                   Distance minimale entre pics = 15ms.
 %
-%   2. BLANKING   : effacer une fenetre de BLANK_MS ms centree sur chaque
-%                   pic detecte (remplacer par NaN).
-%                   Largeur choisie = 8ms (mesure sur Fig 5 : spike ~4ms,
-%                   marge x2 pour couvrir les deux phases du biphasique).
+%   2. BLANKING   : fenetre BLANK_MS = 8ms centree sur chaque pic -> NaN.
+%                   (spike ~4ms mesure, marge x2 pour le biphasique)
 %
-%   3. INTERPOLATION : reconstruire les trous par spline cubique sur les
-%                   points voisins valides (pas de spline sur > 20ms).
+%   3. INTERPOLATION : reconstruction pchip sur 3 points voisins valides.
+%                   Trous > MAX_BLANK_MS = 20ms non interpoles.
+%
+% Figures produites (boucle sur toutes les conditions FES) :
+%   Pour chaque condition FES (VERIFY_BLOCK) — 2 figures :
+%   - Signal complet : noir = No FES (ref), gris = brut, bleu = nettoye
+%     ylim adapte aux signaux d'interet (artefacts exclus de l'echelle)
+%   - Zoom 300ms    : pleine echelle — voir le retrait pulse par pulse
+%   Soit 12 figures au total (6 conditions x 2).
 %
 % Limitations connues :
-%   - P001 : 4 trials FES ont SYNCHRO inactif (Min_fatigue b1, Min_pw b1,
-%            Min_force b1, Min_force b3). Ces trials sont traites de la
-%            meme facon (detection directe sur EMG), mais a verifier.
-%   - Si le signal musculaire genere un faux pic au-dessus du seuil, le
-%            blanking efface 8ms de signal reel. Inspecter VERIFY_TRIAL.
-%
-% Refs methode :
-%   Cliquet A. et al. (1989) : artefact FES sur EMG, principe blanking.
-%   Langzam E. et al. (2006) : gated sampling + interpolation for FES-EMG.
-%   Mak J.N. et al. (2011)   : adaptive threshold sur MAD pour detection
-%                               de transitoires dans EMG contamine.
+%   - P001 : 4 trials FES avec SYNCHRO inactif — detection directe sur EMG.
+%   - Si pic musculaire > seuil : 8ms de signal reel efface (faux positif).
 % =========================================================================
 
 clear; clc; close all;
@@ -48,9 +44,11 @@ MIN_PERIOD_MS  = 15;            % espacement minimum entre deux pics (ms)
                                 % (< periode FES ~22ms pour garder tous les pics)
 MAX_BLANK_MS   = 20;            % si trou > MAX_BLANK_MS -> pas d'interpolation
 
-% Trial a utiliser pour la verification visuelle
+% Trial FES a verifier et trial No FES de reference
 VERIFY_COND    = 'Rehab';
 VERIFY_BLOCK   = 1;
+NOFES_COND     = 'No FES';
+NOFES_BLOCK    = 1;
 
 % -------------------------------------------------------------------------
 % CHARGEMENT
@@ -154,72 +152,126 @@ function cleaned = removeFESArtifact(sig, fs, blank_ms, mad_factor, min_period_m
 end
 
 % -------------------------------------------------------------------------
-% VERIFICATION SUR UN TRIAL
+% CHARGEMENT No FES (reference commune)
 % -------------------------------------------------------------------------
-seqV = find(strcmp(condList.condition, VERIFY_COND) & condList.block == VERIFY_BLOCK, 1);
-if isempty(seqV)
-    error('Condition %s b%d introuvable pour %s', VERIFY_COND, VERIFY_BLOCK, PATIENT_ID);
+seqN = find(strcmp(condList.condition, NOFES_COND) & condList.block == NOFES_BLOCK, 1);
+if isempty(seqN)
+    warning('Condition %s b%d introuvable pour %s — courbe de reference omise.', NOFES_COND, NOFES_BLOCK, PATIENT_ID);
+    tN = [];
+else
+    tN = Trial(allIdx(seqN));
 end
-tV    = Trial(allIdx(seqV));
-emgIdx = find(~strcmp({tV.Emg.label}, 'SYNCHRO'));
-nEmg  = length(emgIdx);
+nofes_labels = {};
+if ~isempty(tN), nofes_labels = {tN.Emg.label}; end
 
-% Traitement + figure verification
-figure('Name', sprintf('%s -- Retrait FES : %s b%d', PATIENT_ID, VERIFY_COND, VERIFY_BLOCK), ...
-       'units','normalized','outerposition',[0 0 1 1]);
+% -------------------------------------------------------------------------
+% BOUCLE SUR TOUTES LES CONDITIONS FES
+% -------------------------------------------------------------------------
+ALL_FES_CONDS = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+ZOOM_V_START  = 7.0;
+ZOOM_V_DUR    = 0.3;
 
-for ji = 1:nEmg
-    j    = emgIdx(ji);
-    lbl  = tV.Emg(j).label;
-    sig  = double(tV.Emg(j).Signal.full(:));
-    t_s  = (0:length(sig)-1) / FS;
+for ifc = 1:length(ALL_FES_CONDS)
+    cur_cond = ALL_FES_CONDS{ifc};
 
-    cleaned = removeFESArtifact(sig, FS, BLANK_MS, MAD_FACTOR, MIN_PERIOD_MS, MAX_BLANK_MS);
-
-    subplot(nEmg, 1, ji);
-    plot(t_s, sig,     'Color', [0.80 0.80 0.80], 'LineWidth', 0.5); hold on;
-    plot(t_s, cleaned, 'Color', [0.10 0.45 0.75], 'LineWidth', 0.8);
-    title(lbl, 'FontSize', 9); ylabel('V'); grid on;
-    if ji == 1
-        legend({'Brut', 'Nettoye'}, 'Location','northeast');
+    seqV = find(strcmp(condList.condition, cur_cond) & condList.block == VERIFY_BLOCK, 1);
+    if isempty(seqV)
+        fprintf('  [SKIP] %s b%d introuvable\n', cur_cond, VERIFY_BLOCK);
+        continue;
     end
-    if ji == nEmg, xlabel('Temps (s)'); end
-end
+    tV     = Trial(allIdx(seqV));
+    emgIdx = find(~strcmp({tV.Emg.label}, 'SYNCHRO'));
+    nEmg   = length(emgIdx);
 
-sgtitle(sprintf('%s  --  Retrait artefact FES  --  %s b%d  (gris=brut, bleu=nettoye)', ...
-        PATIENT_ID, VERIFY_COND, VERIFY_BLOCK), 'FontSize', 12, 'FontWeight', 'bold');
+    % --- Figure signal complet ---
+    figure('Name', sprintf('%s -- Retrait FES : %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
+           'units','normalized','outerposition',[0 0 1 1]);
 
-% -------------------------------------------------------------------------
-% ZOOM VERIFICATION : 300ms pour voir le retrait pulse par pulse
-% -------------------------------------------------------------------------
-ZOOM_V_START = 7.0;
-ZOOM_V_DUR   = 0.3;
+    for ji = 1:nEmg
+        j    = emgIdx(ji);
+        lbl  = tV.Emg(j).label;
+        sig  = double(tV.Emg(j).Signal.full(:));
+        t_s  = (0:length(sig)-1) / FS;
+        cleaned = removeFESArtifact(sig, FS, BLANK_MS, MAD_FACTOR, MIN_PERIOD_MS, MAX_BLANK_MS);
 
-figure('Name', sprintf('%s -- Zoom retrait FES %s b%d', PATIENT_ID, VERIFY_COND, VERIFY_BLOCK), ...
-       'units','normalized','outerposition',[0 0 1 1]);
+        subplot(nEmg, 1, ji); hold on;
 
-z1v = max(1, round(ZOOM_V_START * FS));
-t_zv = (0:round(ZOOM_V_DUR*FS)) / FS * 1000;
+        ref_vals = cleaned;
+        if ~isempty(tN)
+            jN = find(strcmp(nofes_labels, lbl), 1);
+            if ~isempty(jN)
+                sig_n = double(tN.Emg(jN).Signal.full(:));
+                t_n   = (0:length(sig_n)-1) / FS;
+                plot(t_n, sig_n, 'Color', [0.10 0.10 0.10], 'LineWidth', 0.6);
+                ref_vals = [ref_vals; sig_n];
+            end
+        end
 
-for ji = 1:nEmg
-    j    = emgIdx(ji);
-    lbl  = tV.Emg(j).label;
-    sig  = double(tV.Emg(j).Signal.full(:));
-    cleaned = removeFESArtifact(sig, FS, BLANK_MS, MAD_FACTOR, MIN_PERIOD_MS, MAX_BLANK_MS);
-    nS   = min(length(sig)-z1v+1, length(t_zv));
+        plot(t_s, sig,     'Color', [0.88 0.88 0.88], 'LineWidth', 0.4);
+        plot(t_s, cleaned, 'Color', [0.10 0.45 0.75], 'LineWidth', 0.9);
 
-    subplot(nEmg, 1, ji);
-    plot(t_zv(1:nS), sig(z1v:z1v+nS-1),     'Color', [0.80 0.80 0.80], 'LineWidth', 1.0); hold on;
-    plot(t_zv(1:nS), cleaned(z1v:z1v+nS-1), 'Color', [0.10 0.45 0.75], 'LineWidth', 1.2);
-    title(lbl, 'FontSize', 9); ylabel('V'); grid on;
-    if ji == 1
-        legend({'Brut', 'Nettoye'}, 'Location','northeast');
+        y_lim = max(abs(ref_vals)) * 1.4;
+        if y_lim > 0, ylim([-y_lim, y_lim]); end
+
+        title(lbl, 'FontSize', 9); ylabel('V'); grid on;
+        if ji == 1
+            if ~isempty(tN)
+                legend({'No FES', 'Brut (FES)', 'Nettoye (FES)'}, 'Location','northeast');
+            else
+                legend({'Brut', 'Nettoye'}, 'Location','northeast');
+            end
+        end
+        if ji == nEmg, xlabel('Temps (s)'); end
     end
-    if ji == nEmg, xlabel('Temps (ms)'); end
-end
 
-sgtitle(sprintf('%s  --  Zoom 300ms  --  Retrait FES  --  %s b%d', ...
-        PATIENT_ID, VERIFY_COND, VERIFY_BLOCK), 'FontSize', 12, 'FontWeight', 'bold');
+    sgtitle(sprintf('%s  --  %s b%d  (noir=No FES, gris=brut, bleu=nettoye)', ...
+            PATIENT_ID, cur_cond, VERIFY_BLOCK), 'FontSize', 11, 'FontWeight', 'bold');
+
+    % --- Figure zoom 300ms ---
+    figure('Name', sprintf('%s -- Zoom : %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
+           'units','normalized','outerposition',[0 0 1 1]);
+
+    z1v  = max(1, round(ZOOM_V_START * FS));
+    t_zv = (0:round(ZOOM_V_DUR*FS)) / FS * 1000;
+
+    for ji = 1:nEmg
+        j    = emgIdx(ji);
+        lbl  = tV.Emg(j).label;
+        sig  = double(tV.Emg(j).Signal.full(:));
+        cleaned = removeFESArtifact(sig, FS, BLANK_MS, MAD_FACTOR, MIN_PERIOD_MS, MAX_BLANK_MS);
+        nS   = min(length(sig)-z1v+1, length(t_zv));
+
+        subplot(nEmg, 1, ji); hold on;
+
+        if ~isempty(tN)
+            jN = find(strcmp(nofes_labels, lbl), 1);
+            if ~isempty(jN)
+                sig_n = double(tN.Emg(jN).Signal.full(:));
+                if length(sig_n) >= z1v
+                    nS_n = min(length(sig_n)-z1v+1, length(t_zv));
+                    plot(t_zv(1:nS_n), sig_n(z1v:z1v+nS_n-1), 'Color', [0.10 0.10 0.10], 'LineWidth', 0.9);
+                end
+            end
+        end
+
+        plot(t_zv(1:nS), sig(z1v:z1v+nS-1),     'Color', [0.80 0.80 0.80], 'LineWidth', 1.0);
+        plot(t_zv(1:nS), cleaned(z1v:z1v+nS-1), 'Color', [0.10 0.45 0.75], 'LineWidth', 1.4);
+
+        title(lbl, 'FontSize', 9); ylabel('V'); grid on;
+        if ji == 1
+            if ~isempty(tN)
+                legend({'No FES', 'Brut (FES)', 'Nettoye (FES)'}, 'Location','northeast');
+            else
+                legend({'Brut', 'Nettoye'}, 'Location','northeast');
+            end
+        end
+        if ji == nEmg, xlabel('Temps (ms)'); end
+    end
+
+    sgtitle(sprintf('%s  --  Zoom 300ms  --  %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
+            'FontSize', 11, 'FontWeight', 'bold');
+
+end % ifc
 
 fprintf('\n--- Parametres utilises ---\n');
 fprintf('  Blanking     : %d ms (%d samples)\n', BLANK_MS, round(BLANK_MS/1000*FS));

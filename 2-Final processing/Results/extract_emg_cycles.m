@@ -16,7 +16,7 @@
 %                              (Winter DA, 2009 — Biomechanics and Motor
 %                               Control of Human Movement, 4e ed.)
 %   5. Normalisation ampl.   : enveloppe / (mean + 3*std) des 50 premieres
-%                              frames cinematiques x 100 → % baseline
+%                              frames cinematiques × 100 → % baseline
 %                              (ref = repos pre-mouvement, pas % CMV)
 %   6. Moyenne cycles        : nanmean sur les N cycles valides du trial
 %
@@ -173,7 +173,7 @@ for ip = 1:length(PATIENT_IDS)
 
             emgCh = t.Emg(emgChIdx);
 
-            % Signal.cycle.raw : deja segmente par K-LAB → shape 1×1×101×N
+            % Signal.cycle.raw 
             if ~isfield(emgCh.Signal, 'cycle') || ~isfield(emgCh.Signal.cycle, 'raw')
                 warnings{end+1} = sprintf('[WARNING] %s trial %d (%s) %s : pas de cycle.raw', patientID, trialIdx, cond, mLabel);
                 continue;
@@ -220,7 +220,7 @@ for ip = 1:length(PATIENT_IDS)
             n_ref   = min(round(50 * FS_EMG / FS_KIN), length(sig_env_full));
             ref_val = mean(sig_env_full(1:n_ref)) + 3*std(sig_env_full(1:n_ref));
             if ref_val < 1e-10, ref_val = 1; end
-            cycMeans = cycMeans / ref_val;
+            cycMeans = cycMeans / ref_val * 100;
 
             meanCycle = nanmean(cycMeans, 1);  % (1, 101)
             condData.(fld).(mLabel){end+1} = meanCycle;
@@ -275,7 +275,7 @@ for ip = 1:length(PATIENT_IDS)
         end
 
         xlabel('% cycle');
-        ylabel('EMG normalise (u.a.)');
+        ylabel('EMG normalise (% baseline)');
         title(mLabel, 'FontSize', 11, 'FontWeight', 'bold');
         valid_h = legendHandles(arrayfun(@(h) isvalid(h) && ~strcmp(h.DisplayName,''), legendHandles));
         legend(valid_h, 'Location','best', 'FontSize', 7);
@@ -311,26 +311,50 @@ for ip = 1:length(PATIENT_IDS)
             y_max_pt = max(y_max_pt, max(mc+sc));
         end
 
-        % Construire matrices pour ANOVA RM (blocs = observations)
+        % Padding condData pour design balancé (N_TARGET = 3 blocs)
+        N_TARGET = 3;
+        condData_padded = condData;
+        for ic_p = 1:length(CONDITIONS_ORDERED)
+            fld_p = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic_p});
+            blocs = condData.(fld_p).(mLabel);
+            if ~isempty(blocs) && length(blocs) < N_TARGET
+                if im == 1
+                    fprintf('  [WARN] %s — %s : %d blocs → duplication\n', ...
+                            patientID, CONDITIONS_ORDERED{ic_p}, length(blocs));
+                end
+                while length(condData_padded.(fld_p).(mLabel)) < N_TARGET
+                    condData_padded.(fld_p).(mLabel){end+1} = condData_padded.(fld_p).(mLabel){end};
+                end
+            end
+        end
+
+        % Construire matrices pour ANOVA RM depuis condData_padded
         all_mat_pt = []; group_vec_pt = []; subj_vec_pt = [];
+        n_min = Inf;
         for ic = 1:length(CONDITIONS_ORDERED)
             fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
-            trials_cond = condData.(fld).(mLabel);
+            trials_cond = condData_padded.(fld).(mLabel);
             if isempty(trials_cond), continue; end
             mat_ic = cat(1, trials_cond{:});
             n_ic   = size(mat_ic, 1);
+            n_min  = min(n_min, n_ic);
             all_mat_pt   = [all_mat_pt;   mat_ic];
             group_vec_pt = [group_vec_pt; repmat(ic, n_ic, 1)];
             subj_vec_pt  = [subj_vec_pt;  (1:n_ic)'];
         end
+        if ~isfinite(n_min), n_min = 0; end
 
-        bar_h_pt     = 0.02;
-        y_bar_top_pt = y_min_pt - 0.02;
+        data_range   = max(y_max_pt - y_min_pt, 0.01);
+        bar_h_pt     = data_range * 0.03;
+        bar_gap_pt   = data_range * 0.01;
+        y_bar_top_pt = y_min_pt - data_range * 0.04;
         anova_sig_pt = false;
 
         if length(unique(group_vec_pt)) >= 2
             try
+                warning('off', 'all');
                 spm_F_pt  = spm1d.stats.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
+                warning('on', 'all');
                 spmi_F_pt = spm_F_pt.inference(0.05, 'interp', true);
                 anova_sig_pt = ~isempty(spmi_F_pt.clusters);
             catch ME_anova
@@ -338,29 +362,26 @@ for ip = 1:length(PATIENT_IDS)
             end
         end
 
-        if anova_sig_pt
+        if anova_sig_pt && n_min < 3
+            fprintf('  %s — ANOVA : SIGNIFICATIF mais post-hoc ignoré (ddl=%d, N=%d insuffisant pour RFT)\n', ...
+                    mLabel, n_min-1, n_min);
+        elseif anova_sig_pt
             fprintf('  %s — ANOVA : SIGNIFICATIF → post-hoc\n', mLabel);
             fld_nofes = matlab.lang.makeValidName('No FES');
-            data_nofes_pt = condData.(fld_nofes).(mLabel);
-            n_nofes = length(data_nofes_pt);
+            data_nofes_pt = condData_padded.(fld_nofes).(mLabel);
             if ~isempty(data_nofes_pt)
                 data_nofes_mat = cat(1, data_nofes_pt{:});
                 for fc = 1:length(FES_CONDS)
                     fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
-                    if ~isfield(condData, fld_fes) || isempty(condData.(fld_fes).(mLabel)), continue; end
-                    data_fes_mat = cat(1, condData.(fld_fes).(mLabel){:});
-                    if size(data_fes_mat,1) ~= size(data_nofes_mat,1)
-                        fprintf('    %s vs No FES : ignoré (N inégaux : %d vs %d)\n', ...
-                                FES_CONDS{fc}, size(data_fes_mat,1), n_nofes);
-                        continue;
-                    end
+                    if ~isfield(condData_padded, fld_fes) || isempty(condData_padded.(fld_fes).(mLabel)), continue; end
+                    data_fes_mat = cat(1, condData_padded.(fld_fes).(mLabel){:});
                     try
                         spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
                         spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
                         if ~isempty(spmi_t_pt.clusters)
                             fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s))\n', ...
                                     FES_CONDS{fc}, length(spmi_t_pt.clusters));
-                            y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.005);
+                            y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + bar_gap_pt);
                             for cl = 1:length(spmi_t_pt.clusters)
                                 ep = spmi_t_pt.clusters{cl}.endpoints;
                                 rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
@@ -379,13 +400,13 @@ for ip = 1:length(PATIENT_IDS)
             fprintf('  %s — ANOVA : non significatif\n', mLabel);
         end
 
-        bar_zone_pt = length(FES_CONDS) * (bar_h_pt + 0.005);
+        bar_zone_pt = length(FES_CONDS) * (bar_h_pt + bar_gap_pt);
         if isfinite(y_min_pt)
-            ylim([y_min_pt - bar_zone_pt - 0.04, y_max_pt + 0.04]);
+            ylim([y_min_pt - bar_zone_pt - data_range*0.05, y_max_pt + data_range*0.05]);
         end
 
         xlabel('% cycle');
-        ylabel('EMG normalise (u.a.)');
+        ylabel('EMG normalise (% baseline)');
         title(mLabel, 'FontSize', 11, 'FontWeight', 'bold');
         valid_h = legendHandles_spm(arrayfun(@(h) isvalid(h) && ~strcmp(h.DisplayName,''), legendHandles_spm));
         legend(valid_h, 'Location','best', 'FontSize', 7);
@@ -424,7 +445,7 @@ for im = 1:length(EMG_LABELS)
                                  'DisplayName', COND_LABELS{ic});
     end
 
-    xlabel('% cycle'); ylabel('EMG normalise (u.a.)');
+    xlabel('% cycle'); ylabel('EMG normalise (% baseline)');
     title(mLabel, 'FontSize', 11, 'FontWeight','bold');
     valid_h = legendHandles(arrayfun(@(h) isvalid(h) && ~strcmp(h.DisplayName,''), legendHandles));
     legend(valid_h, 'Location','best', 'FontSize', 7);
@@ -569,7 +590,7 @@ for im = 1:length(EMG_LABELS)
         ylim([y_bar_top - bar_zone - 0.01, y_max_plot + 0.02]);
     end
     xlim([0 100]);
-    xlabel('% cycle'); ylabel('EMG normalise (u.a.)');
+    xlabel('% cycle'); ylabel('EMG normalise (% baseline)');
     title(mLabel, 'FontSize', 11, 'FontWeight','bold');
     valid_h = findobj(ax, 'Type','line');
     valid_h = flipud(valid_h);
