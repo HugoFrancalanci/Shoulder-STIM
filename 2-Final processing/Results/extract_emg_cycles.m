@@ -286,6 +286,7 @@ for ip = 1:length(PATIENT_IDS)
             'FontSize', 13, 'FontWeight', 'bold');
 
     % --- Figure patient SPM1D (N=3 blocs par condition) ---
+    fprintf('\n=== SPM1D individuel : %s ===\n', patientID);
     figure('Name', [patientID ' - SPM1D'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
 
     for im = 1:nMuscles
@@ -332,35 +333,50 @@ for ip = 1:length(PATIENT_IDS)
                 spm_F_pt  = spm1d.stats.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
                 spmi_F_pt = spm_F_pt.inference(0.05, 'interp', true);
                 anova_sig_pt = ~isempty(spmi_F_pt.clusters);
-            catch
+            catch ME_anova
+                fprintf('  %s — ANOVA erreur : %s\n', mLabel, ME_anova.message);
             end
         end
 
         if anova_sig_pt
+            fprintf('  %s — ANOVA : SIGNIFICATIF → post-hoc\n', mLabel);
             fld_nofes = matlab.lang.makeValidName('No FES');
             data_nofes_pt = condData.(fld_nofes).(mLabel);
+            n_nofes = length(data_nofes_pt);
             if ~isempty(data_nofes_pt)
                 data_nofes_mat = cat(1, data_nofes_pt{:});
                 for fc = 1:length(FES_CONDS)
                     fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
                     if ~isfield(condData, fld_fes) || isempty(condData.(fld_fes).(mLabel)), continue; end
                     data_fes_mat = cat(1, condData.(fld_fes).(mLabel){:});
-                    if size(data_fes_mat,1) ~= size(data_nofes_mat,1), continue; end
+                    if size(data_fes_mat,1) ~= size(data_nofes_mat,1)
+                        fprintf('    %s vs No FES : ignoré (N inégaux : %d vs %d)\n', ...
+                                FES_CONDS{fc}, size(data_fes_mat,1), n_nofes);
+                        continue;
+                    end
                     try
                         spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
                         spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
                         if ~isempty(spmi_t_pt.clusters)
+                            fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s))\n', ...
+                                    FES_CONDS{fc}, length(spmi_t_pt.clusters));
                             y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.005);
                             for cl = 1:length(spmi_t_pt.clusters)
                                 ep = spmi_t_pt.clusters{cl}.endpoints;
                                 rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
                                           'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none','FaceAlpha',0.85);
                             end
+                        else
+                            fprintf('    %s vs No FES : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
+                                    FES_CONDS{fc}, size(data_fes_mat,1)-1, ALPHA_POSTHOC);
                         end
-                    catch
+                    catch ME_ph
+                        fprintf('    %s vs No FES : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
                     end
                 end
             end
+        else
+            fprintf('  %s — ANOVA : non significatif\n', mLabel);
         end
 
         bar_zone_pt = length(FES_CONDS) * (bar_h_pt + 0.005);

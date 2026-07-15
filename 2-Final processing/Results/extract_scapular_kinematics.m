@@ -214,6 +214,7 @@ for ip = 1:length(PATIENT_IDS)
             'FontSize', 13, 'FontWeight', 'bold');
 
     % --- Figure patient SPM1D (N=3 blocs par condition) ---
+    fprintf('\n=== SPM1D individuel cinématique : %s ===\n', patientID);
     figure('Name', [patientID ' - SPM1D Kin'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
 
     for idof = 1:3
@@ -238,21 +239,38 @@ for ip = 1:length(PATIENT_IDS)
             y_max_pt = max(y_max_pt, max(mc+sc));
         end
 
-        % Construire matrices (n_blocks × 101) pour ANOVA RM
+        % Construire matrices (n_blocks × 101) pour ANOVA RM — design balancé
+        % Cible : 3 blocs par condition. Si une condition n'en a que 2,
+        % on duplique le dernier bloc (avec avertissement console).
+        N_TARGET = 3;
+
+        condData_padded = condData;
+        for ic = 1:length(CONDITIONS_ORDERED)
+            fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+            n_blocs = length(condData_padded.(fld));
+            if n_blocs > 0 && n_blocs < N_TARGET && idof == 1
+                fprintf('  [WARN] %s — %s : %d blocs seulement → duplication du dernier bloc\n', ...
+                        patientID, CONDITIONS_ORDERED{ic}, n_blocs);
+            end
+            while length(condData_padded.(fld)) < N_TARGET && ~isempty(condData_padded.(fld))
+                condData_padded.(fld){end+1} = condData_padded.(fld){end};
+            end
+        end
+
         all_mat_pt = []; group_vec_pt = []; subj_vec_pt = [];
         for ic = 1:length(CONDITIONS_ORDERED)
             fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
-            trials_cond = condData.(fld);
+            trials_cond = condData_padded.(fld);
             if isempty(trials_cond), continue; end
-            mat_ic = zeros(length(trials_cond), 101);
-            for kb = 1:length(trials_cond)
+            mat_ic = zeros(N_TARGET, 101);
+            for kb = 1:N_TARGET
                 mat_ic(kb,:) = trials_cond{kb}(idof,:);
             end
-            n_ic = size(mat_ic, 1);
             all_mat_pt   = [all_mat_pt;   mat_ic];
-            group_vec_pt = [group_vec_pt; repmat(ic, n_ic, 1)];
-            subj_vec_pt  = [subj_vec_pt;  (1:n_ic)'];
+            group_vec_pt = [group_vec_pt; repmat(ic, N_TARGET, 1)];
+            subj_vec_pt  = [subj_vec_pt;  (1:N_TARGET)'];
         end
+        n_min = N_TARGET;
 
         bar_h_pt     = 0.3;
         y_bar_top_pt = y_min_pt - 0.5;
@@ -260,45 +278,60 @@ for ip = 1:length(PATIENT_IDS)
 
         if length(unique(group_vec_pt)) >= 2
             try
+                warning('off', 'all');
                 spm_F_pt  = spm1d.stats.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
+                warning('on', 'all');
                 spmi_F_pt = spm_F_pt.inference(0.05, 'interp', true);
                 anova_sig_pt = ~isempty(spmi_F_pt.clusters);
-            catch
+            catch ME_anova
+                warning('on', 'all');
+                fprintf('  DOF %d — ANOVA erreur : %s\n', idof, ME_anova.message);
             end
         end
 
-        if anova_sig_pt
+        if anova_sig_pt && n_min < 3
+            fprintf('  DOF %d (%s) — ANOVA : SIGNIFICATIF mais post-hoc ignoré (ddl=%d, N=%d insuffisant pour RFT)\n', ...
+                    idof, DOF_LABELS{idof}, n_min-1, n_min);
+        elseif anova_sig_pt
+            fprintf('  DOF %d (%s) — ANOVA : SIGNIFICATIF → post-hoc\n', idof, DOF_LABELS{idof});
             fld_nofes = matlab.lang.makeValidName('No FES');
-            trials_nofes = condData.(fld_nofes);
+            trials_nofes = condData_padded.(fld_nofes);
             if ~isempty(trials_nofes)
-                data_nofes_mat = zeros(length(trials_nofes), 101);
-                for kb = 1:length(trials_nofes)
+                data_nofes_mat = zeros(N_TARGET, 101);
+                for kb = 1:N_TARGET
                     data_nofes_mat(kb,:) = trials_nofes{kb}(idof,:);
                 end
                 for fc = 1:length(FES_CONDS)
                     fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
-                    if ~isfield(condData, fld_fes) || isempty(condData.(fld_fes)), continue; end
-                    trials_fes = condData.(fld_fes);
-                    if length(trials_fes) ~= length(trials_nofes), continue; end
-                    data_fes_mat = zeros(length(trials_fes), 101);
-                    for kb = 1:length(trials_fes)
+                    if ~isfield(condData_padded, fld_fes) || isempty(condData_padded.(fld_fes)), continue; end
+                    trials_fes = condData_padded.(fld_fes);
+                    data_fes_mat = zeros(N_TARGET, 101);
+                    for kb = 1:N_TARGET
                         data_fes_mat(kb,:) = trials_fes{kb}(idof,:);
                     end
                     try
                         spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
                         spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
                         if ~isempty(spmi_t_pt.clusters)
+                            fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s))\n', ...
+                                    FES_CONDS{fc}, length(spmi_t_pt.clusters));
                             y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.1);
                             for cl = 1:length(spmi_t_pt.clusters)
                                 ep = spmi_t_pt.clusters{cl}.endpoints;
                                 rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
                                           'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none','FaceAlpha',0.85);
                             end
+                        else
+                            fprintf('    %s vs No FES : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
+                                    FES_CONDS{fc}, length(trials_fes)-1, ALPHA_POSTHOC);
                         end
-                    catch
+                    catch ME_ph
+                        fprintf('    %s vs No FES : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
                     end
                 end
             end
+        else
+            fprintf('  DOF %d (%s) — ANOVA : non significatif\n', idof, DOF_LABELS{idof});
         end
 
         bar_zone_pt = length(FES_CONDS) * (bar_h_pt + 0.1);
