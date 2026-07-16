@@ -88,10 +88,10 @@ Soit **12 figures** au total permettant de comparer visuellement l'effet du retr
 condition par condition, avec le signal No FES comme référence.
 
 **Références :**
-- Hines A.E. et al. (1996) : substitution sur signal rectifié, 25ms pré/post artefact
-- Cliquet A. et al. (1989) : principe blanking sur signal EMG-FES
-- Langzam E. et al. (2006) : gated sampling + interpolation
-- Mak J.N. et al. (2011) : seuil adaptatif MAD pour transitoires EMG
+- de Sousa A. et a. (2018) : Seuil MAD
+- Hines A.E. et al. (1996) : principe blanking sur signal EMG-FES sur signal rectifié
+- Langzam E. et al. (2006) : principe blanking sur signal EMG-FES
+- Liu J. et al. (2014) : PCHIP interpolation
 
 > **Note méthodologique :** notre approche travaille sur le signal **brut** (avant rectification),
 > contrairement à Hines 1996 (signal rectifié). L'interpolation PCHIP sur signal brut est plus
