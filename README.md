@@ -21,15 +21,15 @@ Ten patients performed repeated arm elevation tasks (scapular plane) across seve
 
 Stim_Dev/
 ├── 2-Final processing/
-│ └── Results/ ← MATLAB analysis scripts
-│ ├── usercommands_conditions.m ← central configuration
-│ ├── compare_fes_nofes.m ← FES artefact exploration
-│ ├── preprocess_fes_removal.m ← FES removal verification
-│ ├── verify_fes_batch.m ← batch quality control
-│ ├── extract_scapular_kinematics.m
-│ ├── extract_emg_cycles.m
-│ ├── heatmap_spm_individuel_kin.m
-│ └── heatmap_spm_individuel_emg.m
+│   └── Results/
+│       ├── usercommands_conditions.m       ← central configuration
+│       ├── compare_fes_nofes.m             ← FES artefact exploration
+│       ├── preprocess_fes_removal.m        ← FES removal verification
+│       ├── verify_fes_batch.m              ← batch quality control
+│       ├── extract_scapular_kinematics.m
+│       ├── extract_emg_cycles.m
+│       ├── heatmap_spm_individuel_kin.m
+│       └── heatmap_spm_individuel_emg.m
 └── README.md
 
 See [`2-Final processing/Results/README.md`](2-Final%20processing/Results/README.md) for the full pipeline documentation.
