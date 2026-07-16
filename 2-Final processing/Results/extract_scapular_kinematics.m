@@ -1,5 +1,43 @@
 % =========================================================================
 % extract_scapular_kinematics.m
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Extracts and analyses scapular kinematics (3 DOF, YXZ
+%                sequence, ISB) from K-LAB .mat files for 10 patients across
+%                7 FES conditions. Pipeline per trial: squeeze Euler.rcycle
+%                (3,1,101,N) → nanmean over N cycles → (3,101) cycle mean.
+%                Produces 4 output figures per run:
+%                (1) Per-patient : 3 DOF x 7 conditions, mean ± SD across blocks
+%                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks as
+%                    observations, balanced via last-block padding) + paired
+%                    t-tests each FES vs No FES, Bonferroni alpha=0.05/6
+%                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
+%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs No FES,
+%                    Bonferroni alpha=0.05/6, RFT correction (Pataky 2010)
+% -------------------------------------------------------------------------
+% Parameters :   Joint index : RST=3 (right) / LST=8 (left), from
+%                DOMINANT_SIDE map in usercommands_conditions.m
+%                FES_CONDS, ALPHA_POSTHOC=0.05/6, BAR_COLORS
+% Outputs    :   4 figures (see Description); console output per patient
+%                reporting ANOVA p-value per DOF and post-hoc clusters
+% -------------------------------------------------------------------------
+% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
+%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.anova1rm,
+%                spm1d.stats.ttest_paired)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
+% =========================================================================
 % Cinématique scapulaire (3 DOF) par patient et par condition — SPM1D
 % Projet STIM_KC | K-LAB toolbox Protocol01
 %

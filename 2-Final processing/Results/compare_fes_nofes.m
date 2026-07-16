@@ -1,8 +1,34 @@
 % =========================================================================
 % compare_fes_nofes.m
-% Comparaison signal EMG brut : No FES vs FES
-% Objectif : identifier visuellement l'artefact FES dans les bursts de
-%            mouvement pour choisir la methode de retrait adaptee.
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Exploratory script for visual characterisation of FES
+%                artefacts in raw EMG. Overlays No FES and one FES condition
+%                for a single patient to identify artefact shape, timing,
+%                and amplitude. Used to calibrate blanking parameters
+%                (BLANK_MS, MAD_FACTOR) before running the full pipeline.
+%                Produces 5 figures : full signal, burst zoom (5s),
+%                fine zoom (200ms), all-FES TRAPS overlay, single pulse (50ms).
+% -------------------------------------------------------------------------
+% Parameters :   PATIENT_ID, FES_COND, BLOCK, FS
+%                ZOOM1_START / ZOOM1_DUR — burst zoom window (Fig 2)
+%                ZOOM2_START / ZOOM2_DUR — fine zoom window (Fig 3)
+% Outputs    :   5 figures (see Description above)
+% -------------------------------------------------------------------------
+% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
 
 clear; clc; close all;
@@ -14,7 +40,7 @@ run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
 PATIENT_ID = 'P001';
 FES_COND   = 'Rehab';   % condition FES a comparer
 BLOCK      = 1;
-FS         = 2000;
+FS         = 2200;
 
 % Fenetres de zoom (secondes) -- ajuster pour cibler un burst de mouvement
 % Fig 2 : vue large du burst

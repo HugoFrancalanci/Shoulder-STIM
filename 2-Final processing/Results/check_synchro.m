@@ -1,3 +1,35 @@
+% =========================================================================
+% check_synchro.m
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Utility script for quality control of the SYNCHRO channel
+%                across all patients and ANALYTIC2 trials. For each patient,
+%                plots all SYNCHRO signals (1 subplot per trial) and prints
+%                a console table reporting condition, block, activity status,
+%                and peak amplitude. Used to identify trials where FES
+%                synchronisation was inactive (signal flat).
+% -------------------------------------------------------------------------
+% Parameters :   SYNCHRO_THRESH (default 1e-3) — threshold above which the
+%                SYNCHRO signal is considered active
+% Outputs    :   1 figure per patient : N_trials subplots of SYNCHRO signal
+%                Console table : seq | condition | block | status | max(abs)
+% -------------------------------------------------------------------------
+% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
+% =========================================================================
+
 run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
 
 SYNCHRO_THRESH = 1e-3; % seuil pour considerer le signal comme actif

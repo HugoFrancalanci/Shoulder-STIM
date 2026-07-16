@@ -1,5 +1,36 @@
 % =========================================================================
 % heatmap_spm_individuel_emg.m
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Summary heatmap of individual SPM1D results for surface EMG
+%                (10 patients x 6 FES conditions, 4 muscles per cell).
+%                Three-level markers per muscle (TRAPS, TRAPM, TRAPI, SERRA):
+%                  - Large filled circle  : post-hoc significant vs No FES
+%                  - Medium empty circle  : ANOVA significant, post-hoc n.s.
+%                  - Small grey circle    : ANOVA non-significant
+%                Results are hardcoded from extract_emg_cycles.m console
+%                output (LP_FREQ=6Hz, ANOVA RM + ttest_paired, Bonferroni
+%                alpha=0.05/6, N=3 blocks per patient, exploratoire).
+% -------------------------------------------------------------------------
+% Parameters :   sig(patient,condition,muscle)  — post-hoc significance matrix
+%                anova_sig(patient,muscle)       — ANOVA significance matrix
+% Outputs    :   1 figure : 10x6 heatmap with 4-muscle scatter markers
+% -------------------------------------------------------------------------
+% Dependencies : none (standalone — results hardcoded)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
+% =========================================================================
 % Résumé des résultats SPM1D individuels — EMG
 %
 % Heatmap : patients (lignes) × conditions FES (colonnes)

@@ -1,5 +1,36 @@
 % =========================================================================
 % preprocess_fes_removal.m
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Visual verification of FES artefact removal on raw EMG
+%                for a single patient across all 6 FES conditions. Loops
+%                over ALL_FES_CONDS and produces 2 figures per condition
+%                (12 total): full-signal overlay (No FES/raw FES/cleaned)
+%                and 300ms zoom for pulse-by-pulse inspection. ylim of the
+%                full-signal figure is set from cleaned+No FES range only
+%                (raw FES artefacts excluded from scale). Removal parameters
+%                are identical to extract_emg_cycles.m (MAD×6, 8ms, PCHIP).
+% -------------------------------------------------------------------------
+% Parameters :   PATIENT_ID, VERIFY_BLOCK=1, NOFES_COND='No FES',
+%                BLANK_MS=8, MAD_FACTOR=6, MIN_PERIOD_MS=15, MAX_BLANK_MS=20
+%                ZOOM_V_START=7.0s, ZOOM_V_DUR=0.3s
+% Outputs    :   12 figures (6 conditions x 2 : full signal + 300ms zoom)
+% -------------------------------------------------------------------------
+% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
+% =========================================================================
 %
 % VERIFICATION DU RETRAIT DE L'ARTEFACT FES — signal brut EMG
 % ------------------------------------------------------------

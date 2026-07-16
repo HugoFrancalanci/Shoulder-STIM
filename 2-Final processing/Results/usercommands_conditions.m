@@ -1,14 +1,39 @@
 % =========================================================================
 % usercommands_conditions.m
-% Configuration patient-spécifique — extraction cinématique scapulaire
-% Projet STIM_KC | K-LAB toolbox Protocol01
-%
-% Ce script définit toutes les variables de configuration.
-% Il est appelé en tête de extract_scapular_kinematics.m (via run()).
-%
-% Références :
-%   Structure .mat  : CutCycles.m, MAIN_Protocol_01.m
-%   Données cliniques : Data_clean.xlsx
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Central configuration script for the STIM_KC analysis
+%                pipeline (Project C01_STIM_KC | K-LAB toolbox Protocol01).
+%                Defines data paths, patient-specific condition-to-trial
+%                mappings, dominant side (R/L), exception handling
+%                (missing trials, index offsets), and shared constants.
+%                Must be called via run() at the start of each analysis
+%                script. Does not produce figures or outputs; only populates
+%                the MATLAB workspace with configuration variables.
+% -------------------------------------------------------------------------
+% Parameters :   dataFolder — path to K-LAB .mat files
+%                DOMINANT_SIDE — Map(patientID → 'R'/'L')
+%                PATIENT_COND  — Map(patientID → struct with condition/block lists)
+%                PATIENT_EXCEPTIONS — struct with skipFirstN, skipPositions,
+%                                     missingCondPositions per patient
+% Outputs    :   Workspace variables (no figures, no files)
+% -------------------------------------------------------------------------
+% Dependencies : none
+% References  :   .mat structure : CutCycles.m, MAIN_Protocol_01.m
+%                Clinical data   : Data_clean.xlsx
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
 
 % -------------------------------------------------------------------------

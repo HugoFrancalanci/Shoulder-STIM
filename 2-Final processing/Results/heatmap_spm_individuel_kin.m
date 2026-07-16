@@ -1,14 +1,37 @@
 % =========================================================================
 % heatmap_spm_individuel_kin.m
-% Résumé des résultats SPM1D individuels — cinématique scapulaire
-%
-% Heatmap : patients (lignes) × conditions FES (colonnes)
-% Chaque cellule : 3 cercles (DOF X, Y, Z) — plein = post-hoc significatif
-% Fond orange = bloc dupliqué (2 blocs disponibles au lieu de 3)
-%
-% Source : extract_scapular_kinematics.m — analyse SPM1D individuelle
-%          ANOVA RM + post-hoc ttest_paired vs No FES
-%          Bonferroni α = 0.05/6 ≈ 0.0083 | N=3 blocs (exploratoire)
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Summary heatmap of individual SPM1D results for scapular
+%                kinematics (10 patients x 6 FES conditions). Each cell
+%                contains 3 DOF markers (X, Y, Z) :
+%                  - Large filled circle  : post-hoc significant vs No FES
+%                  - Medium empty circle  : ANOVA significant, post-hoc n.s.
+%                  - Orange cell background : condition padded (2 blocks
+%                    duplicated to 3 to meet balanced design requirement)
+%                Results are hardcoded from extract_scapular_kinematics.m
+%                console output (ANOVA RM + ttest_paired, Bonferroni
+%                alpha=0.05/6, N=3 blocks per patient, exploratoire).
+% -------------------------------------------------------------------------
+% Parameters :   sig(patient,condition,dof) — post-hoc significance matrix
+%                anova_sig(patient,dof)      — ANOVA significance matrix
+%                padding(patient,condition)  — 1 if block was duplicated
+% Outputs    :   1 figure : 10x6 heatmap with DOF scatter markers
+% -------------------------------------------------------------------------
+% Dependencies : none (standalone — results hardcoded)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
 
 clear; clc; close all;

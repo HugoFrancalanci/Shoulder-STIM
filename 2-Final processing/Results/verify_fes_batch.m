@@ -1,18 +1,36 @@
 % =========================================================================
 % verify_fes_batch.m
-%
-% Verification du retrait artefact FES pour tous les patients.
-% Pour chaque patient, deux figures :
-%
-%   Fig A -- MAPPING FES : signal TRAPS brut pour toutes les conditions FES
-%            (gris = No FES ref). Permet de voir QUAND la FES est active
-%            dans chaque trial et si l'artefact est present.
-%
-%   Fig B -- VERIFICATION RETRAIT : zoom 300ms avant/apres retrait
-%            pour la condition la plus contaminee (Rehab b1 si dispo,
-%            sinon premiere condition FES disponible).
-%
-% Parametres du retrait : memes que preprocess_fes_removal.m
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Batch quality-control script for FES artefact removal
+%                across all patients. For each patient, produces two figures:
+%                (A) FES mapping : full TRAPS signal for all 6 FES conditions
+%                    overlaid (grey = No FES reference) — shows when FES is
+%                    active across the trial and confirms artefact presence;
+%                (B) Removal verification : 300ms zoom before/after artefact
+%                    removal on the most contaminated trial (Rehab b1 if
+%                    available, otherwise the first available FES condition).
+%                Removal parameters are identical to preprocess_fes_removal.m
+%                and extract_emg_cycles.m (MAD×6, blanking 8ms, PCHIP).
+% -------------------------------------------------------------------------
+% Parameters :   BLANK_MS=8, MAD_FACTOR=6, MIN_PERIOD_MS=15, MAX_BLANK_MS=20
+%                ZOOM_START=7.0s, ZOOM_DUR=0.3s
+% Outputs    :   2 figures per patient (10 patients = 20 figures)
+% -------------------------------------------------------------------------
+% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
 
 clear; clc; close all;

@@ -1,5 +1,46 @@
 % =========================================================================
 % extract_emg_cycles.m
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   July 2026
+% -------------------------------------------------------------------------
+% Description:   Extracts and analyses surface EMG cycles (4 muscles) from
+%                K-LAB .mat files for 10 patients across 7 FES conditions.
+%                Pipeline per trial: FES artefact removal (MAD x6, blanking
+%                8ms, PCHIP) → cycle segmentation (kinematic frame indices
+%                x22) → time normalisation (PCHIP, 101pts) → linear envelope
+%                (full-wave rectification + Butterworth 2nd-order 6Hz,
+%                Winter 2009) → amplitude normalisation (mean+3*std of first
+%                50 kinematic frames, expressed as % baseline).
+%                Produces 4 output figures per run:
+%                (1) Per-patient : 4 muscles x 7 conditions, mean ± SD
+%                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks,
+%                    balanced via last-block padding) + paired t-tests each
+%                    FES vs No FES, Bonferroni alpha=0.05/6
+%                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
+%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs No FES,
+%                    Bonferroni alpha=0.05/6, RFT correction (Pataky 2010)
+% -------------------------------------------------------------------------
+% Parameters :   LP_FREQ=6Hz, BLANK_MS=8, MAD_FACTOR=6,
+%                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, FS_EMG=2200, FS_KIN=100
+% Outputs    :   4 figures (see Description); console output per patient
+%                reporting ANOVA result per muscle and post-hoc clusters
+% -------------------------------------------------------------------------
+% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
+%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.anova1rm,
+%                spm1d.stats.ttest_paired)
+% -------------------------------------------------------------------------
+% This work is licensed under the Creative Commons Attribution -
+% NonCommercial 4.0 International License. To view a copy of this license,
+% visit http://creativecommons.org/licenses/by-nc/4.0/
+% =========================================================================
 % Cycles EMG traites par patient et par condition — enveloppe + SPM1D
 % Projet STIM_KC | K-LAB toolbox Protocol01
 %
