@@ -1,7 +1,7 @@
 # RELIEF Project: Functional Electrical Stimulation of the Deltoid : Scapulothoracic and Electromyography analysis
 
 > **Project RELIEF** | Biomechanics and Translational Research in Surgery Group  
-> University of Geneva — [Research group](https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet)
+> University of Geneva : [Research group](https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet)
 
 ## Overview
 
@@ -36,8 +36,8 @@ See [`2-Final processing/Results/README.md`](2-Final%20processing/Results/README
 
 ## Dependencies
 - MATLAB R2024a
-- [spm1dmatlab](https://spm1d.org/) — Pataky TC (2010). *Generalized n-dimensional biomechanical field analysis using statistical parametric mapping.* J Biomechanics.
+- [spm1dmatlab](https://spm1d.org/) : Pataky TC (2010). *Generalized n-dimensional biomechanical field analysis using statistical parametric mapping.* J Biomechanics.
 
 ## License
 This work is licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).
-© 2026 H. Francalanci — University of Geneva
+© 2026 H. Francalanci : University of Geneva
