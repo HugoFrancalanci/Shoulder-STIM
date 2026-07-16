@@ -12,7 +12,7 @@
 % Date       :   July 2026
 % -------------------------------------------------------------------------
 % Description:   Extracts and analyses scapular kinematics (3 DOF, YXZ
-%                sequence, ISB) from K-LAB .mat files for 10 patients across
+%                sequence, ISB) from K-LAB .mat files for 10 healthy participants across
 %                7 FES conditions. Pipeline per trial: squeeze Euler.rcycle
 %                (3,1,101,N) → nanmean over N cycles → (3,101) cycle mean.
 %                Produces 4 output figures per run:

@@ -12,7 +12,7 @@
 % Date       :   July 2026
 % -------------------------------------------------------------------------
 % Description:   Extracts and analyses surface EMG cycles (4 muscles) from
-%                K-LAB .mat files for 10 patients across 7 FES conditions.
+%                K-LAB .mat files for 10 healthy participants across 7 FES conditions.
 %                Pipeline per trial: FES artefact removal (MAD x6, blanking
 %                8ms, PCHIP) → cycle segmentation (kinematic frame indices
 %                x22) → time normalisation (PCHIP, 101pts) → linear envelope

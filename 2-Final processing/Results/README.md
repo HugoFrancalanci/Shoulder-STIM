@@ -1,23 +1,6 @@
 # STIM_KC — Pipeline de traitement des données
 
-Projet : Effet de la Stimulation Électrique Fonctionnelle (FES) du deltoïde sur la cinématique scapulaire et l'activité EMG de la coiffe des rotateurs.
-Toolbox : K-LAB ShoulderAnalysis (Protocol01) — fichiers `.mat` par patient.
-
----
-
-## Structure des dossiers
-
-```
-Results/
-├── usercommands_conditions.m   ← configuration centrale (patients, conditions, exceptions)
-├── compare_fes_nofes.m         ← exploration artefact FES (étape 1)
-├── preprocess_fes_removal.m    ← vérification retrait FES sur un patient (étape 2)
-├── verify_fes_batch.m          ← vérification retrait FES tous patients (étape 3)
-├── check_fs.m                  ← utilitaire : vérifier FS_EMG et FS_KIN
-├── check_synchro.m             ← utilitaire : vérifier signal SYNCHRO par patient
-├── extract_scapular_kinematics.m   ← cycles scapulaires 
-└── extract_emg_cycles.m            ← cycles EMG traités (étape 4b)
-```
+Projet : Effet de la Stimulation Électrique Fonctionnelle (FES) du deltoïde sur la cinématique scapulaire et l'activité EMG des muscles superficiels de l'épaule.
 
 ---
 
@@ -45,8 +28,8 @@ Chaque fichier `P[n].mat` contient un tableau `Trial`. Seuls les trials `ANALYTI
 | Condition | Description |
 |-----------|-------------|
 | No FES | Mouvement sans stimulation (référence) |
-| Min_fatigue | FES intensité minimale — protocole anti-fatigue |
-| Min_stress | FES intensité minimale — protocole bas stress |
+| Min_fatigue | FES intensité minimale |
+| Min_stress | FES intensité minimale |
 | Random | FES fréquence aléatoire |
 | Min_pw | FES largeur d'impulsion minimale |
 | Rehab | FES protocole rééducation |
@@ -54,7 +37,7 @@ Chaque fichier `P[n].mat` contient un tableau `Trial`. Seuls les trials `ANALYTI
 
 **Exceptions patients** (voir `usercommands_conditions.m`) :
 - P007 : No FES block 1 absent (`missingCondPositions = [1]`)
-- P010 : numérotation C3D 1→23, fichiers 04 et 18 absents du .mat — 21 trials directs
+- P010 : numérotation C3D 1→23, fichiers 04 et 18 absents du .mat
 
 ---
 
@@ -116,9 +99,6 @@ condition par condition, avec le signal No FES comme référence.
 > pipeline enveloppe. Les paramètres sont identiques dans `preprocess_fes_removal.m` et
 > `extract_emg_cycles.m`.
 
-**Limitation connue :**
-- P001 : 4 trials FES avec SYNCHRO inactif — traitement identique, à vérifier manuellement
-
 ---
 
 ### Étape 3 — Vérification batch (`verify_fes_batch.m`)
@@ -132,8 +112,8 @@ Pour chaque patient :
 
 ### Étape 4a — Cinématique scapulaire (`extract_scapular_kinematics.m`)
 
-**Données :** `Trial.Joint(jscap).Euler.rcycle` — angles déjà normalisés en temps par K-LAB (101 pts/cycle)
-
+**Données :** `Trial.Joint(jscap).Euler.rcycle`
+ 
 **Pipeline :**
 1. Sélection joint : `Joint(3)` = RST (droite), `Joint(8)` = LST (gauche)
 2. `squeeze(rcycle)` → (3, 101, N_cycles)
@@ -146,7 +126,7 @@ Pour chaque patient :
 - Z : Bascule postérieure (+) / antérieure (−)
 
 **Accumulateurs internes :**
-- `condData.(cond)` : cell de matrices (3×101), une par block valide — utilisé pour les figures individuelles et le SPM1D individuel
+- `condData.(cond)` : cell de matrices (3×101), une par block valide : utilisé pour les figures individuelles et le SPM1D individuel
 - `globalData.(cond)` : accumulation inter-patients, utilisé pour la figure globale
 - `patientMeans.(cond)` : moyenne des blocks par patient (3×101), N=10 pour le SPM1D groupé
 
@@ -154,7 +134,7 @@ Pour chaque patient :
 - 1 figure par patient : 3 DOF × 7 conditions (moyenne ± ET, courbes colorées)
 - 1 figure SPM1D par patient : même layout + barres de significativité (N=3 blocks, exploratoire)
 - 1 figure globale P1–P10 : cycle moyen inter-patients ± ET
-- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 patients)
+- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 participants)
 
 ---
 
@@ -175,7 +155,7 @@ Pour chaque patient :
 
 **Normalisation amplitude :** référence = période de repos pré-mouvement (50 premières frames, 100 Hz). Exprimée en % : une valeur de 150 % = 1,5× le niveau de repos. Ce n'est pas un % CMV.
 
-**Canaux analysés :** TRAPS, TRAPM, TRAPI, SERRA (SYNCHRO exclu)
+**Canaux analysés :** TRAPS, TRAPM, TRAPI, SERRA 
 
 **Accumulateurs internes :**
 - `condData.(cond).(muscle)` : cell de vecteurs (1×101), un par block valide — utilisé pour les figures individuelles et le SPM1D individuel
@@ -186,7 +166,7 @@ Pour chaque patient :
 - 1 figure par patient : 4 muscles × 7 conditions (moyenne ± ET, courbes colorées)
 - 1 figure SPM1D par patient : même layout + barres de significativité (N=3 blocks, exploratoire)
 - 1 figure globale P1–P10 : cycle moyen inter-patients ± ET
-- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 patients)
+- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 participants)
 
 ---
 
@@ -196,7 +176,7 @@ Pour chaque patient :
 
 Les deux scripts (`extract_emg_cycles.m` et `extract_scapular_kinematics.m`) intègrent chacun deux niveaux d'analyse SPM1D.
 
-### SPM1D groupé (N=10 patients)
+### SPM1D groupé (N=10 participants)
 
 **Design :** ANOVA à mesures répétées à 1 facteur (7 conditions) sur les courbes moyennes par patient.
 
@@ -225,20 +205,7 @@ Les deux scripts (`extract_emg_cycles.m` et `extract_scapular_kinematics.m`) int
 
 ### Librairie
 
-`spm1dmatlab-master/` dans le dossier Results — ajoutée automatiquement au path au lancement des scripts.
-
----
-
-## Ordre d'exécution recommandé
-
-```
-1. usercommands_conditions.m     ← toujours chargé en premier (run automatique)
-2. compare_fes_nofes.m           ← exploration (optionnel si déjà validé)
-3. preprocess_fes_removal.m      ← vérifier retrait sur P001
-4. verify_fes_batch.m            ← vérifier retrait tous patients
-5. extract_scapular_kinematics.m ← résultats cinématique
-6. extract_emg_cycles.m          ← résultats EMG
-```
+`spm1dmatlab-master/` dans le dossier Results
 
 ---
 
