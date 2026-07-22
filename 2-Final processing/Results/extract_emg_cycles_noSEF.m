@@ -1,5 +1,5 @@
 % =========================================================================
-% extract_emg_cycles.m
+% extract_emg_cycles_noSEF.m
 % =========================================================================
 % Author     :   H. Francalanci
 %                Biomechanics and Translational Research in Surgery Group
@@ -41,7 +41,7 @@
 % NonCommercial 4.0 International License. To view a copy of this license,
 % visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
-% Cycles EMG traites par patient et par condition — enveloppe + SPM1D
+% Cycles EMG traites par patient et par condition avec enveloppe + SPM1D
 % Projet STIM_KC | K-LAB toolbox Protocol01
 %
 % Pipeline par trial :
@@ -75,7 +75,7 @@
 
 clear; clc; close all;
 disp('=========================================');
-disp(' extract_emg_cycles.m');
+disp(' extract_emg_cycles_noSEF.m');
 disp('=========================================');
 
 run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
@@ -83,10 +83,10 @@ run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
 % -------------------------------------------------------------------------
 % PARAMETRES
 % -------------------------------------------------------------------------
-FS_EMG  = 2200;   % Hz — frequence EMG 
-FS_KIN  = 100;    % Hz — frequence camera 
+FS_EMG  = 2200;   % Hz 
+FS_KIN  = 100;    % Hz
 
-LP_FREQ = 6;      % Hz — coupure passe-bas enveloppe (Winter 2009)
+LP_FREQ = 6;      % coupure passe-bas enveloppe (Winter 2009)
 LP_ORD  = 2;      % ordre Butterworth
 X_CYCLE = 0:100;  % axe cycle normalise (101 pts)
 
@@ -101,13 +101,13 @@ EMG_LABELS = {'TRAPS','TRAPM','TRAPI','SERRA'};
 
 CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min pulse width','Rehab','Min force'};
-COLORS = [0.00 0.00 0.00;   % No FES       — noir
-          0.00 0.45 0.74;   % Min_fatigue  — bleu
-          0.85 0.33 0.10;   % Min_stress   — orange-rouge
-          0.47 0.67 0.19;   % Random       — vert
-          0.49 0.18 0.56;   % Min_pulse_width       — violet
-          0.93 0.69 0.13;   % Rehab        — jaune-or
-          0.64 0.08 0.18];  % Min_force    — bordeaux
+COLORS = [0.00 0.00 0.00;   % No FES       noir
+          0.00 0.45 0.74;   % Min_fatigue  bleu
+          0.85 0.33 0.10;   % Min_stress   orange-rouge
+          0.47 0.67 0.19;   % Random       vert
+          0.49 0.18 0.56;   % Min_pulse_width       violet
+          0.93 0.69 0.13;   % Rehab        jaune-or
+          0.64 0.08 0.18];  % Min_force    bordeaux
 
 % Filtre passe-bas
 [b_lp, a_lp] = butter(LP_ORD, LP_FREQ / (FS_EMG/2), 'low');

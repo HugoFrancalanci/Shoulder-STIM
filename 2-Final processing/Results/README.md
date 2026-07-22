@@ -97,7 +97,7 @@ condition par condition, avec le signal No FES comme référence.
 > contrairement à Hines 1996 (signal rectifié). L'interpolation PCHIP sur signal brut est plus
 > précise pour reconstruire la forme du signal ; la rectification intervient ensuite dans le
 > pipeline enveloppe. Les paramètres sont identiques dans `preprocess_fes_removal.m` et
-> `extract_emg_cycles.m`.
+> `extract_emg_cycles_noSEF.m` / `extract_emg_cycles_rehab.m`.
 
 ---
 
@@ -148,7 +148,16 @@ La comparaison Rehab ↔ No FES n'est calculée qu'une seule fois (dans `_noSEF.
 
 ---
 
-### Étape 4b — Cycles EMG (`extract_emg_cycles.m`)
+### Étape 4b — Cycles EMG (`extract_emg_cycles_noSEF.m`, `extract_emg_cycles_rehab.m`)
+
+Même principe que l'étape 4a : deux variantes, qui ne différent que par la **condition de référence** du post-hoc :
+
+| Script | Référence post-hoc | Conditions comparées (FES_CONDS) | Bonferroni |
+|--------|---------------------|-----------------------------------|------------|
+| `extract_emg_cycles_noSEF.m` | No FES | Min_fatigue, Min_stress, Random, Min_pulse_width, **Rehab**, Min_force (6) | α = 0.05/6 ≈ 0.0083 |
+| `extract_emg_cycles_rehab.m` | Rehab | Min_fatigue, Min_stress, Random, Min_pulse_width, **No FES**, Min_force (5) | α = 0.05/5 = 0.01 |
+
+Comme pour la kinématique, la comparaison Rehab ↔ No FES n'est calculée qu'une fois (dans `_noSEF.m`) et exclue de `_rehab.m`. **Pas de tableau récap avec valeurs d'amplitude** ici (contrairement à la kinématique) — l'EMG ne tabule pas de valeur réelle par cluster significatif.
 
 **Pipeline par trial :**
 
@@ -172,11 +181,11 @@ La comparaison Rehab ↔ No FES n'est calculée qu'une seule fois (dans `_noSEF.
 - `globalData.(cond).(muscle)` : accumulation inter-patients, utilisé pour la figure globale
 - `patientMeans.(cond).(muscle)` : moyenne des blocks par patient (1×101), N=10 pour le SPM1D groupé
 
-**Sorties :**
+**Sorties (par script) :**
 - 1 figure par patient : 4 muscles × 7 conditions (moyenne ± ET, courbes colorées)
 - 1 figure SPM1D par patient : même layout + barres de significativité (N=3 blocks, exploratoire)
 - 1 figure globale P1–P10 : cycle moyen inter-patients ± ET
-- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 participants)
+- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs référence (N=10 participants)
 
 ---
 
@@ -188,15 +197,20 @@ Scripts standalone (résultats codés en dur, recopiés depuis la sortie console
 |--------|--------|--------|
 | `heatmap_spm_individuel_kin_noSEF.m` | `extract_scapular_kinematics_noSEF.m` | 10 patients × 6 conditions (réf. No FES) |
 | `heatmap_spm_individuel_kin_rehab.m` | `extract_scapular_kinematics_rehab.m` | 10 patients × 5 conditions (réf. Rehab) |
-| `heatmap_spm_individuel_emg.m` | `extract_emg_cycles.m` | 10 patients × 6 conditions, 4 muscles/cellule (réf. No FES) |
+| `heatmap_spm_individuel_emg_noSEF.m` | `extract_emg_cycles_noSEF.m` | 10 patients × 6 conditions, 4 muscles/cellule (réf. No FES) |
+| `heatmap_spm_individuel_emg_rehab.m` | `extract_emg_cycles_rehab.m` | 10 patients × 5 conditions, 4 muscles/cellule (réf. Rehab) |
 
 Les deux scripts kinématique (`_noSEF` et `_rehab`) produisent chacun **4 figures** :
-1. **Significativité + ordre de passage** : marqueurs DOF (X/Y/Z) — grand plein = post-hoc significatif, moyen creux = ANOVA sig. mais post-hoc n.s., petit gris = n.s. Fond de cellule = gradient encodant le rang relatif de passage de la condition dans la séquence du patient.
+1. **Significativité + ordre de passage** : marqueurs DOF (X/Y/Z) — grand plein = post-hoc significatif, petit gris = n.s. Fond de cellule = gradient encodant le rang relatif de passage de la condition dans la séquence du patient.
 2. **Différence angulaire** : mêmes marqueurs (bordure = DOF), remplissage coloré par une colormap divergente représentant la différence angulaire moyenne (condition − référence, en °) sur la fenêtre du cluster significatif.
 3. **% patients significatifs** : bar chart par condition et par DOF, % de patients (sur 10) avec un post-hoc significatif.
 4. **Dumbbell chart** : une ligne par cluster significatif, valeur angulaire réelle (°) de la condition (marqueur plein) et de la référence (marqueur creux), reliées par un trait, colorées par DOF — permet de lire les deux valeurs d'angle sans recalculer la différence.
 
-`heatmap_spm_individuel_emg.m` (issu d'une session précédente) ne produit que la figure 1 (significativité), à 4 marqueurs par cellule (un par muscle) au lieu de 3 (DOF).
+Les deux scripts EMG (`_noSEF` et `_rehab`) produisent chacun **2 figures** (pas de valeur d'amplitude tabulée, donc pas d'équivalent aux figures 2/4 de la kinématique) :
+1. **Significativité + ordre de passage** : marqueurs muscle (TRAPS/TRAPM/TRAPI/SERRA) — grand plein = post-hoc significatif, petit gris = n.s. Même gradient de fond que la kinématique. Le niveau ANOVA-seul (sans post-hoc significatif) a été retiré des marqueurs — il n'était pas discriminant cellule par cellule.
+2. **% patients significatifs** : bar chart par condition et par muscle.
+
+`heatmap_spm_individuel_emg_rehab.m` a été rempli avec les vraies valeurs de `extract_emg_cycles_rehab.m` : **aucun post-hoc n'est significatif** vs Rehab, pour aucun patient/muscle/condition (matrice `sig` entièrement à zéro, confirmé — pas un oubli), malgré des ANOVA souvent significatives à l'échelle individuelle.
 
 > **Maintenance :** ces scripts sont volontairement standalone (aucune dépendance aux `.mat`) — si les résultats statistiques changent (nouveaux patients, seuils, corrections), les matrices `sig`/`warn`/`order`/`diffDeg` et les listes `entry*` doivent être remises à jour manuellement à partir de la sortie console du script `extract_*` correspondant.
 
@@ -204,7 +218,7 @@ Les deux scripts kinématique (`_noSEF` et `_rehab`) produisent chacun **4 figur
 
 ## Analyses SPM1D
 
-Les scripts `extract_emg_cycles.m`, `extract_scapular_kinematics_noSEF.m` et `extract_scapular_kinematics_rehab.m` intègrent chacun deux niveaux d'analyse SPM1D.
+Les scripts `extract_emg_cycles_noSEF.m`, `extract_emg_cycles_rehab.m`, `extract_scapular_kinematics_noSEF.m` et `extract_scapular_kinematics_rehab.m` intègrent chacun deux niveaux d'analyse SPM1D.
 
 ### SPM1D groupé (N=10 participants)
 
@@ -214,8 +228,8 @@ Les scripts `extract_emg_cycles.m`, `extract_scapular_kinematics_noSEF.m` et `ex
 |-------|--------|
 | Données | `patientMeans` — 1 vecteur (ou matrice 3×101 pour kin) par patient par condition |
 | Test omnibus | `spm1d.stats.anova1rm(all_mat, group_vec, subj_vec)` — inférence α=0.05 RFT |
-| Post-hoc | `spm1d.stats.ttest_paired` — chaque condition comparée vs la référence du script (No FES pour `extract_emg_cycles.m` et `extract_scapular_kinematics_noSEF.m` ; Rehab pour `extract_scapular_kinematics_rehab.m`) |
-| Correction | Bonferroni : α = 0.05/6 ≈ 0.0083 (EMG, kin noSEF — 6 comparaisons) ou α = 0.05/5 = 0.01 (kin rehab — 5 comparaisons, No FES vs Rehab exclue car déjà couverte par `_noSEF.m`) |
+| Post-hoc | `spm1d.stats.ttest_paired` — chaque condition comparée vs la référence du script (No FES pour les scripts `_noSEF.m` ; Rehab pour les scripts `_rehab.m`) |
+| Correction | Bonferroni : α = 0.05/6 ≈ 0.0083 (scripts `_noSEF` — 6 comparaisons) ou α = 0.05/5 = 0.01 (scripts `_rehab` — 5 comparaisons, No FES vs Rehab exclue car déjà couverte par le script `_noSEF` correspondant) |
 | Résultat | Barres colorées sous chaque subplot (une couleur par condition comparée) aux instants significatifs |
 
 **Référence :** Pataky TC (2010). *Generalized n-dimensional biomechanical field analysis using statistical parametric mapping.* Journal of Biomechanics.
@@ -245,10 +259,10 @@ Les scripts `extract_emg_cycles.m`, `extract_scapular_kinematics_noSEF.m` et `ex
 
 | Paramètre | Valeur | Fichier |
 |-----------|--------|---------|
-| `FS_EMG` | 2200 Hz | extract_emg_cycles.m |
-| `FS_KIN` | 100 Hz | extract_emg_cycles.m |
+| `FS_EMG` | 2200 Hz | extract_emg_cycles_noSEF.m / _rehab.m |
+| `FS_KIN` | 100 Hz | extract_emg_cycles_noSEF.m / _rehab.m |
 | `BLANK_MS` | 8 ms | preprocess / extract_emg |
 | `MAD_FACTOR` | 6 | preprocess / extract_emg |
 | `MIN_PERIOD_MS` | 15 ms | preprocess / extract_emg |
-| `LP_FREQ` | 6 Hz | extract_emg_cycles.m |
+| `LP_FREQ` | 6 Hz | extract_emg_cycles_noSEF.m / _rehab.m |
 | Cycles normalisés | 101 points (0–100%) | tous scripts |

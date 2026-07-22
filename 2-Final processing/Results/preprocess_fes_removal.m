@@ -14,16 +14,22 @@
 % Description:   Visual verification of FES artefact removal on raw EMG
 %                for a single patient across all 6 FES conditions. Loops
 %                over ALL_FES_CONDS and produces 2 figures per condition
-%                (12 total): full-signal overlay (No FES/raw FES/cleaned)
-%                and 300ms zoom for pulse-by-pulse inspection. ylim of the
-%                full-signal figure is set from cleaned+No FES range only
-%                (raw FES artefacts excluded from scale). Removal parameters
-%                are identical to extract_emg_cycles.m (MAD×6, 8ms, PCHIP).
+%                (12 total): cycle-aligned overlay (No FES/raw FES/cleaned)
+%                and 300ms zoom for pulse-by-pulse inspection. The first
+%                figure concatenates N_CYCLES_DISPLAY movement cycles
+%                (Rcycle/Lcycle.range, same convention as
+%                extract_emg_cycles_noSEF.m) instead of the full trial, so No FES
+%                and FES traces cover a comparable duration and are easier
+%                to compare (dotted lines mark cycle boundaries). ylim of
+%                the full-signal figure is set from cleaned+No FES range
+%                only (raw FES artefacts excluded from scale). Removal
+%                parameters are identical to extract_emg_cycles_noSEF.m.
 % -------------------------------------------------------------------------
 % Parameters :   PATIENT_ID, VERIFY_BLOCK=1, NOFES_COND='No FES',
-%                BLANK_MS=8, MAD_FACTOR=6, MIN_PERIOD_MS=15, MAX_BLANK_MS=20
-%                ZOOM_V_START=7.0s, ZOOM_V_DUR=0.3s
-% Outputs    :   12 figures (6 conditions x 2 : full signal + 300ms zoom)
+%                N_CYCLES_DISPLAY=5, BLANK_MS=8, MAD_FACTOR=6,
+%                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, ZOOM_V_START=7.0s,
+%                ZOOM_V_DUR=0.3s
+% Outputs    :   12 figures (6 conditions x 2 : cycle-aligned signal + 300ms zoom)
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
 % -------------------------------------------------------------------------
@@ -35,7 +41,7 @@
 % VERIFICATION DU RETRAIT DE L'ARTEFACT FES — signal brut EMG
 % ------------------------------------------------------------
 % Methode : detection de pics + blanking + interpolation cubique
-% Parametres identiques a extract_emg_cycles.m
+% Parametres identiques a extract_emg_cycles_noSEF.m
 %
 % Principe :
 %   1. DETECTION  : seuil adaptatif MAD_FACTOR x MAD(signal).
@@ -50,9 +56,14 @@
 %
 % Figures produites (boucle sur toutes les conditions FES) :
 %   Pour chaque condition FES (VERIFY_BLOCK) — 2 figures :
-%   - Signal complet : noir = No FES (ref), gris = brut, bleu = nettoye
-%     ylim adapte aux signaux d'interet (artefacts exclus de l'echelle)
-%   - Zoom 300ms    : pleine echelle — voir le retrait pulse par pulse
+%   - Signal "complet" : N_CYCLES_DISPLAY cycles concatenes (Rcycle/Lcycle),
+%     noir = No FES (ref), gris = brut, bleu = nettoye. Cycles delimites par
+%     des pointilles gris. ylim adapte aux signaux d'interet (artefacts
+%     bruts exclus de l'echelle). No FES et FES sont ainsi sur une duree
+%     comparable (au lieu du trial entier, de duree variable), ce qui
+%     facilite la comparaison visuelle.
+%   - Zoom 300ms    : pleine echelle sur le trial entier — voir le retrait
+%     pulse par pulse.
 %   Soit 12 figures au total (6 conditions x 2).
 %
 % Limitations connues :
@@ -68,6 +79,12 @@ run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
 % -------------------------------------------------------------------------
 PATIENT_ID     = 'P001';
 FS             = 2200;          % Hz (verifie via check_fs.m)
+FS_KIN         = 100;           % Hz — frequence camera (pour Rcycle/Lcycle.range)
+
+N_CYCLES_DISPLAY = 3;           % nombre de cycles concatenes pour la figure
+                                % "signal complet" (au lieu du trial entier),
+                                % pour aligner No FES et FES sur une duree
+                                % comparable et faciliter la comparaison
 
 BLANK_MS       = 8;             % ms a effacer autour de chaque pic
 MAD_FACTOR     = 6;             % seuil = MAD_FACTOR x MAD(signal)
@@ -86,7 +103,7 @@ NOFES_BLOCK    = 1;
 % -------------------------------------------------------------------------
 pnum    = str2double(PATIENT_ID(2:end));
 % matFile = fullfile(dataFolder, ['P' num2str(pnum) '.mat']);
-matFile = fullfile(dataFolder, 'P5.mat');
+matFile = fullfile(dataFolder, 'P1.mat');
 load(matFile, 'Trial');
 
 isA2 = false(1, length(Trial));
@@ -111,9 +128,42 @@ end
 
 condList = PATIENT_COND.(PATIENT_ID);
 
+side     = DOMINANT_SIDE(PATIENT_ID);
+cycleKey = 'Rcycle';
+if strcmp(side, 'L'), cycleKey = 'Lcycle'; end
+
 % -------------------------------------------------------------------------
 % FONCTIONS LOCALES
 % -------------------------------------------------------------------------
+
+function [segCat, boundaries] = extractCycleConcat(sig, cyclesKin, fsEmg, fsKin, nWanted)
+    % Concatene les N premiers cycles (bruts, pleine resolution temporelle)
+    % d'un signal, a partir des indices Rcycle/Lcycle.range (frames camera).
+    % boundaries : indices (dans segCat) marquant la fin de chaque cycle.
+    sig = sig(:);
+    N   = length(sig);
+    segCat = [];
+    boundaries = [];
+    if isempty(cyclesKin)
+        warning('extractCycleConcat: cyclesKin vide (mauvais cote/champ Rcycle-Lcycle ?) -> repli sur signal complet.');
+        segCat = sig;
+        return;
+    end
+    nUse = min(nWanted, length(cyclesKin));
+    for kc = 1:nUse
+        rng = cyclesKin(kc).range;
+        if isempty(rng) || length(rng) < 2, continue; end
+        i1 = max(1, round(rng(1)   * fsEmg / fsKin));
+        i2 = min(N, round(rng(end) * fsEmg / fsKin));
+        if i2 - i1 < 10, continue; end
+        segCat = [segCat; sig(i1:i2)]; %#ok<AGROW>
+        boundaries(end+1) = length(segCat); %#ok<AGROW>
+    end
+    if isempty(segCat)
+        warning('extractCycleConcat: aucun cycle valide trouve (mauvais cote/champ Rcycle-Lcycle ?) -> repli sur signal complet.');
+        segCat = sig;   % fallback : pas de cycles valides -> signal complet
+    end
+end
 
 function cleaned = removeFESArtifact(sig, fs, blank_ms, mad_factor, min_period_ms, max_blank_ms)
     % Retourne le signal avec artefacts FES retires par blanking+spline.
@@ -193,7 +243,11 @@ else
     tN = Trial(allIdx(seqN));
 end
 nofes_labels = {};
-if ~isempty(tN), nofes_labels = {tN.Emg.label}; end
+cyclesN = [];
+if ~isempty(tN)
+    nofes_labels = {tN.Emg.label};
+    if isfield(tN, cycleKey), cyclesN = tN.(cycleKey); end
+end
 
 % -------------------------------------------------------------------------
 % BOUCLE SUR TOUTES LES CONDITIONS FES
@@ -213,17 +267,22 @@ for ifc = 1:length(ALL_FES_CONDS)
     tV     = Trial(allIdx(seqV));
     emgIdx = find(~strcmp({tV.Emg.label}, 'SYNCHRO'));
     nEmg   = length(emgIdx);
+    cyclesV = [];
+    if isfield(tV, cycleKey), cyclesV = tV.(cycleKey); end
 
-    % --- Figure signal complet ---
+    % --- Figure signal complet (N_CYCLES_DISPLAY cycles concatenes) ---
     figure('Name', sprintf('%s -- Retrait FES : %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
            'units','normalized','outerposition',[0 0 1 1]);
 
     for ji = 1:nEmg
         j    = emgIdx(ji);
         lbl  = tV.Emg(j).label;
-        sig  = double(tV.Emg(j).Signal.full(:));
-        t_s  = (0:length(sig)-1) / FS;
-        cleaned = removeFESArtifact(sig, FS, BLANK_MS, MAD_FACTOR, MIN_PERIOD_MS, MAX_BLANK_MS);
+        sig_full     = double(tV.Emg(j).Signal.full(:));
+        cleaned_full = removeFESArtifact(sig_full, FS, BLANK_MS, MAD_FACTOR, MIN_PERIOD_MS, MAX_BLANK_MS);
+
+        [sig,     ~     ] = extractCycleConcat(sig_full,     cyclesV, FS, FS_KIN, N_CYCLES_DISPLAY);
+        [cleaned, cycBnd] = extractCycleConcat(cleaned_full, cyclesV, FS, FS_KIN, N_CYCLES_DISPLAY);
+        t_s = (0:length(sig)-1) / FS;
 
         subplot(nEmg, 1, ji); hold on;
 
@@ -231,7 +290,8 @@ for ifc = 1:length(ALL_FES_CONDS)
         if ~isempty(tN)
             jN = find(strcmp(nofes_labels, lbl), 1);
             if ~isempty(jN)
-                sig_n = double(tN.Emg(jN).Signal.full(:));
+                sig_n_full = double(tN.Emg(jN).Signal.full(:));
+                sig_n = extractCycleConcat(sig_n_full, cyclesN, FS, FS_KIN, N_CYCLES_DISPLAY);
                 t_n   = (0:length(sig_n)-1) / FS;
                 plot(t_n, sig_n, 'Color', [0.10 0.10 0.10], 'LineWidth', 0.6);
                 ref_vals = [ref_vals; sig_n];
@@ -244,6 +304,11 @@ for ifc = 1:length(ALL_FES_CONDS)
         y_lim = max(abs(ref_vals)) * 1.4;
         if y_lim > 0, ylim([-y_lim, y_lim]); end
 
+        % Separateurs de cycles (pointilles gris)
+        for cb = cycBnd(1:end-1)
+            xline(cb/FS, 'Color', [0.6 0.6 0.6], 'LineStyle', ':', 'LineWidth', 0.6, 'HandleVisibility','off');
+        end
+
         title(lbl, 'FontSize', 9); ylabel('V'); grid on;
         if ji == 1
             if ~isempty(tN)
@@ -252,11 +317,11 @@ for ifc = 1:length(ALL_FES_CONDS)
                 legend({'Brut', 'Nettoye'}, 'Location','northeast');
             end
         end
-        if ji == nEmg, xlabel('Temps (s)'); end
+        if ji == nEmg, xlabel(sprintf('Temps (s) — %d cycles concatenes', N_CYCLES_DISPLAY)); end
     end
 
-    sgtitle(sprintf('%s  --  %s b%d  (noir=No FES, gris=brut, bleu=nettoye)', ...
-            PATIENT_ID, cur_cond, VERIFY_BLOCK), 'FontSize', 11, 'FontWeight', 'bold');
+    sgtitle(sprintf('%s  --  %s b%d  --  %d cycles concatenes  (noir=No FES, gris=brut, bleu=nettoye)', ...
+            PATIENT_ID, cur_cond, VERIFY_BLOCK, N_CYCLES_DISPLAY), 'FontSize', 11, 'FontWeight', 'bold');
 
     % --- Figure zoom 300ms ---
     figure('Name', sprintf('%s -- Zoom : %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...

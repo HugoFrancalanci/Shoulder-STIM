@@ -20,7 +20,7 @@
 %                    removal on the most contaminated trial (Rehab b1 if
 %                    available, otherwise the first available FES condition).
 %                Removal parameters are identical to preprocess_fes_removal.m
-%                and extract_emg_cycles.m (MAD×6, blanking 8ms, PCHIP).
+%                and extract_emg_cycles_noSEF.m (MAD×6, blanking 8ms, PCHIP).
 % -------------------------------------------------------------------------
 % Parameters :   BLANK_MS=8, MAD_FACTOR=6, MIN_PERIOD_MS=15, MAX_BLANK_MS=20
 %                ZOOM_START=7.0s, ZOOM_DUR=0.3s
