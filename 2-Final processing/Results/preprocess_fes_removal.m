@@ -198,7 +198,7 @@ if ~isempty(tN), nofes_labels = {tN.Emg.label}; end
 % -------------------------------------------------------------------------
 % BOUCLE SUR TOUTES LES CONDITIONS FES
 % -------------------------------------------------------------------------
-ALL_FES_CONDS = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+ALL_FES_CONDS = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ZOOM_V_START  = 7.0;
 ZOOM_V_DUR    = 0.3;
 

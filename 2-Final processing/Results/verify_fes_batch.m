@@ -49,7 +49,7 @@ MAX_BLANK_MS   = 20;
 ZOOM_START     = 7.0;   % secondes -- ajuster si burst pas visible ici
 ZOOM_DUR       = 0.3;   % 300ms
 
-ALL_FES_COND   = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+ALL_FES_COND   = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 REF_LABEL      = 'TRAPS';  % canal de reference pour le mapping
 cols_cond      = lines(length(ALL_FES_COND));
 
@@ -161,7 +161,7 @@ for ip = 1:length(PATIENT_IDS)
 
     % Choisir la condition a verifier : Rehab b1 si dispo, sinon premiere FES
     verifSeq = []; verifCond = '';
-    priority = {'Rehab','Random','Min_fatigue','Min_stress','Min_pw','Min_force'};
+    priority = {'Rehab','Random','Min_fatigue','Min_stress','Min_pulse_width','Min_force'};
     for ci = 1:length(priority)
         s = find(strcmp(condList.condition, priority{ci}) & condList.block == 1, 1);
         if ~isempty(s), verifSeq = s; verifCond = priority{ci}; break; end

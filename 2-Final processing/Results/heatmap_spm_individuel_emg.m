@@ -47,7 +47,7 @@
 clear; clc; close all;
 
 PATIENTS   = {'P001','P002','P003','P004','P005','P006','P007','P008','P009','P010'};
-CONDITIONS = {'Min fatigue','Min stress','Random','Min pw','Rehab','Min force'};
+CONDITIONS = {'Min fatigue','Min stress','Random','Min pulse width','Rehab','Min force'};
 MUSCLES    = {'TRAPS','TRAPM','TRAPI','SERRA'};
 N_PAT  = length(PATIENTS);
 N_COND = length(CONDITIONS);
@@ -55,13 +55,13 @@ N_MUS  = length(MUSCLES);
 
 % -------------------------------------------------------------------------
 % sig(patient, condition, muscle) = 1 si post-hoc significatif
-% Conditions : 1=Min_fatigue 2=Min_stress 3=Random 4=Min_pw 5=Rehab 6=Min_force
+% Conditions : 1=Min_fatigue 2=Min_stress 3=Random 4=Min_pulse_width 5=Rehab 6=Min_force
 % Muscles    : 1=TRAPS  2=TRAPM  3=TRAPI  4=SERRA
 % -------------------------------------------------------------------------
 sig = zeros(N_PAT, N_COND, N_MUS);
 
 % P003
-sig(3,4,3) = 1;   % TRAPI — Min_pw
+sig(3,4,3) = 1;   % TRAPI — Min_pulse_width
 sig(3,5,3) = 1;   % TRAPI — Rehab
 
 % P005

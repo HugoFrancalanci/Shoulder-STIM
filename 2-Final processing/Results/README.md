@@ -31,7 +31,7 @@ Chaque fichier `P[n].mat` contient un tableau `Trial`. Seuls les trials `ANALYTI
 | Min_fatigue | FES intensité minimale |
 | Min_stress | FES intensité minimale |
 | Random | FES fréquence aléatoire |
-| Min_pw | FES largeur d'impulsion minimale |
+| Min_pulse_width | FES largeur d'impulsion minimale |
 | Rehab | FES protocole rééducation |
 | Min_force | FES force minimale |
 
@@ -110,7 +110,16 @@ Pour chaque patient :
 
 ---
 
-### Étape 4a — Cinématique scapulaire (`extract_scapular_kinematics.m`)
+### Étape 4a — Cinématique scapulaire (`extract_scapular_kinematics_noSEF.m`, `extract_scapular_kinematics_rehab.m`)
+
+Deux variantes du même pipeline, qui ne différent que par la **condition de référence** utilisée pour le post-hoc :
+
+| Script | Référence post-hoc | Conditions comparées (FES_CONDS) | Bonferroni |
+|--------|---------------------|-----------------------------------|------------|
+| `extract_scapular_kinematics_noSEF.m` | No FES | Min_fatigue, Min_stress, Random, Min_pulse_width, **Rehab**, Min_force (6) | α = 0.05/6 ≈ 0.0083 |
+| `extract_scapular_kinematics_rehab.m` | Rehab | Min_fatigue, Min_stress, Random, Min_pulse_width, **No FES**, Min_force (5) | α = 0.05/5 = 0.01 |
+
+La comparaison Rehab ↔ No FES n'est calculée qu'une seule fois (dans `_noSEF.m`, sous la forme « Rehab vs No FES ») — elle est donc exclue de `_rehab.m` pour éviter une duplication statistique (même test, juste inversé).
 
 **Données :** `Trial.Joint(jscap).Euler.rcycle`
  
@@ -130,11 +139,12 @@ Pour chaque patient :
 - `globalData.(cond)` : accumulation inter-patients, utilisé pour la figure globale
 - `patientMeans.(cond)` : moyenne des blocks par patient (3×101), N=10 pour le SPM1D groupé
 
-**Sorties :**
+**Sorties (par script) :**
 - 1 figure par patient : 3 DOF × 7 conditions (moyenne ± ET, courbes colorées)
 - 1 figure SPM1D par patient : même layout + barres de significativité (N=3 blocks, exploratoire)
 - 1 figure globale P1–P10 : cycle moyen inter-patients ± ET
-- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs No FES (N=10 participants)
+- 1 figure SPM1D groupée : ANOVA RM + post-hoc vs référence (N=10 participants)
+- **Tableaux récap console** (individuel + groupé) : pour chaque cluster significatif, % début/fin du cycle, p-value, valeur angulaire réelle (°) de la condition et de la référence sur cette fenêtre, et leur différence — voir Étape 5 ci-dessous
 
 ---
 
@@ -170,11 +180,31 @@ Pour chaque patient :
 
 ---
 
+### Étape 5 — Tableaux récapitulatifs et heatmaps individuelles
+
+Scripts standalone (résultats codés en dur, recopiés depuis la sortie console des scripts `extract_*`) qui résument l'ensemble des résultats SPM1D **individuels** (N=3 blocks, exploratoire) en une poignée de figures, un patient/condition/DOF (ou muscle) à la fois étant illisible sur 10 patients.
+
+| Script | Source | Grille |
+|--------|--------|--------|
+| `heatmap_spm_individuel_kin_noSEF.m` | `extract_scapular_kinematics_noSEF.m` | 10 patients × 6 conditions (réf. No FES) |
+| `heatmap_spm_individuel_kin_rehab.m` | `extract_scapular_kinematics_rehab.m` | 10 patients × 5 conditions (réf. Rehab) |
+| `heatmap_spm_individuel_emg.m` | `extract_emg_cycles.m` | 10 patients × 6 conditions, 4 muscles/cellule (réf. No FES) |
+
+Les deux scripts kinématique (`_noSEF` et `_rehab`) produisent chacun **4 figures** :
+1. **Significativité + ordre de passage** : marqueurs DOF (X/Y/Z) — grand plein = post-hoc significatif, moyen creux = ANOVA sig. mais post-hoc n.s., petit gris = n.s. Fond de cellule = gradient encodant le rang relatif de passage de la condition dans la séquence du patient.
+2. **Différence angulaire** : mêmes marqueurs (bordure = DOF), remplissage coloré par une colormap divergente représentant la différence angulaire moyenne (condition − référence, en °) sur la fenêtre du cluster significatif.
+3. **% patients significatifs** : bar chart par condition et par DOF, % de patients (sur 10) avec un post-hoc significatif.
+4. **Dumbbell chart** : une ligne par cluster significatif, valeur angulaire réelle (°) de la condition (marqueur plein) et de la référence (marqueur creux), reliées par un trait, colorées par DOF — permet de lire les deux valeurs d'angle sans recalculer la différence.
+
+`heatmap_spm_individuel_emg.m` (issu d'une session précédente) ne produit que la figure 1 (significativité), à 4 marqueurs par cellule (un par muscle) au lieu de 3 (DOF).
+
+> **Maintenance :** ces scripts sont volontairement standalone (aucune dépendance aux `.mat`) — si les résultats statistiques changent (nouveaux patients, seuils, corrections), les matrices `sig`/`warn`/`order`/`diffDeg` et les listes `entry*` doivent être remises à jour manuellement à partir de la sortie console du script `extract_*` correspondant.
+
 ---
 
 ## Analyses SPM1D
 
-Les deux scripts (`extract_emg_cycles.m` et `extract_scapular_kinematics.m`) intègrent chacun deux niveaux d'analyse SPM1D.
+Les scripts `extract_emg_cycles.m`, `extract_scapular_kinematics_noSEF.m` et `extract_scapular_kinematics_rehab.m` intègrent chacun deux niveaux d'analyse SPM1D.
 
 ### SPM1D groupé (N=10 participants)
 
@@ -184,9 +214,9 @@ Les deux scripts (`extract_emg_cycles.m` et `extract_scapular_kinematics.m`) int
 |-------|--------|
 | Données | `patientMeans` — 1 vecteur (ou matrice 3×101 pour kin) par patient par condition |
 | Test omnibus | `spm1d.stats.anova1rm(all_mat, group_vec, subj_vec)` — inférence α=0.05 RFT |
-| Post-hoc | `spm1d.stats.ttest_paired` — chaque condition FES vs No FES |
-| Correction | Bonferroni sur 6 comparaisons : α = 0.05/6 ≈ 0.0083 |
-| Résultat | Barres colorées sous chaque subplot (une couleur par condition FES) aux instants significatifs |
+| Post-hoc | `spm1d.stats.ttest_paired` — chaque condition comparée vs la référence du script (No FES pour `extract_emg_cycles.m` et `extract_scapular_kinematics_noSEF.m` ; Rehab pour `extract_scapular_kinematics_rehab.m`) |
+| Correction | Bonferroni : α = 0.05/6 ≈ 0.0083 (EMG, kin noSEF — 6 comparaisons) ou α = 0.05/5 = 0.01 (kin rehab — 5 comparaisons, No FES vs Rehab exclue car déjà couverte par `_noSEF.m`) |
+| Résultat | Barres colorées sous chaque subplot (une couleur par condition comparée) aux instants significatifs |
 
 **Référence :** Pataky TC (2010). *Generalized n-dimensional biomechanical field analysis using statistical parametric mapping.* Journal of Biomechanics.
 
@@ -198,10 +228,12 @@ Les deux scripts (`extract_emg_cycles.m` et `extract_scapular_kinematics.m`) int
 |-------|--------|
 | Données | `condData` — jusqu'à 3 vecteurs (ou matrices) par condition, pour le patient courant |
 | Test omnibus | `spm1d.stats.anova1rm` — même logique que le groupé |
-| Post-hoc | `ttest_paired` FES vs No FES, uniquement si ANOVA significative |
-| Correction | Bonferroni identique (α = 0.0083) |
+| Post-hoc | `ttest_paired` vs la référence du script, uniquement si ANOVA significative |
+| Correction | Bonferroni identique au niveau groupé (0.0083 ou 0.01 selon le script) |
 
 > **Limitation :** N=3 implique des degrés de liberté très faibles. Le seuil RFT est élevé et la puissance statistique insuffisante pour détecter la plupart des effets. Ces figures sont à interpréter comme **exploratoires** (visualisation des tendances intra-patient) et non comme une analyse formelle.
+
+**Tableaux récap console (kin uniquement) :** pour chaque cluster significatif (individuel et groupé), les deux scripts `extract_scapular_kinematics_*.m` impriment un tableau donnant, en plus du % début/fin et de la p-value, la valeur angulaire réelle (°) de la condition et de la référence sur cette fenêtre (range), et leur différence moyenne. Ces valeurs alimentent directement les heatmaps de l'Étape 5 (`diffDeg` + les listes `entry*` : nommées `entryFes`/`entryRehab` dans `heatmap_spm_individuel_kin_rehab.m`, `entryCond`/`entryRef` dans `heatmap_spm_individuel_kin_noSEF.m`).
 
 ### Librairie
 

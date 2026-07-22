@@ -188,7 +188,7 @@ fprintf('        si signaux identiques -> pas d''artefact sur ce canal.\n');
 % FIGURE 4 : Zoom fin 300ms pour TOUTES les conditions FES (canal TRAPS)
 %            Objectif : verifier si la frequence d'artefact est constante
 % =========================================================================
-ALL_FES_COND = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+ALL_FES_COND = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 
 % Canal de reference : TRAPS (le plus contamine)
 refLabel = 'TRAPS';

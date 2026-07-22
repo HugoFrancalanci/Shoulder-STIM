@@ -99,13 +99,13 @@ MAX_BLANK_MS  = 20;
 % Canaux a afficher 
 EMG_LABELS = {'TRAPS','TRAPM','TRAPI','SERRA'};
 
-CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
-COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min power','Rehab','Min force'};
+CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
+COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min pulse width','Rehab','Min force'};
 COLORS = [0.00 0.00 0.00;   % No FES       — noir
           0.00 0.45 0.74;   % Min_fatigue  — bleu
           0.85 0.33 0.10;   % Min_stress   — orange-rouge
           0.47 0.67 0.19;   % Random       — vert
-          0.49 0.18 0.56;   % Min_pw       — violet
+          0.49 0.18 0.56;   % Min_pulse_width       — violet
           0.93 0.69 0.13;   % Rehab        — jaune-or
           0.64 0.08 0.18];  % Min_force    — bordeaux
 
@@ -135,7 +135,7 @@ for ic = 1:length(CONDITIONS_ORDERED)
     end
 end
 
-FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
 BAR_COLORS    = COLORS(2:end, :);
 
@@ -501,7 +501,7 @@ sgtitle('Comparaison des conditions de stimulation — Ensemble des patients (EM
 SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 
-FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
 BAR_COLORS    = COLORS(2:end, :);
 BAR_HEIGHT    = 0.02;

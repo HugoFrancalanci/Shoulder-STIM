@@ -1,5 +1,5 @@
 % =========================================================================
-% extract_scapular_kinematics.m
+% extract_scapular_kinematics_noSEF.m
 % =========================================================================
 % Author     :   H. Francalanci
 %                Biomechanics and Translational Research in Surgery Group
@@ -23,12 +23,18 @@
 %                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
 %                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs No FES,
 %                    Bonferroni alpha=0.05/6, RFT correction (Pataky 2010)
+%                Also prints, for each significant cluster (individual and
+%                group), a recap table with the % cycle window, p-value,
+%                and the real angular value (°) of the condition and of
+%                No FES over that window, plus their difference.
 % -------------------------------------------------------------------------
 % Parameters :   Joint index : RST=3 (right) / LST=8 (left), from
 %                DOMINANT_SIDE map in usercommands_conditions.m
 %                FES_CONDS, ALPHA_POSTHOC=0.05/6, BAR_COLORS
 % Outputs    :   4 figures (see Description); console output per patient
-%                reporting ANOVA p-value per DOF and post-hoc clusters
+%                reporting ANOVA p-value per DOF and post-hoc clusters,
+%                plus recap tables (individual and group) with angular
+%                values per significant cluster
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
 %                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.anova1rm,
@@ -66,7 +72,7 @@
 
 clear; clc; close all;
 disp('=========================================');
-disp(' extract_scapular_kinematics.m');
+disp(' extract_scapular_kinematics_noSEF.m');
 disp('=========================================');
 disp(' ');
 
@@ -80,14 +86,14 @@ run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
 % -------------------------------------------------------------------------
 x = 0:100; % axe du cycle normalisé (101 pts)
 
-CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 % Labels d'affichage pour les legendes (underscore → espace)
-COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min power','Rehab','Min force'};
+COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min pulse width','Rehab','Min force'};
 COLORS = [0.00 0.00 0.00;   % No FES       — noir
           0.00 0.45 0.74;   % Min_fatigue  — bleu
           0.85 0.33 0.10;   % Min_stress   — orange-rouge
           0.47 0.67 0.19;   % Random       — vert
-          0.49 0.18 0.56;   % Min_pw       — violet
+          0.49 0.18 0.56;   % Min_pulse_width       — violet
           0.93 0.69 0.13;   % Rehab        — jaune-or
           0.64 0.08 0.18];  % Min_force    — bordeaux
 
@@ -96,6 +102,7 @@ COLORS = [0.00 0.00 0.00;   % No FES       — noir
 %   dim 2 = Y = Protraction/Rétraction            (Euler(:,1,:))
 %   dim 3 = Z = Bascule postérieure/antérieur     (Euler(:,3,:))
 DOF_LABELS = {' X : Rotation latérale (-) / médiale (+)', 'Y : Protraction (+) / Rétraction (-)', 'Z : Bascule postérieure (+) / antérieure (-)'};
+DOF_SHORT  = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
 
 warnings = {};
 
@@ -113,7 +120,7 @@ for ic = 1:length(CONDITIONS_ORDERED)
     patientMeans.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic})) = {};
 end
 
-FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
 BAR_COLORS    = COLORS(2:end, :);
 
@@ -255,6 +262,12 @@ for ip = 1:length(PATIENT_IDS)
     fprintf('\n=== SPM1D individuel cinématique : %s ===\n', patientID);
     figure('Name', [patientID ' - SPM1D Kin'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
 
+    % Stockage des resultats post-hoc individuels (pour le tableau recap patient)
+    patientSpmResults = struct();
+    for idof_init = 1:3
+        patientSpmResults(idof_init).posthoc = struct();
+    end
+
     for idof = 1:3
         subplot(1, 3, idof);
         hold on;
@@ -354,11 +367,23 @@ for ip = 1:length(PATIENT_IDS)
                             fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s))\n', ...
                                     FES_CONDS{fc}, length(spmi_t_pt.clusters));
                             y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.1);
+                            mc_fes_full_pt = mean(data_fes_mat, 1);
+                            mc_ref_full_pt = mean(data_nofes_mat, 1);
+                            clusterInfo_pt = struct('ep', {}, 'pv', {}, 'range_fes', {}, 'range_ref', {}, 'diff_mean', {});
                             for cl = 1:length(spmi_t_pt.clusters)
                                 ep = spmi_t_pt.clusters{cl}.endpoints;
                                 rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
                                           'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none','FaceAlpha',0.85);
+                                idx1 = max(1, round(ep(1))); idx2 = min(101, round(ep(2)));
+                                seg_fes = mc_fes_full_pt(idx1:idx2);
+                                seg_ref = mc_ref_full_pt(idx1:idx2);
+                                clusterInfo_pt(cl).ep        = ep;
+                                clusterInfo_pt(cl).pv        = spmi_t_pt.clusters{cl}.P;
+                                clusterInfo_pt(cl).range_fes = [min(seg_fes) max(seg_fes)];
+                                clusterInfo_pt(cl).range_ref = [min(seg_ref) max(seg_ref)];
+                                clusterInfo_pt(cl).diff_mean = mean(seg_fes) - mean(seg_ref);
                             end
+                            patientSpmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).clusterInfo = clusterInfo_pt;
                         else
                             fprintf('    %s vs No FES : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
                                     FES_CONDS{fc}, length(trials_fes)-1, ALPHA_POSTHOC);
@@ -387,6 +412,30 @@ for ip = 1:length(PATIENT_IDS)
 
     sgtitle(sprintf('%s  —  SPM1D individuel cinématique (N=3 blocs)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
+
+    % --- Tableau recapitulatif individuel : % cycle significatif <-> valeur angulaire ---
+    fprintf('\n  --- Tableau recap. individuel (%s) : cluster significatif -> valeur angulaire ---\n', patientID);
+    fprintf('  %-16s  %-14s  %-9s  %-9s  %-8s  %-16s  %-16s  %s\n', ...
+            'DOF', 'Condition', 'Debut(%)', 'Fin(%)', 'p-value', 'Angle cond (°)', 'Angle No FES (°)', 'Diff (°)');
+    anyRow_pt = false;
+    for idof = 1:3
+        for fc = 1:length(FES_CONDS)
+            fld_fc = matlab.lang.makeValidName(FES_CONDS{fc});
+            if ~isfield(patientSpmResults(idof).posthoc, fld_fc), continue; end
+            ph = patientSpmResults(idof).posthoc.(fld_fc);
+            if ~isfield(ph, 'clusterInfo') || isempty(ph.clusterInfo), continue; end
+            for cl = 1:length(ph.clusterInfo)
+                ci = ph.clusterInfo(cl);
+                fprintf('  %-16s  %-14s  %-9.1f  %-9.1f  %-8.4f  %-16s  %-16s  %.1f\n', ...
+                        DOF_SHORT{idof}, strrep(FES_CONDS{fc},'_',' '), ci.ep(1)-1, ci.ep(2)-1, ci.pv, ...
+                        rangeStr(ci.range_fes), rangeStr(ci.range_ref), ci.diff_mean);
+                anyRow_pt = true;
+            end
+        end
+    end
+    if ~anyRow_pt
+        fprintf('  (aucun post-hoc significatif pour %s)\n', patientID);
+    end
 
 end % ip
 
@@ -441,7 +490,7 @@ sgtitle('Comparaison des conditions de stimulation pour l''ensemble des patients
 SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 
-FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pw','Rehab','Min_force'};
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);  % Bonferroni : 0.05/6 ≈ 0.0083
 % Couleurs barres post-hoc : meme ordre que CONDITIONS_ORDERED (indices 2-7)
 BAR_COLORS  = COLORS(2:end, :);
@@ -570,6 +619,9 @@ for idof = 1:3
 
                 if ~isempty(spmi_t.clusters)
                     y_bar = y_bar_top - (fc-1) * (BAR_HEIGHT + 0.3);
+                    mc_fes_full = nanmean(data_fes, 1);
+                    mc_ref_full = nanmean(data_nofes, 1);
+                    clusterInfo = struct('range_fes', {}, 'range_ref', {}, 'diff_mean', {});
                     for cl = 1:length(spmi_t.clusters)
                         ep = spmi_t.clusters{cl}.endpoints;
                         x1 = (ep(1)-1) / 100 * 100;
@@ -577,7 +629,14 @@ for idof = 1:3
                         rectangle('Position', [x1, y_bar, x2-x1, BAR_HEIGHT], ...
                                   'FaceColor', BAR_COLORS(fc,:), ...
                                   'EdgeColor', 'none', 'FaceAlpha', 0.85);
+                        idx1 = max(1, round(ep(1))); idx2 = min(101, round(ep(2)));
+                        seg_fes = mc_fes_full(idx1:idx2);
+                        seg_ref = mc_ref_full(idx1:idx2);
+                        clusterInfo(cl).range_fes = [min(seg_fes) max(seg_fes)];
+                        clusterInfo(cl).range_ref = [min(seg_ref) max(seg_ref)];
+                        clusterInfo(cl).diff_mean = mean(seg_fes) - mean(seg_ref);
                     end
+                    spmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).angleInfo = clusterInfo;
                 end
             catch ME
                 fprintf('  DOF %d | %s vs No FES erreur : %s\n', idof, strrep(FES_CONDS{fc},'_',' '), ME.message);
@@ -617,9 +676,9 @@ fprintf('=================================================================\n');
 fprintf(' TABLEAU RECAPITULATIF SPM1D — Cinematique scapulaire\n');
 fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Bonferroni alpha=%.4f\n', ALPHA_POSTHOC);
 fprintf('=================================================================\n');
-fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
-        'DOF', 'Test', 'Condition', 'Debut (%)', 'Fin (%)', 'p-value');
-fprintf('%s\n', repmat('-', 1, 85));
+fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
+        'DOF', 'Test', 'Condition', 'Debut (%)', 'Fin (%)', 'p-value', 'Angle cond (°)', 'Angle No FES (°)', 'Diff (°)');
+fprintf('%s\n', repmat('-', 1, 120));
 
 for idof = 1:3
     res = spmResults(idof);
@@ -631,12 +690,12 @@ for idof = 1:3
             pv  = res.anova_clusters{cl}.P;
             x1c = (ep(1)-1);
             x2c = (ep(2)-1);
-            fprintf('%-20s  %-18s  %-12s  %-10.1f  %-10.1f  %.4f\n', ...
-                    DOF_SHORT{idof}, 'ANOVA (7 cond)', '—', x1c, x2c, pv);
+            fprintf('%-20s  %-18s  %-12s  %-10.1f  %-10.1f  %-9.4f  %-16s  %-16s  %s\n', ...
+                    DOF_SHORT{idof}, 'ANOVA (7 cond)', '—', x1c, x2c, pv, '—', '—', '—');
         end
     else
-        fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
-                DOF_SHORT{idof}, 'ANOVA (7 cond)', '—', '—', '—', 'n.s.');
+        fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
+                DOF_SHORT{idof}, 'ANOVA (7 cond)', '—', '—', '—', 'n.s.', '—', '—', '—');
     end
 
     % --- Post-hoc ---
@@ -651,16 +710,18 @@ for idof = 1:3
                     pv  = ph.clusters{cl}.P;
                     x1c = (ep(1)-1);
                     x2c = (ep(2)-1);
-                    fprintf('%-20s  %-18s  %-12s  %-10.1f  %-10.1f  %.4f\n', ...
-                            '', ['t-test vs No FES'], strrep(FES_CONDS{fc},'_',' '), x1c, x2c, pv);
+                    ai  = ph.angleInfo(cl);
+                    fprintf('%-20s  %-18s  %-12s  %-10.1f  %-10.1f  %-9.4f  %-16s  %-16s  %.1f\n', ...
+                            '', 't-test vs No FES', strrep(FES_CONDS{fc},'_',' '), x1c, x2c, pv, ...
+                            rangeStr(ai.range_fes), rangeStr(ai.range_ref), ai.diff_mean);
                 end
             else
-                fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
-                        '', 't-test vs No FES', strrep(FES_CONDS{fc},'_',' '), '—', '—', 'n.s.');
+                fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
+                        '', 't-test vs No FES', strrep(FES_CONDS{fc},'_',' '), '—', '—', 'n.s.', '—', '—', '—');
             end
         end
     end
-    fprintf('%s\n', repmat('-', 1, 85));
+    fprintf('%s\n', repmat('-', 1, 120));
 end
 fprintf('=================================================================\n\n');
 
@@ -682,6 +743,11 @@ disp('Terminé.');
 % =========================================================================
 % FONCTIONS LOCALES
 % =========================================================================
+
+function s = rangeStr(r)
+    s = sprintf('%.1f to %.1f', r(1), r(2));
+end
+
 
 function analyticIdx = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS)
     isAnalytic = false(1, length(Trial));
