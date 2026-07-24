@@ -27,16 +27,26 @@
 %                group), a recap table with the % cycle window, p-value,
 %                and the real angular value (°) of the condition and of
 %                Rehab over that window, plus their difference.
+%                (5) "Figure finale" : group mean (N=10) combined with
+%                    individual patient trajectories, via
+%                    plotCombinedFigure.m — grid DOF x FES condition, each
+%                    panel overlays Rehab and one condition (mean +
+%                    individual patients), with group-level post-hoc bar
+%                    (spmResults) and individual-level post-hoc bars
+%                    (indivSigClusters, one thin row per significant patient).
 % -------------------------------------------------------------------------
 % Parameters :   Joint index : RST=3 (right) / LST=8 (left), from
 %                DOMINANT_SIDE map in usercommands_conditions.m
 %                FES_CONDS, ALPHA_POSTHOC=0.05/5, BAR_COLORS
-% Outputs    :   4 figures (see Description); console output per patient
+% Outputs    :   5 figures (see Description); console output per patient
 %                reporting ANOVA p-value per DOF and post-hoc clusters,
 %                plus recap tables (individual and group) with angular
-%                values per significant cluster
+%                values per significant cluster; recap_kinematics_rehab.xlsx
+%                (Group_PostHoc + Individual_PostHoc sheets, see
+%                exportSpmRecapExcel.m)
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
+%                plotCombinedFigure.m (same folder),
 %                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.anova1rm,
 %                spm1d.stats.ttest_paired)
 % -------------------------------------------------------------------------
@@ -129,6 +139,16 @@ REF_COND  = 'Rehab';
 FES_CONDS = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
 BAR_COLORS = [COLORS(2,:); COLORS(3,:); COLORS(4,:); COLORS(5,:); COLORS(7,:)];
+
+% Accumulateur pour la figure finale : clusters significatifs individuels
+% indivSigClusters{idof}.(fld_fes){ip} = spmi_t_pt.clusters (cell vide si n.s.)
+indivSigClusters = cell(3,1);
+for idof_i = 1:3
+    indivSigClusters{idof_i} = struct();
+    for fc_i = 1:length(FES_CONDS)
+        indivSigClusters{idof_i}.(matlab.lang.makeValidName(FES_CONDS{fc_i})) = cell(length(PATIENT_IDS), 1);
+    end
+end
 
 % -------------------------------------------------------------------------
 % BOUCLE PATIENTS
@@ -390,6 +410,7 @@ for ip = 1:length(PATIENT_IDS)
                                 clusterInfo_pt(cl).diff_mean = mean(seg_fes) - mean(seg_ref);
                             end
                             patientSpmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).clusterInfo = clusterInfo_pt;
+                            indivSigClusters{idof}.(matlab.lang.makeValidName(FES_CONDS{fc})){ip} = spmi_t_pt.clusters;
                         else
                             fprintf('    %s vs Rehab : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
                                     FES_CONDS{fc}, length(trials_fes)-1, ALPHA_POSTHOC);
@@ -731,6 +752,36 @@ for idof = 1:3
     fprintf('%s\n', repmat('-', 1, 120));
 end
 fprintf('=================================================================\n\n');
+
+% -------------------------------------------------------------------------
+% EXPORT EXCEL : recap SPM1D groupe + individuel (tableau supplementaire)
+% -------------------------------------------------------------------------
+exportSpmRecapExcel(fullfile(fileparts(mfilename('fullpath')), 'recap_kinematics_rehab.xlsx'), ...
+                     'DOF', DOF_SHORT, REF_COND, FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS, ...
+                     'angleInfo', 'deg');
+
+% =========================================================================
+% FIGURE FINALE : moyenne de groupe + trajectoires individuelles (N=10),
+% chaque condition vs Rehab, avec barres post-hoc groupe + individuelles
+% =========================================================================
+plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
+                    REF_COND, FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
+
+% =========================================================================
+% FIGURE PATIENTS INDIVIDUELS : meme grille, une couleur fixe par patient
+% (P1-P10), pour pouvoir suivre un patient donne d'un panneau a l'autre.
+% Pas de moyenne de groupe ici ; post-hoc intra-individuel uniquement.
+% =========================================================================
+plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, DOF_LABELS, x, ...
+                           REF_COND, FES_CONDS, indivSigClusters, PATIENT_IDS);
+
+% =========================================================================
+% FIGURE FINALE ANNOTEE : identique a la figure finale, mais les barres
+% post-hoc individuelles sont etiquetees P1, P2... pres de l'axe Y, sur la
+% premiere colonne de conditions uniquement (pour eviter la surcharge).
+% =========================================================================
+plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
+                           REF_COND, FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % -------------------------------------------------------------------------
 % WARNINGS

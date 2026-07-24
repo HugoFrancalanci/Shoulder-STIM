@@ -19,7 +19,7 @@
 %                (full-wave rectification + Butterworth 2nd-order 6Hz,
 %                Winter 2009) → amplitude normalisation (mean+3*std of first
 %                50 kinematic frames, expressed as % baseline).
-%                Produces 4 output figures per run:
+%                Produces 7 output figures per run:
 %                (1) Per-patient : 4 muscles x 7 conditions, mean ± SD
 %                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks,
 %                    balanced via last-block padding) + paired t-tests each
@@ -27,11 +27,19 @@
 %                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
 %                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs No FES,
 %                    Bonferroni alpha=0.05/6, RFT correction (Pataky 2010)
+%                (5) Final figure : group mean + individual patient curves,
+%                    group/individual post-hoc bars (grid muscle x condition)
+%                (6) Patient identity figure : same grid, P1-P10 fixed
+%                    colors, intra-individual post-hoc only
+%                (7) Final figure (labelled) : same as (5) with P# labels
+%                    next to each patient's own individual post-hoc bar
 % -------------------------------------------------------------------------
 % Parameters :   LP_FREQ=6Hz, BLANK_MS=8, MAD_FACTOR=6,
 %                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, FS_EMG=2200, FS_KIN=100
-% Outputs    :   4 figures (see Description); console output per patient
-%                reporting ANOVA result per muscle and post-hoc clusters
+% Outputs    :   7 figures (see Description); console output per patient
+%                reporting ANOVA result per muscle and post-hoc clusters;
+%                recap_emg_noSEF.xlsx (Group_PostHoc + Individual_PostHoc
+%                sheets, see exportSpmRecapExcel.m)
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
 %                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.anova1rm,
@@ -138,6 +146,16 @@ end
 FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
 BAR_COLORS    = COLORS(2:end, :);
+
+% Accumulateur pour la figure finale : clusters significatifs individuels
+% indivSigClusters{im}.(fld_fes){ip} = spmi_t_pt.clusters (cell vide si n.s.)
+indivSigClusters = cell(length(EMG_LABELS), 1);
+for im_i = 1:length(EMG_LABELS)
+    indivSigClusters{im_i} = struct();
+    for fc_i = 1:length(FES_CONDS)
+        indivSigClusters{im_i}.(matlab.lang.makeValidName(FES_CONDS{fc_i})) = cell(length(PATIENT_IDS), 1);
+    end
+end
 
 % -------------------------------------------------------------------------
 % BOUCLE PATIENTS
@@ -427,7 +445,10 @@ for ip = 1:length(PATIENT_IDS)
                                 ep = spmi_t_pt.clusters{cl}.endpoints;
                                 rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
                                           'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none','FaceAlpha',0.85);
+                                fprintf('      cluster %d : %.1f%%-%.1f%% du cycle (duree %.1f%%)\n', ...
+                                        cl, ep(1)-1, ep(2)-1, ep(2)-ep(1));
                             end
+                            indivSigClusters{im}.(matlab.lang.makeValidName(FES_CONDS{fc})){ip} = spmi_t_pt.clusters;
                         else
                             fprintf('    %s vs No FES : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
                                     FES_CONDS{fc}, size(data_fes_mat,1)-1, ALPHA_POSTHOC);
@@ -611,11 +632,21 @@ for im = 1:length(EMG_LABELS)
                 spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).sig      = ~isempty(spmi_t.clusters);
                 if ~isempty(spmi_t.clusters)
                     y_bar = y_bar_top - (fc-1) * (BAR_HEIGHT + 0.005);
+                    mc_fes_full = nanmean(data_fes, 1);
+                    mc_ref_full = nanmean(data_nofes, 1);
+                    ampInfo = struct('range_fes', {}, 'range_ref', {}, 'diff_mean', {});
                     for cl = 1:length(spmi_t.clusters)
                         ep = spmi_t.clusters{cl}.endpoints;
                         rectangle('Position', [ep(1)-1, y_bar, ep(2)-ep(1), BAR_HEIGHT], ...
                                   'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none', 'FaceAlpha', 0.85);
+                        idx1 = max(1, round(ep(1))); idx2 = min(101, round(ep(2)));
+                        seg_fes = mc_fes_full(idx1:idx2);
+                        seg_ref = mc_ref_full(idx1:idx2);
+                        ampInfo(cl).range_fes = [min(seg_fes) max(seg_fes)];
+                        ampInfo(cl).range_ref = [min(seg_ref) max(seg_ref)];
+                        ampInfo(cl).diff_mean = mean(seg_fes) - mean(seg_ref);
                     end
+                    spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).ampInfo = ampInfo;
                 end
             catch ME
                 fprintf('  %s | %s vs No FES erreur : %s\n', mLabel, FES_CONDS{fc}, ME.message);
@@ -688,6 +719,34 @@ for im = 1:length(EMG_LABELS)
     fprintf('%s\n', repmat('-', 1, 80));
 end
 fprintf('=================================================================\n\n');
+
+% -------------------------------------------------------------------------
+% EXPORT EXCEL : recap SPM1D groupe + individuel (tableau supplementaire)
+% -------------------------------------------------------------------------
+exportSpmRecapExcel(fullfile(fileparts(mfilename('fullpath')), 'recap_emg_noSEF.xlsx'), ...
+                     'Muscle', EMG_LABELS, 'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS, ...
+                     'ampInfo', 'pctBaseline');
+
+% =========================================================================
+% FIGURE FINALE (1) : moyenne groupe + courbes individuelles + post-hoc
+% groupe/individuel, grille muscle x condition comparee vs No FES
+% =========================================================================
+plotCombinedFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
+                      'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
+
+% =========================================================================
+% FIGURE FINALE (2) : identification individuelle P1-P10 (intra-individuel
+% uniquement, pas de moyenne groupe)
+% =========================================================================
+plotPatientIdentityFigureEMG(patientMeans, CONDITIONS_ORDERED, EMG_LABELS, X_CYCLE, ...
+                             'No FES', FES_CONDS, indivSigClusters, PATIENT_IDS);
+
+% =========================================================================
+% FIGURE FINALE (3) : identique a (1) mais les barres post-hoc individuelles
+% sont etiquetees P1, P2... juste a cote de la barre du patient concerne
+% =========================================================================
+plotCombinedFigureLabeledEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
+                             'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % -------------------------------------------------------------------------
 % WARNINGS
