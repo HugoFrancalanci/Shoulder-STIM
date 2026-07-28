@@ -65,7 +65,7 @@
 clear; clc; close all;
 
 PATIENTS   = {'P001','P002','P003','P004','P005','P006','P007','P008','P009','P010'};
-CONDITIONS = {'Min fatigue','Min stress','Random','Min pulse width','Min force'};
+CONDITIONS = {'Min fatigue','Min stress','Random','Min PW','Min force'};
 MUSCLES    = {'TRAPS','TRAPM','TRAPI','SERRA'};
 N_PAT  = length(PATIENTS);
 N_COND = length(CONDITIONS);

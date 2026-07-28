@@ -121,14 +121,14 @@ MAX_BLANK_MS  = 20;
 EMG_LABELS = {'TRAPS','TRAPM','TRAPI','SERRA'};
 
 CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
-COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min pulse width','Rehab','Min force'};
-COLORS = [0.00 0.00 0.00;   % No FES       — noir
-          0.00 0.45 0.74;   % Min_fatigue  — bleu
-          0.85 0.33 0.10;   % Min_stress   — orange-rouge
-          0.47 0.67 0.19;   % Random       — vert
-          0.49 0.18 0.56;   % Min_pulse_width       — violet
-          0.93 0.69 0.13;   % Rehab        — jaune-or
-          0.64 0.08 0.18];  % Min_force    — bordeaux
+COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min PW','Rehab','Min force'};
+COLORS = [0.35 0.20 0.29;   % No FES       — aubergine
+          0.66 0.80 0.63;   % Min_fatigue  — vert sauge
+          0.30 0.47 0.46;   % Min_stress   — bleu-vert (teal) fonce
+          0.91 0.76 0.45;   % Random       — jaune dore
+          0.89 0.63 0.33;   % Min_pulse_width (Min PW) — orange
+          0.45 0.55 0.68;   % Rehab        — bleu-gris (assorti a la palette)
+          0.75 0.35 0.35];  % Min_force    — rouge saumon
 
 % Filtre passe-bas
 [b_lp, a_lp] = butter(LP_ORD, LP_FREQ / (FS_EMG/2), 'low');
