@@ -17,7 +17,7 @@
 %                _rehab.m, EXCEPT the post-hoc does not compare against a
 %                single reference condition (No FES or Rehab) : it compares
 %                ALL possible pairs of conditions (7 conditions -> 21 pairs),
-%                Bonferroni alpha = 0.05/21. Produces 5 output figures:
+%                Bonferroni alpha = 0.05/21. Produces 7 output figures:
 %                (1) Per-patient : 3 DOF x 7 conditions, mean ± SD across blocks
 %                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks as
 %                    observations, balanced via last-block padding) + paired
@@ -30,21 +30,23 @@
 %                group), a recap table with the % cycle window, p-value,
 %                and the real angular value (°) of both compared conditions
 %                over that window, plus their difference.
-%                (5) "Figure finale — toutes comparaisons" : group means
-%                    only (no individual patient curves, no per-patient
-%                    bars) via plotAllCompFigure.m — 2-row grid (DOF
-%                    columns) : top row = the 7 group-mean curves overlaid;
-%                    bottom row = a DEDICATED subplot per DOF (not overlaid
-%                    on the curves) stacking one labelled bar per
-%                    significant pairwise comparison (e.g. "Min force vs
-%                    Rehab"), stacked only for pairs that are actually
-%                    significant (no wasted space for the 21-minus-significant
-%                    non-hits).
+%                (5-7) "Figure finale — toutes comparaisons" (plotAllCompFigure.m,
+%                    3 figures) : group-level only (no individual patient
+%                    curves/bars mixed into the same panel as the group).
+%                    Each DOF panel spans the FULL figure height (1 row x 3
+%                    columns) ; significance bars are drawn INSIDE the curve
+%                    panel (not a separate subplot), one distinct colour per
+%                    significant pair (stable across panels), identified via
+%                    the legend rather than inline text — (5) group mean ± SD,
+%                    (6) group mean + every individual patient's own curve
+%                    (desaturated, no SD band), (7) same as (5) but with one
+%                    labelled "P#" row per individually-significant patient
+%                    stacked under each significant pair's group bar.
 % -------------------------------------------------------------------------
 % Parameters :   Joint index : RST=3 (right) / LST=8 (left), from
 %                DOMINANT_SIDE map in usercommands_conditions.m
 %                ALL_PAIRS (21 condition pairs), ALPHA_POSTHOC=0.05/21
-% Outputs    :   5 figures (see Description); console output per patient
+% Outputs    :   7 figures (see Description); console output per patient
 %                reporting ANOVA p-value per DOF and significant pairwise
 %                post-hoc clusters, plus recap tables (individual and group)
 %                with angular values per significant cluster;

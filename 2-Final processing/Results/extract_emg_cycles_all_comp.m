@@ -20,7 +20,7 @@
 %                (No FES or Rehab) : it compares ALL possible pairs of
 %                conditions (7 conditions -> 21 pairs), Bonferroni alpha =
 %                0.05/21 — kinematics counterpart of extract_scapular_
-%                kinematics_all_comp.m. Produces 5 output figures:
+%                kinematics_all_comp.m. Produces 7 output figures:
 %                (1) Per-patient : 4 muscles x 7 conditions, mean ± SD
 %                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks,
 %                    balanced via last-block padding) + paired t-tests for
@@ -29,20 +29,24 @@
 %                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
 %                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc on all 21
 %                    pairs, Bonferroni alpha=0.05/21, RFT correction (Pataky 2010)
-%                (5) "Figure finale — toutes comparaisons" : group means
-%                    only (no individual patient curves, no per-patient
-%                    bars) via plotAllCompFigureEMG.m — 2-row grid (muscle
-%                    columns) : top row = the 7 group-mean curves overlaid
-%                    (+ SD bands) ; bottom row = a DEDICATED subplot per
-%                    muscle (not overlaid on the curves) stacking one
-%                    labelled bar per significant pairwise comparison (e.g.
-%                    "Min force vs Rehab"), only for pairs that are
-%                    actually significant.
+%                (5-7) "Figure finale — toutes comparaisons" (plotAllCompFigureEMG.m,
+%                    3 figures) : group-level only (no individual patient
+%                    curves/bars mixed into the same panel as the group).
+%                    Each muscle panel spans the FULL figure height (1 row x
+%                    4 columns) ; significance bars are drawn INSIDE the
+%                    curve panel (not a separate subplot), one distinct
+%                    colour per significant pair (stable across panels),
+%                    identified via the legend rather than inline text —
+%                    (5) group mean ± SD, (6) group mean + every individual
+%                    patient's own curve (desaturated, no SD band), (7) same
+%                    as (5) but with one labelled "P#" row per individually-
+%                    significant patient stacked under each significant
+%                    pair's group bar.
 % -------------------------------------------------------------------------
 % Parameters :   LP_FREQ=6Hz, BLANK_MS=8, MAD_FACTOR=6,
 %                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, FS_EMG=2200, FS_KIN=100
 %                ALL_PAIRS (21 condition pairs), ALPHA_POSTHOC=0.05/21
-% Outputs    :   5 figures (see Description); console output per patient
+% Outputs    :   7 figures (see Description); console output per patient
 %                reporting ANOVA result per muscle and significant pairwise
 %                post-hoc clusters; recap_emg_all_comp.xlsx (Group_PostHoc +
 %                Individual_PostHoc sheets, see exportSpmRecapExcel.m);
