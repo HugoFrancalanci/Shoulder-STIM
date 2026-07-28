@@ -47,8 +47,13 @@
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
 %                plotCombinedFigure.m (same folder),
-%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.anova1rm,
-%                spm1d.stats.ttest_paired)
+%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
+%                — permutation-based, Monte Carlo with 10000 iterations
+%                (exact enumeration is infeasible : nPermTotal=factorial(70)
+%                since the permuter shuffles all patient*condition rows,
+%                not within-subject) — and the parametric
+%                spm1d.stats.ttest_paired for the Bonferroni-corrected
+%                post-hoc, unchanged)
 % -------------------------------------------------------------------------
 % This work is licensed under the Creative Commons Attribution -
 % NonCommercial 4.0 International License. To view a copy of this license,
@@ -90,6 +95,12 @@ disp(' ');
 % CHARGEMENT CONFIGURATION
 % -------------------------------------------------------------------------
 run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+
+% SPM1D (charge ici, avant la boucle patients, car le SPM1D individuel
+% utilise deja spm1d.stats.nonparam.anova1rm)
+SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
+if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
+rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
 
 % -------------------------------------------------------------------------
 % PARAMÈTRES DE VISUALISATION
@@ -350,9 +361,9 @@ for ip = 1:length(PATIENT_IDS)
         if length(unique(group_vec_pt)) >= 2
             try
                 warning('off', 'all');
-                spm_F_pt  = spm1d.stats.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
+                spm_F_pt  = spm1d.stats.nonparam.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
                 warning('on', 'all');
-                spmi_F_pt = spm_F_pt.inference(0.05, 'interp', true);
+                spmi_F_pt = spm_F_pt.inference(0.05, 'iterations', 10000, 'interp', true);
                 anova_sig_pt = ~isempty(spmi_F_pt.clusters);
             catch ME_anova
                 warning('on', 'all');
@@ -504,13 +515,12 @@ sgtitle('Comparaison des conditions de stimulation pour l''ensemble des patients
 %
 % Design : mesures repetees intra-sujet (memes 10 patients dans chaque condition)
 %   - Une ligne par patient = moyenne de ses blocks valides → N=10
-%   - ANOVA : spm1d.stats.anova1rm (repeated-measures one-way ANOVA)
-%   - Post-hoc : spm1d.stats.ttest_paired (t-test apparie, memes patients)
+%   - ANOVA : spm1d.stats.nonparam.anova1rm (repeated-measures one-way ANOVA,
+%     permutation-based, Monte Carlo, 10000 iterations)
+%   - Post-hoc : spm1d.stats.ttest_paired (t-test apparie, memes patients,
+%     reste parametrique — Bonferroni inchange)
 %   - Correction Bonferroni sur les 6 comparaisons post-hoc : alpha = 0.05/6
 % =========================================================================
-SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
-if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
-
 FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);  % Bonferroni : 0.05/6 ≈ 0.0083
 % Couleurs barres post-hoc : meme ordre que CONDITIONS_ORDERED (indices 2-7)
@@ -542,9 +552,9 @@ DOF_SHORT = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
 fprintf('\n=== Choix des tests statistiques ===\n');
 fprintf('  Design        : mesures repetees intra-sujet (10 patients x 7 conditions)\n');
 fprintf('  Independance  : 1 moyenne par patient par condition (3 blocs moyennes)\n');
-fprintf('  Test omnibus  : ANOVA RM a 1 facteur (spm1d.stats.anova1rm)\n');
+fprintf('  Test omnibus  : ANOVA RM non parametrique a 1 facteur (spm1d.stats.nonparam.anova1rm, Monte Carlo 10000 iterations)\n');
 fprintf('                  → controle la variabilite inter-individuelle\n');
-fprintf('  Post-hoc      : t-test apparie chaque FES vs No FES (spm1d.stats.ttest_paired)\n');
+fprintf('  Post-hoc      : t-test apparie chaque FES vs No FES (spm1d.stats.ttest_paired, parametrique)\n');
 fprintf('                  → memes patients dans les deux conditions comparees\n');
 fprintf('  Correction    : Bonferroni sur 6 comparaisons post-hoc (alpha = %.4f)\n', ALPHA_POSTHOC);
 fprintf('  Temporel      : Random Field Theory via SPM1D (Pataky 2010)\n');
@@ -608,8 +618,8 @@ for idof = 1:3
     anova_sig = false;
     if length(unique(group_vec)) >= 2
         try
-            spm_F  = spm1d.stats.anova1rm(all_mat, group_vec, subj_vec);
-            spmi_F = spm_F.inference(0.05, 'interp', true);
+            spm_F  = spm1d.stats.nonparam.anova1rm(all_mat, group_vec, subj_vec);
+            spmi_F = spm_F.inference(0.05, 'iterations', 10000, 'interp', true);
             anova_sig = ~isempty(spmi_F.clusters);
             spmResults(idof).anova_sig      = anova_sig;
             spmResults(idof).anova_clusters = spmi_F.clusters;

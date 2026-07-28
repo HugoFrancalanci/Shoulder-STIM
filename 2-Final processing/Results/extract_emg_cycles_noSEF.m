@@ -42,8 +42,13 @@
 %                sheets, see exportSpmRecapExcel.m)
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
-%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.anova1rm,
-%                spm1d.stats.ttest_paired)
+%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
+%                — permutation-based, Monte Carlo with 10000 iterations
+%                (exact enumeration is infeasible : nPermTotal=factorial(70)
+%                since the permuter shuffles all patient*condition rows,
+%                not within-subject) — and the parametric
+%                spm1d.stats.ttest_paired for the Bonferroni-corrected
+%                post-hoc, unchanged)
 % -------------------------------------------------------------------------
 % This work is licensed under the Creative Commons Attribution -
 % NonCommercial 4.0 International License. To view a copy of this license,
@@ -87,6 +92,12 @@ disp(' extract_emg_cycles_noSEF.m');
 disp('=========================================');
 
 run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+
+% SPM1D (charge ici, avant la boucle patients, car le SPM1D individuel
+% utilise deja spm1d.stats.nonparam.anova1rm)
+SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
+if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
+rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
 
 % -------------------------------------------------------------------------
 % PARAMETRES
@@ -412,9 +423,9 @@ for ip = 1:length(PATIENT_IDS)
         if length(unique(group_vec_pt)) >= 2
             try
                 warning('off', 'all');
-                spm_F_pt  = spm1d.stats.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
+                spm_F_pt  = spm1d.stats.nonparam.anova1rm(all_mat_pt, group_vec_pt, subj_vec_pt);
                 warning('on', 'all');
-                spmi_F_pt = spm_F_pt.inference(0.05, 'interp', true);
+                spmi_F_pt = spm_F_pt.inference(0.05, 'iterations', 10000, 'interp', true);
                 anova_sig_pt = ~isempty(spmi_F_pt.clusters);
             catch ME_anova
                 fprintf('  %s — ANOVA erreur : %s\n', mLabel, ME_anova.message);
@@ -519,9 +530,6 @@ sgtitle('Comparaison des conditions de stimulation — Ensemble des patients (EM
 % =========================================================================
 % ANALYSE SPM1D : ANOVA RM 7 conditions + post-hoc chaque FES vs No FES
 % =========================================================================
-SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
-if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
-
 FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
 BAR_COLORS    = COLORS(2:end, :);
@@ -530,8 +538,8 @@ BAR_HEIGHT    = 0.02;
 fprintf('\n=== Choix des tests statistiques (EMG) ===\n');
 fprintf('  Design        : mesures repetees intra-sujet (10 patients x 7 conditions)\n');
 fprintf('  Independance  : 1 moyenne par patient par condition (blocks moyennes)\n');
-fprintf('  Test omnibus  : ANOVA RM a 1 facteur (spm1d.stats.anova1rm)\n');
-fprintf('  Post-hoc      : t-test apparie chaque FES vs No FES (ttest_paired)\n');
+fprintf('  Test omnibus  : ANOVA RM non parametrique a 1 facteur (spm1d.stats.nonparam.anova1rm, Monte Carlo 10000 iterations)\n');
+fprintf('  Post-hoc      : t-test apparie chaque FES vs No FES (spm1d.stats.ttest_paired, parametrique)\n');
 fprintf('  Correction    : Bonferroni sur 6 comparaisons (alpha = %.4f)\n', ALPHA_POSTHOC);
 fprintf('  Temporel      : Random Field Theory via SPM1D (Pataky 2010)\n');
 fprintf('%s\n', repmat('-', 1, 55));
@@ -605,8 +613,8 @@ for im = 1:length(EMG_LABELS)
     anova_sig = false;
     if length(unique(group_vec)) >= 2
         try
-            spm_F  = spm1d.stats.anova1rm(all_mat, group_vec, subj_vec);
-            spmi_F = spm_F.inference(0.05, 'interp', true);
+            spm_F  = spm1d.stats.nonparam.anova1rm(all_mat, group_vec, subj_vec);
+            spmi_F = spm_F.inference(0.05, 'iterations', 10000, 'interp', true);
             anova_sig = ~isempty(spmi_F.clusters);
             spmResults(im).anova_sig      = anova_sig;
             spmResults(im).anova_clusters = spmi_F.clusters;

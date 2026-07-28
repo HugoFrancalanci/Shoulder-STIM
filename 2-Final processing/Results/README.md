@@ -227,8 +227,8 @@ Les scripts `extract_emg_cycles_noSEF.m`, `extract_emg_cycles_rehab.m`, `extract
 | Étape | Détail |
 |-------|--------|
 | Données | `patientMeans` — 1 vecteur (ou matrice 3×101 pour kin) par patient par condition |
-| Test omnibus | `spm1d.stats.anova1rm(all_mat, group_vec, subj_vec)` — inférence α=0.05 RFT |
-| Post-hoc | `spm1d.stats.ttest_paired` — chaque condition comparée vs la référence du script (No FES pour les scripts `_noSEF.m` ; Rehab pour les scripts `_rehab.m`) |
+| Test omnibus | `spm1d.stats.nonparam.anova1rm(all_mat, group_vec, subj_vec)` — non paramétrique, permutation Monte Carlo (`iterations=10000`, `rng(0)` pour la reproductibilité ; l'énumération exacte est infaisable, `nPermTotal=factorial(70)`), inférence α=0.05 |
+| Post-hoc | `spm1d.stats.ttest_paired` (paramétrique, inchangé) — chaque condition comparée vs la référence du script (No FES pour les scripts `_noSEF.m` ; Rehab pour les scripts `_rehab.m`) |
 | Correction | Bonferroni : α = 0.05/6 ≈ 0.0083 (scripts `_noSEF` — 6 comparaisons) ou α = 0.05/5 = 0.01 (scripts `_rehab` — 5 comparaisons, No FES vs Rehab exclue car déjà couverte par le script `_noSEF` correspondant) |
 | Résultat | Barres colorées sous chaque subplot (une couleur par condition comparée) aux instants significatifs |
 
@@ -241,8 +241,8 @@ Les scripts `extract_emg_cycles_noSEF.m`, `extract_emg_cycles_rehab.m`, `extract
 | Étape | Détail |
 |-------|--------|
 | Données | `condData` — jusqu'à 3 vecteurs (ou matrices) par condition, pour le patient courant |
-| Test omnibus | `spm1d.stats.anova1rm` — même logique que le groupé |
-| Post-hoc | `ttest_paired` vs la référence du script, uniquement si ANOVA significative |
+| Test omnibus | `spm1d.stats.nonparam.anova1rm` — même logique que le groupé (non paramétrique, Monte Carlo 10000 itérations) |
+| Post-hoc | `ttest_paired` (paramétrique) vs la référence du script, uniquement si ANOVA significative |
 | Correction | Bonferroni identique au niveau groupé (0.0083 ou 0.01 selon le script) |
 
 > **Limitation :** N=3 implique des degrés de liberté très faibles. Le seuil RFT est élevé et la puissance statistique insuffisante pour détecter la plupart des effets. Ces figures sont à interpréter comme **exploratoires** (visualisation des tendances intra-patient) et non comme une analyse formelle.

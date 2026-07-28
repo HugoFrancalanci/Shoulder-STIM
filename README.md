@@ -1,4 +1,4 @@
-# RELIEF Project: Functional Electrical Stimulation of the Deltoid : Scapulothoracic and Electromyography analysis
+# RELIEF Project: Impact of optimized functional electrical stimulation pattern on perceptual and kinematic behaviour: a pilot study on healthy participants during arm elevation.
 
 > **Project RELIEF** | Biomechanics and Translational Research in Surgery Group  
 > University of Geneva : [Research group](https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet)
@@ -11,26 +11,11 @@ Ten patients performed repeated arm elevation tasks (scapular plane) across seve
 
 ## What this repository covers
 
-- **FES artefact removal** from raw EMG signals (adaptive MAD threshold, blanking, PCHIP interpolation)
 - **Scapular kinematics** extraction and analysis (3 DOF, YXZ sequence, ISB convention)
 - **Surface EMG** cycle extraction, linear envelope, and % baseline normalisation
-- **SPM1D statistical analysis** at two levels: grouped (N=10 patients) and individual (N=3 blocks, exploratory)
+- **FES artefact removal** from raw EMG signals (adaptive MAD threshold, blanking, PCHIP interpolation)
+- **SPM1D statistical analysis** at two levels: grouped (N=10 patients) and individual (N=3 blocks)
 - Summary heatmaps of individual SPM1D results for kinematics and EMG
-
-## Repository structure
-
-Stim_Dev/
-├── 2-Final processing/
-│   └── Results/
-│       ├── usercommands_conditions.m       ← central configuration
-│       ├── compare_fes_nofes.m             ← FES artefact exploration
-│       ├── preprocess_fes_removal.m        ← FES removal verification
-│       ├── verify_fes_batch.m              ← batch quality control
-│       ├── extract_scapular_kinematics.m
-│       ├── extract_emg_cycles.m
-│       ├── heatmap_spm_individuel_kin.m
-│       └── heatmap_spm_individuel_emg.m
-└── README.md
 
 See [`2-Final processing/Results/README.md`](2-Final%20processing/Results/README.md) for the full pipeline documentation.
 
