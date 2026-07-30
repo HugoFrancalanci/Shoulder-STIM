@@ -95,7 +95,7 @@ for idof = 1:nDOF
             ph = spmResults(idof).posthoc.(fld);
             if isfield(ph, 'sig') && ph.sig && ~ismember(fld, sigPairFlds)
                 sigPairFlds{end+1}  = fld; %#ok<AGROW>
-                sigPairLabel{end+1} = sprintf('%s vs %s', strrep(condA,'_',' '), strrep(condB,'_',' ')); %#ok<AGROW>
+                sigPairLabel{end+1} = sprintf('%s vs %s', condLabel(condA), condLabel(condB)); %#ok<AGROW>
             end
         end
     end
@@ -187,8 +187,13 @@ drawFigure('sd', 'labelled');
             grid on; box on; hold off;
         end
 
-        sgtitle(sprintf('Scapular kinematics — group mean, all pairwise post-hoc comparisons %s', titleSuffix), ...
-                'FontSize', 13, 'FontWeight', 'bold');
+        if strcmp(curveMode, 'sd') && strcmp(barMode, 'group')
+            sgtitle('Scapular kinematics pattern between FES conditions', ...
+                    'FontSize', 13, 'FontWeight', 'bold');
+        else
+            sgtitle(sprintf('Scapular kinematics — group mean, all pairwise post-hoc comparisons %s', titleSuffix), ...
+                    'FontSize', 13, 'FontWeight', 'bold');
+        end
 
         drawLegend();
     end
@@ -286,27 +291,58 @@ drawFigure('sd', 'labelled');
 
 
     function drawLegend()
-        legAx = axes('Position', [0.03 0.005 0.95 0.045], 'Visible', 'off');
-        hold(legAx, 'on');
+        % Deux legendes empilees, chacune sur une seule ligne, pour que
+        % chacune se centre correctement (une legende qui passe a la ligne
+        % aligne sa derniere rangee incomplete a gauche, jamais au centre).
 
-        legHandles = gobjects(1, length(CONDITIONS_ORDERED) + nSigPairs);
+        % --- Ligne du haut : couleurs des conditions ---
+        legAx1 = axes('Position', [0.03 0.033 0.95 0.03], 'Visible', 'off');
+        hold(legAx1, 'on');
+        legHandles1 = gobjects(1, length(CONDITIONS_ORDERED));
         for ic = 1:length(CONDITIONS_ORDERED)
-            legHandles(ic) = plot(legAx, NaN, NaN, 'Color', COLORS(ic,:), 'LineWidth', 2.5, ...
-                                   'DisplayName', COND_LABELS{ic});
+            legHandles1(ic) = plot(legAx1, NaN, NaN, 'Color', COLORS(ic,:), 'LineWidth', 2.5, ...
+                                    'DisplayName', COND_LABELS{ic});
         end
-        for k = 1:nSigPairs
-            col = QUAL_PALETTE(mod(k-1, size(QUAL_PALETTE,1)) + 1, :);
-            legHandles(length(CONDITIONS_ORDERED)+k) = plot(legAx, NaN, NaN, 's', ...
-                'MarkerFaceColor', col, 'MarkerEdgeColor', 'none', 'MarkerSize', 10, ...
-                'DisplayName', sigPairLabel{k});
-        end
-
-        lgd = legend(legAx, legHandles, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, 'NumColumns', min(7, length(legHandles)));
+        lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, ...
+                       'NumColumns', length(CONDITIONS_ORDERED));
         drawnow;
-        lgd.Units = 'normalized';
-        lgd.Position(1) = 0.5 - lgd.Position(3)/2;
-        lgd.Position(2) = 0.003;
-        hold(legAx, 'off');
+        lgd1.Units = 'normalized';
+        lgd1.Position(1) = 0.5 - lgd1.Position(3)/2;
+        lgd1.Position(2) = 0.033;
+        hold(legAx1, 'off');
+
+        % --- Ligne du bas : paires significatives (si il y en a) ---
+        if nSigPairs > 0
+            legAx2 = axes('Position', [0.03 0.002 0.95 0.03], 'Visible', 'off');
+            hold(legAx2, 'on');
+            legHandles2 = gobjects(1, nSigPairs);
+            for k = 1:nSigPairs
+                col = QUAL_PALETTE(mod(k-1, size(QUAL_PALETTE,1)) + 1, :);
+                legHandles2(k) = plot(legAx2, NaN, NaN, 's', ...
+                    'MarkerFaceColor', col, 'MarkerEdgeColor', 'none', 'MarkerSize', 10, ...
+                    'DisplayName', sigPairLabel{k});
+            end
+            lgd2 = legend(legAx2, legHandles2, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, ...
+                           'NumColumns', nSigPairs);
+            drawnow;
+            lgd2.Units = 'normalized';
+            lgd2.Position(1) = 0.5 - lgd2.Position(3)/2;
+            lgd2.Position(2) = 0.002;
+            hold(legAx2, 'off');
+        end
+    end
+
+
+    function lbl = condLabel(condRaw)
+        % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+        % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+        % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+        idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+        if isempty(idx)
+            lbl = strrep(condRaw, '_', ' ');
+        else
+            lbl = COND_LABELS{idx};
+        end
     end
 
 end

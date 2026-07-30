@@ -48,17 +48,18 @@
 %                ALL_PAIRS (21 condition pairs), ALPHA_POSTHOC=0.05/21
 % Outputs    :   7 figures (see Description); console output per patient
 %                reporting ANOVA result per muscle and significant pairwise
-%                post-hoc clusters; recap_emg_all_comp.xlsx (Group_PostHoc +
-%                Individual_PostHoc sheets, see exportSpmRecapExcel.m);
-%                cache_emg_all_comp.mat — on the FIRST full run, all data
-%                needed to redraw the final figure is cached here
-%                (patientMeans, spmResults, indivSigClusters, PATIENT_IDS,
-%                and the display parameters). On every subsequent run, if
-%                this cache file exists, the script skips the entire
-%                patient loop / SPM1D computation and just reloads the
-%                cache to redraw plotAllCompFigureEMG.m in seconds. Set
-%                FORCE_RECOMPUTE=true at the top of the script to bypass
-%                the cache and recompute everything from scratch.
+%                post-hoc clusters; cache_emg_all_comp.mat — on the FIRST
+%                full run, all data needed to redraw the final figure is
+%                cached here (patientMeans, spmResults, indivSigClusters,
+%                PATIENT_IDS, and the display parameters). On every
+%                subsequent run, if this cache file exists, the script skips
+%                the entire patient loop / SPM1D computation and just
+%                reloads the cache to redraw plotAllCompFigureEMG.m in
+%                seconds. Set FORCE_RECOMPUTE=true at the top of the script
+%                to bypass the cache and recompute everything from scratch.
+%                Article-ready summary tables (group/individual/combined)
+%                are generated separately from this cache by
+%                generate_article_table_emg*.m.
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
 %                plotAllCompFigureEMG.m (same folder),
@@ -116,9 +117,10 @@ CACHE_FILE = fullfile(fileparts(mfilename('fullpath')), 'cache_emg_all_comp.mat'
 
 if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
     fprintf('Cache trouve : %s\n', CACHE_FILE);
-    fprintf('→ Regeneration rapide de la figure finale uniquement (pas de re-calcul SPM1D).\n');
+    fprintf('→ Regeneration rapide de la figure finale (pas de re-calcul SPM1D).\n');
     fprintf('  (mettre FORCE_RECOMPUTE=true dans le script pour tout recalculer)\n\n');
     load(CACHE_FILE, 'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'EMG_LABELS', 'X_CYCLE', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS');
+
     plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
                          spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS);
     return;
@@ -497,7 +499,7 @@ for ip = 1:length(PATIENT_IDS)
                     if ~isempty(spmi_t_pt.clusters)
                         rowIdx_pt = rowIdx_pt + 1;
                         fprintf('    %s vs %s : SIGNIFICATIF (%d cluster(s))\n', ...
-                                strrep(condA,'_',' '), strrep(condB,'_',' '), length(spmi_t_pt.clusters));
+                                condLabel(condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(condB, CONDITIONS_ORDERED, COND_LABELS), length(spmi_t_pt.clusters));
                         y_bar_pt = y_bar_top_pt - (rowIdx_pt-1) * (bar_h_pt + bar_gap_pt);
                         for cl = 1:length(spmi_t_pt.clusters)
                             ep = spmi_t_pt.clusters{cl}.endpoints;
@@ -550,7 +552,7 @@ for ip = 1:length(PATIENT_IDS)
             if ~isfield(patientSpmResults(im).posthoc, pairFld), continue; end
             ph = patientSpmResults(im).posthoc.(pairFld);
             if ~isfield(ph, 'clusters') || isempty(ph.clusters), continue; end
-            compLabel = sprintf('%s vs %s', strrep(ph.condA,'_',' '), strrep(ph.condB,'_',' '));
+            compLabel = sprintf('%s vs %s', condLabel(ph.condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(ph.condB, CONDITIONS_ORDERED, COND_LABELS));
             for cl = 1:length(ph.clusters)
                 ep = ph.clusters{cl}.endpoints;
                 pv = ph.clusters{cl}.P;
@@ -792,7 +794,7 @@ for im = 1:length(EMG_LABELS)
             ph = res.posthoc.(pairFld);
             if ~isfield(ph, 'sig') || ~ph.sig, continue; end
             anyPairSig = true;
-            compLabel = sprintf('%s vs %s', strrep(ph.condA,'_',' '), strrep(ph.condB,'_',' '));
+            compLabel = sprintf('%s vs %s', condLabel(ph.condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(ph.condB, CONDITIONS_ORDERED, COND_LABELS));
             for cl = 1:length(ph.clusters)
                 ep = ph.clusters{cl}.endpoints;
                 pv = ph.clusters{cl}.P;
@@ -808,17 +810,6 @@ for im = 1:length(EMG_LABELS)
     fprintf('%s\n', repmat('-', 1, 90));
 end
 fprintf('=================================================================\n\n');
-
-% -------------------------------------------------------------------------
-% EXPORT EXCEL : recap SPM1D groupe + individuel (tableau supplementaire)
-% -------------------------------------------------------------------------
-PAIR_RAW = cell(N_PAIRS, 1);
-for kp = 1:N_PAIRS
-    PAIR_RAW{kp} = sprintf('%s_vs_%s', ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2});
-end
-exportSpmRecapExcel(fullfile(fileparts(mfilename('fullpath')), 'recap_emg_all_comp.xlsx'), ...
-                     'Muscle', EMG_LABELS, 'N/A (all pairwise)', PAIR_RAW, spmResults, indivSigClusters, PATIENT_IDS, ...
-                     'ampInfo', 'pctBaseline');
 
 % -------------------------------------------------------------------------
 % SAUVEGARDE CACHE : permet de relancer uniquement la figure finale au
@@ -852,6 +843,18 @@ disp(' '); disp('Termine.');
 
 function fld = pairFieldName(condA, condB)
     fld = matlab.lang.makeValidName(sprintf('%s_vs_%s', condA, condB));
+end
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
 end
 
 function analyticIdx = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS)

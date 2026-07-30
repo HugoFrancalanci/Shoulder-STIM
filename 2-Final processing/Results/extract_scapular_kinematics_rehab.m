@@ -41,9 +41,7 @@
 % Outputs    :   5 figures (see Description); console output per patient
 %                reporting ANOVA p-value per DOF and post-hoc clusters,
 %                plus recap tables (individual and group) with angular
-%                values per significant cluster; recap_kinematics_rehab.xlsx
-%                (Group_PostHoc + Individual_PostHoc sheets, see
-%                exportSpmRecapExcel.m)
+%                values per significant cluster
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
 %                plotCombinedFigure.m (same folder),
@@ -122,7 +120,7 @@ COLORS = [0.35 0.20 0.29;   % No FES       — aubergine
 %   dim 1 = X = Rotation latérale/ médiale        (Euler(:,2,:))
 %   dim 2 = Y = Protraction/Rétraction            (Euler(:,1,:))
 %   dim 3 = Z = Bascule postérieure/antérieur     (Euler(:,3,:))
-DOF_LABELS = {' X : Rotation latérale (-) / médiale (+)', 'Y : Protraction (+) / Rétraction (-)', 'Z : Bascule postérieure (+) / antérieure (-)'};
+DOF_LABELS = {'Lateral (-) / medial (+) rotation', 'Protraction (+) / retraction (-)', 'Posterior (+) / anterior (-) tilt'};
 DOF_SHORT  = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
 
 warnings = {};
@@ -465,7 +463,7 @@ for ip = 1:length(PATIENT_IDS)
             for cl = 1:length(ph.clusterInfo)
                 ci = ph.clusterInfo(cl);
                 fprintf('  %-16s  %-14s  %-9.1f  %-9.1f  %-8.4f  %-16s  %-16s  %.1f\n', ...
-                        DOF_SHORT{idof}, strrep(FES_CONDS{fc},'_',' '), ci.ep(1)-1, ci.ep(2)-1, ci.pv, ...
+                        DOF_SHORT{idof}, condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), ci.ep(1)-1, ci.ep(2)-1, ci.pv, ...
                         rangeStr(ci.range_fes), rangeStr(ci.range_ref), ci.diff_mean);
                 anyRow_pt = true;
             end
@@ -677,7 +675,7 @@ for idof = 1:3
                     spmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).angleInfo = clusterInfo;
                 end
             catch ME
-                fprintf('  DOF %d | %s vs Rehab erreur : %s\n', idof, strrep(FES_CONDS{fc},'_',' '), ME.message);
+                fprintf('  DOF %d | %s vs Rehab erreur : %s\n', idof, condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), ME.message);
             end
         end
 
@@ -685,7 +683,7 @@ for idof = 1:3
         for fc = 1:length(FES_CONDS)
             plot(NaN, NaN, 's', 'MarkerFaceColor', BAR_COLORS(fc,:), ...
                  'MarkerEdgeColor','none', 'MarkerSize', 8, ...
-                 'DisplayName', [strrep(FES_CONDS{fc},'_',' ') ' vs Rehab'], 'HandleVisibility','on');
+                 'DisplayName', [condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS) ' vs Rehab'], 'HandleVisibility','on');
         end
     end
 
@@ -750,25 +748,18 @@ for idof = 1:3
                     x2c = (ep(2)-1);
                     ai  = ph.angleInfo(cl);
                     fprintf('%-20s  %-18s  %-12s  %-10.1f  %-10.1f  %-9.4f  %-16s  %-16s  %.1f\n', ...
-                            '', 't-test vs Rehab', strrep(FES_CONDS{fc},'_',' '), x1c, x2c, pv, ...
+                            '', 't-test vs Rehab', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), x1c, x2c, pv, ...
                             rangeStr(ai.range_fes), rangeStr(ai.range_ref), ai.diff_mean);
                 end
             else
                 fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
-                        '', 't-test vs Rehab', strrep(FES_CONDS{fc},'_',' '), '—', '—', 'n.s.', '—', '—', '—');
+                        '', 't-test vs Rehab', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), '—', '—', 'n.s.', '—', '—', '—');
             end
         end
     end
     fprintf('%s\n', repmat('-', 1, 120));
 end
 fprintf('=================================================================\n\n');
-
-% -------------------------------------------------------------------------
-% EXPORT EXCEL : recap SPM1D groupe + individuel (tableau supplementaire)
-% -------------------------------------------------------------------------
-exportSpmRecapExcel(fullfile(fileparts(mfilename('fullpath')), 'recap_kinematics_rehab.xlsx'), ...
-                     'DOF', DOF_SHORT, REF_COND, FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS, ...
-                     'angleInfo', 'deg');
 
 % =========================================================================
 % FIGURE FINALE : moyenne de groupe + trajectoires individuelles (N=10),
@@ -782,7 +773,7 @@ plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LA
 % (P1-P10), pour pouvoir suivre un patient donne d'un panneau a l'autre.
 % Pas de moyenne de groupe ici ; post-hoc intra-individuel uniquement.
 % =========================================================================
-plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, DOF_LABELS, x, ...
+plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, x, ...
                            REF_COND, FES_CONDS, indivSigClusters, PATIENT_IDS);
 
 % =========================================================================
@@ -843,6 +834,19 @@ end
 
 function s = rangeStr(r)
     s = sprintf('%.1f to %.1f', r(1), r(2));
+end
+
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
 end
 
 

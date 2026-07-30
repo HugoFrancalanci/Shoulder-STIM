@@ -1,4 +1,4 @@
-function plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, DOF_LABELS, x, ...
+function plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, x, ...
                                     refCond, fesConds, indivSigClusters, patientIDs)
 % =========================================================================
 % plotPatientIdentityFigure.m
@@ -25,6 +25,8 @@ function plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, DOF_LABELS,
 % Parameters :   patientMeans        — struct, patientMeans.(cond) = cell of
 %                                      (3,101) matrices, one per patient
 %                CONDITIONS_ORDERED  — cell array of condition names (7)
+%                COND_LABELS         — display labels (standardized abbreviations,
+%                                      e.g. "Min PW" for "Min_pulse_width")
 %                DOF_LABELS          — cell array of DOF titles (3)
 %                x                   — cycle axis, 0:100
 %                refCond             — reference condition name (string)
@@ -124,7 +126,7 @@ for idof = 1:nDOF
         ylim([y_bottom, y_max + data_range*0.08]);
         xlim([0 100]);
 
-        if idof == 1, title(strrep(fesConds{fc},'_',' '), 'FontSize', 10); end
+        if idof == 1, title(condLabel(fesConds{fc}, CONDITIONS_ORDERED, COND_LABELS), 'FontSize', 10); end
         if fc == 1, ylabel(dofDescriptionEN(idof), 'FontSize', 12); end
         if idof == nDOF, xlabel('Cycle (%)', 'FontSize', 12); end
         set(gca, 'FontSize', 6);
@@ -178,4 +180,17 @@ function stack = getPatientStack(patientMeans, condName)
     end
     pts = patientMeans.(fld);
     stack = cat(3, pts{:});
+end
+
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
 end

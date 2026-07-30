@@ -1,4 +1,4 @@
-# RELIEF Project: Impact of optimized functional electrical stimulation pattern on perceptual and kinematic behaviour: a pilot study on healthy participants during arm elevation.
+# RELIEF Project: Impact of the functional electrical stimulation pattern on perceptual and kinematic behaviour: a pilot study on healthy participants during arm elevation.
 
 > **Project RELIEF** | Biomechanics and Translational Research in Surgery Group  
 > University of Geneva : [Research group](https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet)

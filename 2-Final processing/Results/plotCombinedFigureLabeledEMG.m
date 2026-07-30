@@ -80,7 +80,7 @@ for im = 1:nMusc
             end
             meanFes = nanmean(stackFes, 1);
             plot(x, meanFes, 'Color', condColor, 'LineWidth', 2.5, ...
-                 'DisplayName', strrep(fesConds{fc}, '_', ' '));
+                 'DisplayName', condLabel(fesConds{fc}, CONDITIONS_ORDERED, COND_LABELS));
             y_min = min(y_min, min(meanFes)); y_max = max(y_max, max(meanFes));
         end
 
@@ -158,7 +158,7 @@ for im = 1:nMusc
         ylim([y_bottom, y_max + data_range*0.08]);
         xlim([0 100]);
 
-        if im == 1, title(strrep(fesConds{fc},'_',' '), 'FontSize', 10); end
+        if im == 1, title(condLabel(fesConds{fc}, CONDITIONS_ORDERED, COND_LABELS), 'FontSize', 10); end
         if fc == 1, ylabel(sprintf('%s (%% baseline)', mLabel), 'FontSize', 12); end
         if im == nMusc, xlabel('Cycle (%)', 'FontSize', 12); end
         set(gca, 'FontSize', 6);
@@ -184,7 +184,7 @@ for fc = 1:nFes
     c = [0.4 0.4 0.4];
     if ~isempty(condIdx), c = COLORS(condIdx,:); end
     legHandles(1+fc) = plot(legAx, NaN, NaN, 'Color', c, 'LineWidth', 2.5, ...
-                             'DisplayName', strrep(fesConds{fc}, '_', ' '));
+                             'DisplayName', condLabel(fesConds{fc}, CONDITIONS_ORDERED, COND_LABELS));
 end
 legHandles(end-1) = plot(legAx, NaN, NaN, 's', 'MarkerFaceColor', [0.15 0.15 0.15], ...
                           'MarkerEdgeColor', 'none', 'MarkerSize', 11, ...
@@ -212,4 +212,17 @@ function stack = getPatientStackEMG(patientMeans, condName, muscleLabel)
     end
     pts = patientMeans.(fld).(muscleLabel);
     stack = cat(1, pts{:});
+end
+
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
 end

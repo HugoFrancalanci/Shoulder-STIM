@@ -39,9 +39,7 @@
 % Parameters :   LP_FREQ=6Hz, BLANK_MS=8, MAD_FACTOR=6,
 %                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, FS_EMG=2200, FS_KIN=100
 % Outputs    :   7 figures (see Description); console output per patient
-%                reporting ANOVA result per muscle and post-hoc clusters;
-%                recap_emg_rehab.xlsx (Group_PostHoc + Individual_PostHoc
-%                sheets, see exportSpmRecapExcel.m)
+%                reporting ANOVA result per muscle and post-hoc clusters
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
 %                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
@@ -670,7 +668,7 @@ for im = 1:length(EMG_LABELS)
         end
         for fc = 1:length(FES_CONDS)
             plot(NaN, NaN, 's', 'MarkerFaceColor', BAR_COLORS(fc,:), 'MarkerEdgeColor','none', ...
-                 'MarkerSize', 8, 'DisplayName', [strrep(FES_CONDS{fc},'_',' ') ' vs Rehab']);
+                 'MarkerSize', 8, 'DisplayName', [condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS) ' vs Rehab']);
         end
     end
 
@@ -724,24 +722,17 @@ for im = 1:length(EMG_LABELS)
                     ep = ph.clusters{cl}.endpoints;
                     pv = ph.clusters{cl}.P;
                     fprintf('%-12s  %-18s  %-12s  %-10.1f  %-10.1f  %.4f\n', ...
-                            '', 't-test vs Rehab', strrep(FES_CONDS{fc},'_',' '), ep(1)-1, ep(2)-1, pv);
+                            '', 't-test vs Rehab', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), ep(1)-1, ep(2)-1, pv);
                 end
             else
                 fprintf('%-12s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
-                        '', 't-test vs Rehab', strrep(FES_CONDS{fc},'_',' '), '—', '—', 'n.s.');
+                        '', 't-test vs Rehab', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), '—', '—', 'n.s.');
             end
         end
     end
     fprintf('%s\n', repmat('-', 1, 80));
 end
 fprintf('=================================================================\n\n');
-
-% -------------------------------------------------------------------------
-% EXPORT EXCEL : recap SPM1D groupe + individuel (tableau supplementaire)
-% -------------------------------------------------------------------------
-exportSpmRecapExcel(fullfile(fileparts(mfilename('fullpath')), 'recap_emg_rehab.xlsx'), ...
-                     'Muscle', EMG_LABELS, REF_COND, FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS, ...
-                     'ampInfo', 'pctBaseline');
 
 % =========================================================================
 % FIGURE FINALE (1) : moyenne groupe + courbes individuelles + post-hoc
@@ -754,7 +745,7 @@ plotCombinedFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG
 % FIGURE FINALE (2) : identification individuelle P1-P10 (intra-individuel
 % uniquement, pas de moyenne groupe)
 % =========================================================================
-plotPatientIdentityFigureEMG(patientMeans, CONDITIONS_ORDERED, EMG_LABELS, X_CYCLE, ...
+plotPatientIdentityFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, EMG_LABELS, X_CYCLE, ...
                              REF_COND, FES_CONDS, indivSigClusters, PATIENT_IDS);
 
 % =========================================================================
@@ -776,6 +767,18 @@ disp(' '); disp('Termine.');
 % =========================================================================
 % FONCTIONS LOCALES
 % =========================================================================
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
+end
 
 function analyticIdx = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS)
     isAnalytic = false(1, length(Trial));

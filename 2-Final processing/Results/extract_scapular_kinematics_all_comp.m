@@ -50,8 +50,6 @@
 %                reporting ANOVA p-value per DOF and significant pairwise
 %                post-hoc clusters, plus recap tables (individual and group)
 %                with angular values per significant cluster;
-%                recap_kinematics_all_comp.xlsx (Group_PostHoc +
-%                Individual_PostHoc sheets, see exportSpmRecapExcel.m);
 %                cache_kinematics_all_comp.mat — on the FIRST full run, all
 %                data needed to redraw the final figure is cached here
 %                (patientMeans, spmResults, indivSigClusters, PATIENT_IDS,
@@ -64,7 +62,9 @@
 %                individual-level companion figure, even though the current
 %                plotAllCompFigure.m only uses the group-level data). Set
 %                FORCE_RECOMPUTE=true at the top of the script to bypass the
-%                cache and recompute everything from scratch.
+%                cache and recompute everything from scratch. Article-ready
+%                summary tables (group/individual/combined) are generated
+%                separately from this cache by generate_article_table_kin*.m.
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
 %                plotAllCompFigure.m (same folder),
@@ -117,9 +117,10 @@ CACHE_FILE = fullfile(fileparts(mfilename('fullpath')), 'cache_kinematics_all_co
 
 if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
     fprintf('Cache trouve : %s\n', CACHE_FILE);
-    fprintf('→ Regeneration rapide de la figure finale uniquement (pas de re-calcul SPM1D).\n');
+    fprintf('→ Regeneration rapide de la figure finale (pas de re-calcul SPM1D).\n');
     fprintf('  (mettre FORCE_RECOMPUTE=true dans le script pour tout recalculer)\n\n');
     load(CACHE_FILE, 'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'DOF_LABELS', 'x', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS');
+
     plotAllCompFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
                        spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS);
     return;
@@ -156,7 +157,7 @@ COLORS = [0.35 0.20 0.29;   % No FES       — aubergine
 %   dim 1 = X = Rotation latérale/ médiale        (Euler(:,2,:))
 %   dim 2 = Y = Protraction/Rétraction            (Euler(:,1,:))
 %   dim 3 = Z = Bascule postérieure/antérieur     (Euler(:,3,:))
-DOF_LABELS = {' X : Rotation latérale (-) / médiale (+)', 'Y : Protraction (+) / Rétraction (-)', 'Z : Bascule postérieure (+) / antérieure (-)'};
+DOF_LABELS = {'Lateral (-) / medial (+) rotation', 'Protraction (+) / retraction (-)', 'Posterior (+) / anterior (-) tilt'};
 DOF_SHORT  = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
 
 warnings = {};
@@ -436,7 +437,7 @@ for ip = 1:length(PATIENT_IDS)
                     if ~isempty(spmi_t_pt.clusters)
                         rowIdx_pt = rowIdx_pt + 1;
                         fprintf('    %s vs %s : SIGNIFICATIF (%d cluster(s))\n', ...
-                                strrep(condA,'_',' '), strrep(condB,'_',' '), length(spmi_t_pt.clusters));
+                                condLabel(condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(condB, CONDITIONS_ORDERED, COND_LABELS), length(spmi_t_pt.clusters));
                         y_bar_pt = y_bar_top_pt - (rowIdx_pt-1) * (bar_h_pt + bar_gap_pt);
                         mc_B_full = mean(data_B_mat, 1);
                         mc_A_full = mean(data_A_mat, 1);
@@ -498,7 +499,7 @@ for ip = 1:length(PATIENT_IDS)
             if ~isfield(patientSpmResults(idof).posthoc, pairFld), continue; end
             ph = patientSpmResults(idof).posthoc.(pairFld);
             if ~isfield(ph, 'clusterInfo') || isempty(ph.clusterInfo), continue; end
-            compLabel = sprintf('%s vs %s', strrep(ph.condA,'_',' '), strrep(ph.condB,'_',' '));
+            compLabel = sprintf('%s vs %s', condLabel(ph.condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(ph.condB, CONDITIONS_ORDERED, COND_LABELS));
             for cl = 1:length(ph.clusterInfo)
                 ci = ph.clusterInfo(cl);
                 fprintf('  %-16s  %-28s  %-9.1f  %-9.1f  %-8.4f  %-16s  %-16s  %.1f\n', ...
@@ -765,7 +766,7 @@ for idof = 1:3
             ph = res.posthoc.(pairFld);
             if ~isfield(ph, 'sig') || ~ph.sig, continue; end
             anyPairSig = true;
-            compLabel = sprintf('%s vs %s', strrep(ph.condA,'_',' '), strrep(ph.condB,'_',' '));
+            compLabel = sprintf('%s vs %s', condLabel(ph.condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(ph.condB, CONDITIONS_ORDERED, COND_LABELS));
             for cl = 1:length(ph.clusters)
                 ep  = ph.clusters{cl}.endpoints;
                 pv  = ph.clusters{cl}.P;
@@ -785,17 +786,6 @@ for idof = 1:3
     fprintf('%s\n', repmat('-', 1, 135));
 end
 fprintf('=================================================================\n\n');
-
-% -------------------------------------------------------------------------
-% EXPORT EXCEL : recap SPM1D groupe + individuel (tableau supplementaire)
-% -------------------------------------------------------------------------
-PAIR_RAW = cell(N_PAIRS, 1);
-for kp = 1:N_PAIRS
-    PAIR_RAW{kp} = sprintf('%s_vs_%s', ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2});
-end
-exportSpmRecapExcel(fullfile(fileparts(mfilename('fullpath')), 'recap_kinematics_all_comp.xlsx'), ...
-                     'DOF', DOF_SHORT, 'N/A (all pairwise)', PAIR_RAW, spmResults, indivSigClusters, PATIENT_IDS, ...
-                     'angleInfo', 'deg');
 
 % -------------------------------------------------------------------------
 % SAUVEGARDE CACHE : permet de relancer uniquement la figure finale au
@@ -835,6 +825,19 @@ disp('Terminé.');
 
 function fld = pairFieldName(condA, condB)
     fld = matlab.lang.makeValidName(sprintf('%s_vs_%s', condA, condB));
+end
+
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
 end
 
 

@@ -1,4 +1,4 @@
-function plotPatientIdentityFigureEMG(patientMeans, CONDITIONS_ORDERED, EMG_LABELS, x, ...
+function plotPatientIdentityFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, EMG_LABELS, x, ...
                                        refCond, fesConds, indivSigClusters, patientIDs)
 % =========================================================================
 % plotPatientIdentityFigureEMG.m
@@ -25,6 +25,8 @@ function plotPatientIdentityFigureEMG(patientMeans, CONDITIONS_ORDERED, EMG_LABE
 % Parameters :   patientMeans        — struct, patientMeans.(cond).(muscle) =
 %                                      cell of (1,101) vectors, one per patient
 %                CONDITIONS_ORDERED  — cell array of condition names (7)
+%                COND_LABELS         — display labels (standardized abbreviations,
+%                                      e.g. "Min PW" for "Min_pulse_width")
 %                EMG_LABELS          — cell array of muscle names (4)
 %                x                   — cycle axis, 0:100
 %                refCond             — reference condition name (string)
@@ -125,7 +127,7 @@ for im = 1:nMusc
         ylim([y_bottom, y_max + data_range*0.08]);
         xlim([0 100]);
 
-        if im == 1, title(strrep(fesConds{fc},'_',' '), 'FontSize', 10); end
+        if im == 1, title(condLabel(fesConds{fc}, CONDITIONS_ORDERED, COND_LABELS), 'FontSize', 10); end
         if fc == 1, ylabel(sprintf('%s (%% baseline)', mLabel), 'FontSize', 12); end
         if im == nMusc, xlabel('Cycle (%)', 'FontSize', 12); end
         set(gca, 'FontSize', 6);
@@ -171,4 +173,17 @@ function stack = getPatientStackEMG(patientMeans, condName, muscleLabel)
     end
     pts = patientMeans.(fld).(muscleLabel);
     stack = cat(1, pts{:});
+end
+
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
 end

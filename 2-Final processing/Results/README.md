@@ -54,7 +54,7 @@ Each `extract_*` script calls dedicated plotting functions to build a compact "f
 - **`plotCombinedFigureLabeled*.m`** — same as `plotCombinedFigure*` but with "P#" labels next to each patient's individual significance bar.
 - **`plotAllCompFigure*.m`** (`_all_comp` variant) — one panel per DOF/muscle showing all 7 conditions at once; produces 3 figures (mean±SD, individual patients, and mean±SD with labelled per-patient bars for every significant pair). Only pairs found significant get a colour and a legend entry — no clutter from the other ~15 non-significant pairs.
 
-**Excel export:** every `extract_*` script writes a `recap_*.xlsx` (via `exportSpmRecapExcel.m`) with two sheets — `Group_PostHoc` (one row per comparison, significant or not, plus % of patients individually significant) and `Individual_PostHoc` (one row per actual significant patient cluster).
+**Article tables:** `generate_article_table_kin/emg.m` (group-significant comparisons), `_individual.m` (every individually significant cluster, all 21 pairs), and `_combined.m` (both, merged) read the `_all_comp` `.mat` cache and print a Markdown table to the console, without rerunning any statistics.
 
 ---
 
