@@ -1,4 +1,4 @@
-function plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
+function plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, jointLabel, x, ...
                              refCond, fesConds, spmResults, indivSigClusters, patientIDs)
 % =========================================================================
 % plotCombinedFigure.m
@@ -31,6 +31,9 @@ function plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLOR
 %                COND_LABELS         — display labels (underscore -> space)
 %                COLORS              — Nx3 RGB, one row per CONDITIONS_ORDERED
 %                DOF_LABELS          — cell array of DOF titles (3)
+%                jointLabel          — string used in the sgtitle, e.g.
+%                                      'Scapular kinematics' or
+%                                      'Glenohumeral kinematics'
 %                x                   — cycle axis, 0:100
 %                refCond             — reference condition name (string)
 %                fesConds            — cell array of compared condition names
@@ -144,14 +147,14 @@ for idof = 1:nDOF
         xlim([0 100]);
 
         if idof == 1, title(condLabel(fesConds{fc}, CONDITIONS_ORDERED, COND_LABELS), 'FontSize', 10); end
-        if fc == 1, ylabel(dofDescriptionEN(idof), 'FontSize', 12); end
+        if fc == 1, ylabel(sprintf('%s (deg)', DOF_LABELS{idof}), 'FontSize', 12); end
         if idof == nDOF, xlabel('Cycle (%)', 'FontSize', 12); end
         set(gca, 'FontSize', 6);
         grid on; box on; hold off;
     end
 end
 
-sgtitle(sprintf('Scapular kinematics pattern between each condition vs %s', refCond), ...
+sgtitle(sprintf('%s pattern between each condition vs %s', jointLabel, refCond), ...
         'FontSize', 13, 'FontWeight', 'bold');
 
 % -------------------------------------------------------------------------
@@ -186,14 +189,6 @@ lgd.Position(1) = 0.5 - lgd.Position(3)/2;  % centre horizontalement dans la fig
 lgd.Position(2) = 0.005;
 hold(legAx, 'off');
 
-end
-
-
-function lbl = dofDescriptionEN(idof)
-    labels = {'Lateral (-) / medial (+) rotation (deg)', ...
-              'Protraction (+) / retraction (-) (deg)', ...
-              'Posterior (+) / anterior (-) tilt (deg)'};
-    lbl = labels{idof};
 end
 
 

@@ -34,7 +34,7 @@
 % =========================================================================
 
 clear; clc; close all;
-run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditions.m'));
 
 % -------------------------------------------------------------------------
 % PARAMETRES RETRAIT

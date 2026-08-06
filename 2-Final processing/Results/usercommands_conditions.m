@@ -58,6 +58,19 @@ DOMINANT_SIDE = containers.Map( ...
 %        angle(3)=rotation interne/externe (Z)
 SCAPULA_JOINT_IDX = containers.Map({'R','L'}, {3, 8});
 
+% Index du joint glenohumeral selon le côté (1-based)
+% Vérifié sur P1.mat : Joint(2).label='RGH' (seq XZY), Joint(7).label='LGH'
+% (humerus par rapport a la scapula ; ComputeKinematics.m, tache ANALYTIC2 =
+% "Coronal elevation")
+% Ordre de stockage Euler.full/.rcycle (dim 1/2/3 = X/Y/Z) :
+%   dim 1 = X = elevation                    (- = elevation)
+%   dim 2 = Y = rotation axiale              (+ = interne, - = externe, cote droit)
+%   dim 3 = Z = flexion/extension            (+ = extension, - = flexion, cote droit)
+% Cote gauche (LGH) : dim1 deja adaptee convention ISB (meme sens que RGH).
+% dim2/dim3 restent documentees "sign inverted vs R" dans ComputeKinematics.m
+% -> voir APPLY_LGH_SIGN_CORRECTION dans extract_glenohumeral_kinematics_*.m
+GLENOHUMERAL_JOINT_IDX = containers.Map({'R','L'}, {2, 7});
+
 % -------------------------------------------------------------------------
 % 8ÈME ANALYTIC2 TOUJOURS VIDE (tous patients)
 % Confirmé sur P1.mat : 8ème trial → Rcycle vide, Signal.cycle absent

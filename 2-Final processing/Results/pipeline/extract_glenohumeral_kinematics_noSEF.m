@@ -1,5 +1,5 @@
 % =========================================================================
-% extract_scapular_kinematics_rehab.m
+% extract_glenohumeral_kinematics_noSEF.m
 % =========================================================================
 % Author     :   H. Francalanci
 %                Biomechanics and Translational Research in Surgery Group
@@ -9,42 +9,50 @@
 %                https://creativecommons.org/licenses/by-nc/4.0/legalcode
 % Source code:   To be defined
 % Reference  :   To be defined
-% Date       :   July 2026
+% Date       :   August 2026
 % -------------------------------------------------------------------------
-% Description:   Extracts and analyses scapular kinematics (3 DOF, YXZ
-%                sequence, ISB) from K-LAB .mat files for 10 healthy participants across
-%                7 FES conditions. Pipeline per trial: squeeze Euler.rcycle
-%                (3,1,101,N) → nanmean over N cycles → (3,101) cycle mean.
+% Description:   Extracts and analyses glenohumeral kinematics (3 DOF, XZY
+%                sequence — humerus relative to scapula, Senk & Cheze 2006 /
+%                Creveaux et al. 2018 / Phadke et al. 2011) from K-LAB .mat
+%                files for 10 healthy participants across 7 FES conditions.
+%                Same pipeline and statistics as extract_scapular_kinematics_
+%                noSEF.m — only the joint index / DOF meaning differ. Pipeline
+%                per trial: squeeze Euler.rcycle (3,1,101,N) → nanmean over N
+%                cycles → (3,101) cycle mean.
 %                Produces 4 output figures per run:
 %                (1) Per-patient : 3 DOF x 7 conditions, mean ± SD across blocks
 %                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks as
 %                    observations, balanced via last-block padding) + paired
-%                    t-tests each condition vs Rehab, Bonferroni alpha=0.05/5
+%                    t-tests each FES vs No FES, Bonferroni alpha=0.05/6
 %                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
-%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs Rehab,
-%                    Bonferroni alpha=0.05/5, RFT correction (Pataky 2010)
+%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs No FES,
+%                    Bonferroni alpha=0.05/6, RFT correction (Pataky 2010)
 %                Also prints, for each significant cluster (individual and
 %                group), a recap table with the % cycle window, p-value,
 %                and the real angular value (°) of the condition and of
-%                Rehab over that window, plus their difference.
+%                No FES over that window, plus their difference.
 %                (5) "Figure finale" : group mean (N=10) combined with
 %                    individual patient trajectories, via
 %                    plotCombinedFigure.m — grid DOF x FES condition, each
-%                    panel overlays Rehab and one condition (mean +
+%                    panel overlays No FES and one condition (mean +
 %                    individual patients), with group-level post-hoc bar
 %                    (spmResults) and individual-level post-hoc bars
 %                    (indivSigClusters, one thin row per significant patient).
 % -------------------------------------------------------------------------
-% Parameters :   Joint index : RST=3 (right) / LST=8 (left), from
+% Parameters :   Joint index : RGH=2 (right) / LGH=7 (left), from
 %                DOMINANT_SIDE map in usercommands_conditions.m
-%                FES_CONDS, ALPHA_POSTHOC=0.05/5, BAR_COLORS
+%                FES_CONDS, ALPHA_POSTHOC=0.05/6, BAR_COLORS
+%                APPLY_LGH_SIGN_CORRECTION — see dedicated section below :
+%                whether to apply an extra sign flip on DOF2/DOF3 for
+%                left-dominant patients so the whole group shares the same
+%                physical sign convention as the right side before pooling
 % Outputs    :   5 figures (see Description); console output per patient
 %                reporting ANOVA p-value per DOF and post-hoc clusters,
 %                plus recap tables (individual and group) with angular
 %                values per significant cluster
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
-%                plotCombinedFigure.m (same folder),
+%                plotCombinedFigure.m (plotting/ subfolder),
 %                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
 %                — permutation-based, Monte Carlo with 10000 iterations
 %                (exact enumeration is infeasible : nPermTotal=factorial(70)
@@ -57,48 +65,75 @@
 % NonCommercial 4.0 International License. To view a copy of this license,
 % visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
-% Cinématique scapulaire (3 DOF) par patient et par condition — SPM1D
+% Cinematique glenohumerale (3 DOF) par patient et par condition — SPM1D
 % Projet STIM_KC | K-LAB toolbox Protocol01
 %
-% Donnees source : Trial.Joint(jscap).Euler.rcycle / lcycle
+% Donnees source : Trial.Joint(jgh).Euler.rcycle / lcycle (humerus / scapula)
 %   Shape MATLAB : (3, 1, 101, N_cycles) — deja normalises en temps
-%   jscap = 3 (RST, cote droit) ou 8 (LST, cote gauche)
-%   Sequence YXZ :
-%     dim 1 = X : Rotation laterale (-) / mediale (+)
-%     dim 2 = Y : Protraction (+) / Retraction (-)
-%     dim 3 = Z : Bascule posterieure (+) / anterieure (-)
+%   jgh = 2 (RGH, cote droit) ou 7 (LGH, cote gauche)
+%   Sequence XZY (ComputeKinematics.m, tache ANALYTIC2 = "Coronal elevation") :
+%     dim 1 = X : Elevation                              (- = elevation)
+%     dim 2 = Y : Rotation axiale, cote droit             (+ = interne, - = externe)
+%     dim 3 = Z : Plane of elevation (deviation from coronal plane) — source
+%                 code comment calls this dim "flexion/extension", but its
+%                 small amplitude during this coronal-elevation task fits
+%                 the plane-of-elevation angle better (see README)
+%   Cote gauche (LGH) : dim1 deja adaptee convention ISB en amont (meme sens
+%   physique que RGH). dim2/dim3 restent documentees "sign inverted vs R"
+%   dans ComputeKinematics.m malgre une premiere tentative de correction —
+%   voir APPLY_LGH_SIGN_CORRECTION ci-dessous pour la corriger une seconde
+%   fois avant le pooling groupe (contrairement au scapulo-thoracique, ou
+%   l'adaptation ISB en amont suffit deja).
 %
 % Pipeline par trial :
 %   1. Extraction cycles  : squeeze(Euler.rcycle) → (3, 101, N)
 %   2. Moyenne cycles     : nanmean sur N → (3, 101) par trial
-%   3. Stockage par block : condData.(cond){end+1} = (3, 101)
+%   3. Correction signe    : si patient dominant gauche et
+%      APPLY_LGH_SIGN_CORRECTION=true, inversion de dim2/dim3
+%   4. Stockage par block : condData.(cond){end+1} = (3, 101)
 %
 % Sorties :
 %   - 1 figure par patient : 3 DOF x 7 conditions (moyenne +- ET)
 %   - 1 figure SPM1D par patient : meme layout + barres sig. (N=3 blocs,
 %     exploratoire — puissance limitee par les ddl faibles)
 %   - 1 figure globale P1-P10 : cycle moyen inter-patients +- ET
-%   - 1 figure SPM1D groupee : ANOVA RM + post-hoc vs Rehab (N=10)
-%     Correction Bonferroni sur 5 comparaisons (alpha = 0.05/5)
+%   - 1 figure SPM1D groupee : ANOVA RM + post-hoc vs No FES (N=10)
+%     Correction Bonferroni sur 6 comparaisons (alpha = 0.05/6)
 %     Reference : Pataky TC (2010), J Biomech
 % =========================================================================
 
 clear; clc; close all;
 disp('=========================================');
-disp(' extract_scapular_kinematics_rehab.m');
+disp(' extract_glenohumeral_kinematics_noSEF.m');
 disp('=========================================');
 disp(' ');
 
 % -------------------------------------------------------------------------
 % CHARGEMENT CONFIGURATION
 % -------------------------------------------------------------------------
-run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditions.m'));
 
 % SPM1D (charge ici, avant la boucle patients, car le SPM1D individuel
 % utilise deja spm1d.stats.nonparam.anova1rm)
-SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
+SPM1D_PATH = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'plotting'));
 rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
+
+% -------------------------------------------------------------------------
+% CORRECTION DE SIGNE GLENOHUMERAL GAUCHE (LGH)
+% -------------------------------------------------------------------------
+% D'apres ComputeKinematics.m, la rotation axiale (dim2=Y) et la flexion/
+% extension (dim3=Z) du LGH restent documentees "sign inverted vs R" meme
+% apres l'adaptation deja appliquee en amont (contrairement au scapulo-
+% thoracique, ou l'adaptation ISB reussit deja a aligner completement L et
+% R). Si true, on inverse une deuxieme fois ces deux DOF pour les patients
+% dominant gauche (P006/P008/P010) avant le pooling groupe, pour que + et -
+% aient le meme sens physique quel que soit le cote dominant. Mettre a
+% false pour comparer sans cette correction supplementaire (donnees brutes
+% telles que stockees dans le .mat).
+% -------------------------------------------------------------------------
+APPLY_LGH_SIGN_CORRECTION = true;
 
 % -------------------------------------------------------------------------
 % PARAMÈTRES DE VISUALISATION
@@ -116,12 +151,14 @@ COLORS = [0.35 0.20 0.29;   % No FES       — aubergine
           0.45 0.55 0.68;   % Rehab        — bleu-gris (assorti a la palette)
           0.75 0.35 0.35];  % Min_force    — rouge saumon
 
-% Ordre de stockage dans .mat (ComputeKinematics.m, séquence YXZ) :
-%   dim 1 = X = Rotation latérale/ médiale        (Euler(:,2,:))
-%   dim 2 = Y = Protraction/Rétraction            (Euler(:,1,:))
-%   dim 3 = Z = Bascule postérieure/antérieur     (Euler(:,3,:))
-DOF_LABELS = {'Lateral (-) / medial (+) rotation', 'Protraction (+) / retraction (-)', 'Posterior (+) / anterior (-) tilt'};
-DOF_SHORT  = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
+% Ordre de stockage dans .mat (ComputeKinematics.m, séquence XZY, cote droit) :
+%   dim 1 = X = Elevation                     (Euler(:,1,:))
+%   dim 2 = Y = Rotation axiale               (Euler(:,3,:))
+%   dim 3 = Z = Plane of elevation (deviation from coronal plane, small
+%               amplitude expected during this coronal-elevation task)
+%                                              (Euler(:,2,:))
+DOF_LABELS = {'Elevation', 'External (-) / internal (+) rotation', 'Plane of elevation'};
+DOF_SHORT  = {'X (Elevation)', 'Y (Rot ext/int)', 'Z (Plane elev)'};
 
 warnings = {};
 
@@ -139,15 +176,9 @@ for ic = 1:length(CONDITIONS_ORDERED)
     patientMeans.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic})) = {};
 end
 
-% Reference des post-hoc : Rehab (au lieu de No FES)
-% FES_CONDS = toutes les conditions sauf Rehab et No FES (comparaison
-% No FES vs Rehab deja couverte par extract_scapular_kinematics_noSEF.m,
-% via Rehab vs No FES), dans le meme ordre que CONDITIONS_ORDERED,
-% avec la couleur associee a chacune (BAR_COLORS)
-REF_COND  = 'Rehab';
-FES_CONDS = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Min_force'};
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
-BAR_COLORS = [COLORS(2,:); COLORS(3,:); COLORS(4,:); COLORS(5,:); COLORS(7,:)];
+BAR_COLORS    = COLORS(2:end, :);
 
 % Accumulateur pour la figure finale : clusters significatifs individuels
 % indivSigClusters{idof}.(fld_fes){ip} = spmi_t_pt.clusters (cell vide si n.s.)
@@ -164,11 +195,12 @@ end
 % -------------------------------------------------------------------------
 for ip = 1:length(PATIENT_IDS)
 
-    patientID = PATIENT_IDS{ip};
-    side      = DOMINANT_SIDE(patientID);
-    jscap     = SCAPULA_JOINT_IDX(side);
-    cycleKey  = 'rcycle';
+    patientID  = PATIENT_IDS{ip};
+    side       = DOMINANT_SIDE(patientID);
+    jgh        = GLENOHUMERAL_JOINT_IDX(side);
+    cycleKey   = 'rcycle';
     if strcmp(side, 'L'), cycleKey = 'lcycle'; end
+    flipSignGH = strcmp(side, 'L') && APPLY_LGH_SIGN_CORRECTION;
 
     pnum    = str2double(patientID(2:end));
     matFile = fullfile(dataFolder, ['P' num2str(pnum) '.mat']);
@@ -207,7 +239,7 @@ for ip = 1:length(PATIENT_IDS)
     % Boucle sur les positions de condition (1→nCond)
     % trialIdx : compteur indépendant de trials consommés depuis analyticTrials
     % → si position dans missingCondPos : NaN sans consommer de trial
-    % → si extractScapulaMean retourne [] : couvre le 8ème ANALYTIC2 vide et tout autre vide
+    % → si extractGHMean retourne [] : couvre le 8ème ANALYTIC2 vide et tout autre vide
     trialIdx = 0;
     for iseq = 1:nCond
 
@@ -225,7 +257,7 @@ for ip = 1:length(PATIENT_IDS)
         end
 
         itrial = analyticTrials(trialIdx);
-        data   = extractScapulaMean(Trial(itrial), jscap, cycleKey);
+        data   = extractGHMean(Trial(itrial), jgh, cycleKey, flipSignGH);
 
         if isempty(data)
             warnings{end+1} = sprintf('[WARNING] %s trial %d → cond %d (%s) : cinématique absente', patientID, trialIdx, iseq, cond);
@@ -295,7 +327,7 @@ for ip = 1:length(PATIENT_IDS)
 
     % --- Figure patient SPM1D (N=3 blocs par condition) ---
     fprintf('\n=== SPM1D individuel cinématique : %s ===\n', patientID);
-    figure('Name', [patientID ' - SPM1D Kin vs Rehab'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
+    figure('Name', [patientID ' - SPM1D Kin'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
 
     % Stockage des resultats post-hoc individuels (pour le tableau recap patient)
     patientSpmResults = struct();
@@ -380,12 +412,12 @@ for ip = 1:length(PATIENT_IDS)
                     idof, DOF_LABELS{idof}, n_min-1, n_min);
         elseif anova_sig_pt
             fprintf('  DOF %d (%s) — ANOVA : SIGNIFICATIF → post-hoc\n', idof, DOF_LABELS{idof});
-            fld_ref = matlab.lang.makeValidName(REF_COND);
-            trials_ref = condData_padded.(fld_ref);
-            if ~isempty(trials_ref)
-                data_ref_mat = zeros(N_TARGET, 101);
+            fld_nofes = matlab.lang.makeValidName('No FES');
+            trials_nofes = condData_padded.(fld_nofes);
+            if ~isempty(trials_nofes)
+                data_nofes_mat = zeros(N_TARGET, 101);
                 for kb = 1:N_TARGET
-                    data_ref_mat(kb,:) = trials_ref{kb}(idof,:);
+                    data_nofes_mat(kb,:) = trials_nofes{kb}(idof,:);
                 end
                 for fc = 1:length(FES_CONDS)
                     fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
@@ -396,14 +428,14 @@ for ip = 1:length(PATIENT_IDS)
                         data_fes_mat(kb,:) = trials_fes{kb}(idof,:);
                     end
                     try
-                        spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_ref_mat);
+                        spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
                         spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
                         if ~isempty(spmi_t_pt.clusters)
-                            fprintf('    %s vs Rehab : SIGNIFICATIF (%d cluster(s))\n', ...
+                            fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s))\n', ...
                                     FES_CONDS{fc}, length(spmi_t_pt.clusters));
                             y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.1);
                             mc_fes_full_pt = mean(data_fes_mat, 1);
-                            mc_ref_full_pt = mean(data_ref_mat, 1);
+                            mc_ref_full_pt = mean(data_nofes_mat, 1);
                             clusterInfo_pt = struct('ep', {}, 'pv', {}, 'range_fes', {}, 'range_ref', {}, 'diff_mean', {});
                             for cl = 1:length(spmi_t_pt.clusters)
                                 ep = spmi_t_pt.clusters{cl}.endpoints;
@@ -421,11 +453,11 @@ for ip = 1:length(PATIENT_IDS)
                             patientSpmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).clusterInfo = clusterInfo_pt;
                             indivSigClusters{idof}.(matlab.lang.makeValidName(FES_CONDS{fc})){ip} = spmi_t_pt.clusters;
                         else
-                            fprintf('    %s vs Rehab : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
+                            fprintf('    %s vs No FES : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
                                     FES_CONDS{fc}, length(trials_fes)-1, ALPHA_POSTHOC);
                         end
                     catch ME_ph
-                        fprintf('    %s vs Rehab : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
+                        fprintf('    %s vs No FES : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
                     end
                 end
             end
@@ -446,13 +478,13 @@ for ip = 1:length(PATIENT_IDS)
         grid on; box on; hold off;
     end
 
-    sgtitle(sprintf('%s  —  SPM1D individuel cinématique vs Rehab (N=3 blocs)', patientID), ...
+    sgtitle(sprintf('%s  —  SPM1D individuel cinématique (N=3 blocs)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
 
     % --- Tableau recapitulatif individuel : % cycle significatif <-> valeur angulaire ---
     fprintf('\n  --- Tableau recap. individuel (%s) : cluster significatif -> valeur angulaire ---\n', patientID);
     fprintf('  %-16s  %-14s  %-9s  %-9s  %-8s  %-16s  %-16s  %s\n', ...
-            'DOF', 'Condition', 'Debut(%)', 'Fin(%)', 'p-value', 'Angle cond (°)', 'Angle Rehab (°)', 'Diff (°)');
+            'DOF', 'Condition', 'Debut(%)', 'Fin(%)', 'p-value', 'Angle cond (°)', 'Angle No FES (°)', 'Diff (°)');
     anyRow_pt = false;
     for idof = 1:3
         for fc = 1:length(FES_CONDS)
@@ -478,7 +510,7 @@ end % ip
 % =========================================================================
 % FIGURE GLOBALE : cycle moyen inter-patients (P1-P10), 3 DOF, 7 conditions
 % =========================================================================
-figure('Name', 'Global -- Cycle moyen scapulaire P1-P10', ...
+figure('Name', 'Global -- Cycle moyen glenohumeral P1-P10', ...
        'units','normalized','outerposition',[0 0 1 1], 'Color','white');
 
 for idof = 1:3
@@ -515,7 +547,7 @@ sgtitle('Comparaison des conditions de stimulation pour l''ensemble des patients
         'FontSize', 13, 'FontWeight', 'bold');
 
 % =========================================================================
-% ANALYSE SPM1D : ANOVA RM 7 conditions + post-hoc chaque condition vs Rehab
+% ANALYSE SPM1D : ANOVA RM 7 conditions + post-hoc chaque FES vs No FES
 %
 % Design : mesures repetees intra-sujet (memes 10 patients dans chaque condition)
 %   - Une ligne par patient = moyenne de ses blocks valides → N=10
@@ -523,13 +555,12 @@ sgtitle('Comparaison des conditions de stimulation pour l''ensemble des patients
 %     permutation-based, Monte Carlo, 10000 iterations)
 %   - Post-hoc : spm1d.stats.ttest_paired (t-test apparie, memes patients,
 %     reste parametrique — Bonferroni inchange)
-%   - Correction Bonferroni sur les 5 comparaisons post-hoc : alpha = 0.05/5
-%     (No FES vs Rehab exclu — deja couvert par extract_scapular_kinematics_noSEF.m)
+%   - Correction Bonferroni sur les 6 comparaisons post-hoc : alpha = 0.05/6
 % =========================================================================
-FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Min_force'};
-ALPHA_POSTHOC = 0.05 / length(FES_CONDS);  % Bonferroni : 0.05/5 = 0.01
-% Couleurs barres post-hoc : meme ordre que FES_CONDS (couleurs issues de COLORS/CONDITIONS_ORDERED)
-BAR_COLORS  = [COLORS(2,:); COLORS(3,:); COLORS(4,:); COLORS(5,:); COLORS(7,:)];
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
+ALPHA_POSTHOC = 0.05 / length(FES_CONDS);  % Bonferroni : 0.05/6 ≈ 0.0083
+% Couleurs barres post-hoc : meme ordre que CONDITIONS_ORDERED (indices 2-7)
+BAR_COLORS  = COLORS(2:end, :);
 BAR_HEIGHT  = 0.8;
 
 % Preparer les matrices (N_patients x 101) par condition et par DOF
@@ -552,16 +583,16 @@ end
 % -------------------------------------------------------------------------
 % CHOIX DES TESTS STATISTIQUES
 % -------------------------------------------------------------------------
-DOF_SHORT = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
+DOF_SHORT = {'X (Elevation)', 'Y (Rot ext/int)', 'Z (Plane elev)'};
 
 fprintf('\n=== Choix des tests statistiques ===\n');
 fprintf('  Design        : mesures repetees intra-sujet (10 patients x 7 conditions)\n');
 fprintf('  Independance  : 1 moyenne par patient par condition (3 blocs moyennes)\n');
 fprintf('  Test omnibus  : ANOVA RM non parametrique a 1 facteur (spm1d.stats.nonparam.anova1rm, Monte Carlo 10000 iterations)\n');
 fprintf('                  → controle la variabilite inter-individuelle\n');
-fprintf('  Post-hoc      : t-test apparie chaque condition vs Rehab (spm1d.stats.ttest_paired, parametrique)\n');
+fprintf('  Post-hoc      : t-test apparie chaque FES vs No FES (spm1d.stats.ttest_paired, parametrique)\n');
 fprintf('                  → memes patients dans les deux conditions comparees\n');
-fprintf('  Correction    : Bonferroni sur 5 comparaisons post-hoc (alpha = %.4f)\n', ALPHA_POSTHOC);
+fprintf('  Correction    : Bonferroni sur 6 comparaisons post-hoc (alpha = %.4f)\n', ALPHA_POSTHOC);
 fprintf('  Temporel      : Random Field Theory via SPM1D (Pataky 2010)\n');
 fprintf('  Parametrique  : N=10, robustesse de l ANOVA RM aux deviations moderates\n');
 fprintf('                  de normalite acceptee (standard en biomecanique clinique)\n');
@@ -577,7 +608,7 @@ for idof = 1:3
 end
 
 % Figure SPM
-figure('Name', 'SPM1D -- Cinematique scapulaire -- ANOVA + post-hoc vs Rehab', ...
+figure('Name', 'SPM1D -- Cinematique glenohumerale -- ANOVA + post-hoc vs No FES', ...
        'units','normalized','outerposition',[0 0 1 1], 'Color','white');
 
 for idof = 1:3
@@ -635,10 +666,10 @@ for idof = 1:3
         end
     end
 
-    % --- Post-hoc : chaque condition vs Rehab (si ANOVA sig) ---
-    fld_ref = matlab.lang.makeValidName(REF_COND);
-    if anova_sig && ~isempty(spmData.(fld_ref))
-        data_ref = spmData.(fld_ref)(idof).mat;
+    % --- Post-hoc : chaque FES vs No FES (si ANOVA sig) ---
+    fld_nofes = matlab.lang.makeValidName('No FES');
+    if anova_sig && ~isempty(spmData.(fld_nofes))
+        data_nofes = spmData.(fld_nofes)(idof).mat;
 
         for fc = 1:length(FES_CONDS)
             fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
@@ -646,7 +677,7 @@ for idof = 1:3
             data_fes = spmData.(fld_fes)(idof).mat;
 
             try
-                spm_t  = spm1d.stats.ttest_paired(data_fes, data_ref);
+                spm_t  = spm1d.stats.ttest_paired(data_fes, data_nofes);
                 spmi_t = spm_t.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
 
                 % Stocker resultats post-hoc
@@ -656,7 +687,7 @@ for idof = 1:3
                 if ~isempty(spmi_t.clusters)
                     y_bar = y_bar_top - (fc-1) * (BAR_HEIGHT + 0.3);
                     mc_fes_full = nanmean(data_fes, 1);
-                    mc_ref_full = nanmean(data_ref, 1);
+                    mc_ref_full = nanmean(data_nofes, 1);
                     clusterInfo = struct('range_fes', {}, 'range_ref', {}, 'diff_mean', {});
                     for cl = 1:length(spmi_t.clusters)
                         ep = spmi_t.clusters{cl}.endpoints;
@@ -675,7 +706,7 @@ for idof = 1:3
                     spmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).angleInfo = clusterInfo;
                 end
             catch ME
-                fprintf('  DOF %d | %s vs Rehab erreur : %s\n', idof, condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), ME.message);
+                fprintf('  DOF %d | %s vs No FES erreur : %s\n', idof, condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), ME.message);
             end
         end
 
@@ -683,7 +714,7 @@ for idof = 1:3
         for fc = 1:length(FES_CONDS)
             plot(NaN, NaN, 's', 'MarkerFaceColor', BAR_COLORS(fc,:), ...
                  'MarkerEdgeColor','none', 'MarkerSize', 8, ...
-                 'DisplayName', [condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS) ' vs Rehab'], 'HandleVisibility','on');
+                 'DisplayName', [condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS) ' vs No FES'], 'HandleVisibility','on');
         end
     end
 
@@ -699,21 +730,21 @@ for idof = 1:3
     grid on; box on; hold off;
 end
 
-sgtitle('Comparaison des conditions de stimulation pour l''ensemble des patients (Analyse SPM1D vs Rehab)', ...
+sgtitle('Comparaison des conditions de stimulation pour l''ensemble des patients (Analyse SPM1D)', ...
         'FontSize', 12, 'FontWeight', 'bold');
 
 % -------------------------------------------------------------------------
 % TABLEAU RECAPITULATIF SPM1D
 % -------------------------------------------------------------------------
-DOF_SHORT = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
+DOF_SHORT = {'X (Elevation)', 'Y (Rot ext/int)', 'Z (Plane elev)'};
 
 fprintf('\n');
 fprintf('=================================================================\n');
-fprintf(' TABLEAU RECAPITULATIF SPM1D — Cinematique scapulaire (ref. Rehab)\n');
+fprintf(' TABLEAU RECAPITULATIF SPM1D — Cinematique glenohumerale\n');
 fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Bonferroni alpha=%.4f\n', ALPHA_POSTHOC);
 fprintf('=================================================================\n');
 fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
-        'DOF', 'Test', 'Condition', 'Debut (%)', 'Fin (%)', 'p-value', 'Angle cond (°)', 'Angle Rehab (°)', 'Diff (°)');
+        'DOF', 'Test', 'Condition', 'Debut (%)', 'Fin (%)', 'p-value', 'Angle cond (°)', 'Angle No FES (°)', 'Diff (°)');
 fprintf('%s\n', repmat('-', 1, 120));
 
 for idof = 1:3
@@ -748,12 +779,12 @@ for idof = 1:3
                     x2c = (ep(2)-1);
                     ai  = ph.angleInfo(cl);
                     fprintf('%-20s  %-18s  %-12s  %-10.1f  %-10.1f  %-9.4f  %-16s  %-16s  %.1f\n', ...
-                            '', 't-test vs Rehab', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), x1c, x2c, pv, ...
+                            '', 't-test vs No FES', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), x1c, x2c, pv, ...
                             rangeStr(ai.range_fes), rangeStr(ai.range_ref), ai.diff_mean);
                 end
             else
                 fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
-                        '', 't-test vs Rehab', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), '—', '—', 'n.s.', '—', '—', '—');
+                        '', 't-test vs No FES', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), '—', '—', 'n.s.', '—', '—', '—');
             end
         end
     end
@@ -763,26 +794,26 @@ fprintf('=================================================================\n\n')
 
 % =========================================================================
 % FIGURE FINALE : moyenne de groupe + trajectoires individuelles (N=10),
-% chaque condition vs Rehab, avec barres post-hoc groupe + individuelles
+% chaque condition vs No FES, avec barres post-hoc groupe + individuelles
 % =========================================================================
-plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
-                    REF_COND, FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
+plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, 'Glenohumeral kinematics', x, ...
+                    'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % =========================================================================
 % FIGURE PATIENTS INDIVIDUELS : meme grille, une couleur fixe par patient
 % (P1-P10), pour pouvoir suivre un patient donne d'un panneau a l'autre.
 % Pas de moyenne de groupe ici ; post-hoc intra-individuel uniquement.
 % =========================================================================
-plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, x, ...
-                           REF_COND, FES_CONDS, indivSigClusters, PATIENT_IDS);
+plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, 'Glenohumeral kinematics', x, ...
+                           'No FES', FES_CONDS, indivSigClusters, PATIENT_IDS);
 
 % =========================================================================
 % FIGURE FINALE ANNOTEE : identique a la figure finale, mais les barres
 % post-hoc individuelles sont etiquetees P1, P2... pres de l'axe Y, sur la
 % premiere colonne de conditions uniquement (pour eviter la surcharge).
 % =========================================================================
-plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
-                           REF_COND, FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
+plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, 'Glenohumeral kinematics', x, ...
+                           'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % -------------------------------------------------------------------------
 % WARNINGS
@@ -802,6 +833,24 @@ disp('Terminé.');
 % =========================================================================
 % FONCTIONS LOCALES
 % =========================================================================
+
+function s = rangeStr(r)
+    s = sprintf('%.1f to %.1f', r(1), r(2));
+end
+
+
+function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
+    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
+    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
+    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
+    if isempty(idx)
+        lbl = strrep(condRaw, '_', ' ');
+    else
+        lbl = COND_LABELS{idx};
+    end
+end
+
 
 function analyticIdx = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS)
     isAnalytic = false(1, length(Trial));
@@ -832,28 +881,14 @@ function analyticIdx = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS)
 end
 
 
-function s = rangeStr(r)
-    s = sprintf('%.1f to %.1f', r(1), r(2));
-end
-
-
-function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
-    % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
-    % condition brute, plutot qu'un simple strrep('_',' ') qui ne
-    % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
-    idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
-    if isempty(idx)
-        lbl = strrep(condRaw, '_', ' ');
-    else
-        lbl = COND_LABELS{idx};
-    end
-end
-
-
-function meanData = extractScapulaMean(trial, jscap, cycleKey)
+function meanData = extractGHMean(trial, jgh, cycleKey, flipSign)
+    % Comme extractScapulaMean (extract_scapular_kinematics_*.m), plus un
+    % flip de signe optionnel sur les dim 2/3 (rotation axiale, flexion/
+    % extension) pour les patients dominant gauche — voir
+    % APPLY_LGH_SIGN_CORRECTION en tete de script.
     meanData = [];
     try
-        euler = trial.Joint(jscap).Euler;
+        euler = trial.Joint(jgh).Euler;
         if ~isfield(euler, cycleKey), return; end
         data = euler.(cycleKey);
         if isempty(data), return; end
@@ -864,6 +899,10 @@ function meanData = extractScapulaMean(trial, jscap, cycleKey)
             meanData = nanmean(data, 3); % → (3, 101)
         elseif ismatrix(data) && size(data,1) == 3 && size(data,2) == 101
             meanData = data;
+        end
+
+        if ~isempty(meanData) && flipSign
+            meanData(2:3, :) = -meanData(2:3, :);
         end
     catch
         meanData = [];

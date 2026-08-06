@@ -1,14 +1,14 @@
 % =========================================================================
-% generate_article_table_kin_combined.m
+% generate_article_table_gh_combined.m
 % =========================================================================
 % Author     :   H. Francalanci
 %                Biomechanics and Translational Research in Surgery Group
 %                University of Geneva
 % License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   July 2026
+% Date       :   August 2026
 % -------------------------------------------------------------------------
-% Description :  Merges generate_article_table_kin.m (group) and
-%                generate_article_table_kin_individual.m (individual) into
+% Description :  Merges generate_article_table_gh.m (group) and
+%                generate_article_table_gh_individual.m (individual) into
 %                ONE master table : for every DOF x comparison that showed
 %                significance at EITHER level, prints the group row (N=10,
 %                if the pair was group-significant) immediately followed by
@@ -19,13 +19,13 @@
 %                that were significant for a patient but NOT at group level
 %                still get listed (patient rows only, no group row) --
 %                nothing from either sub-table is dropped. Reads
-%                cache_kinematics_all_comp.mat only, no statistics rerun.
+%                cache_glenohumeral_all_comp.mat only, no statistics rerun.
 % -------------------------------------------------------------------------
 % Parameters :   none
 % Outputs    :   Markdown table printed to the console
 % -------------------------------------------------------------------------
-% Dependencies : cache_kinematics_all_comp.mat (produced by
-%                extract_scapular_kinematics_all_comp.m), spm1dmatlab-master/
+% Dependencies : cache_glenohumeral_all_comp.mat (produced by
+%                extract_glenohumeral_kinematics_all_comp.m), spm1dmatlab-master/
 % =========================================================================
 
 clear; clc;
@@ -33,13 +33,13 @@ clear; clc;
 % -------------------------------------------------------------------------
 % CHARGEMENT DU CACHE
 % -------------------------------------------------------------------------
-HERE = fileparts(mfilename('fullpath'));
+HERE = fileparts(fileparts(mfilename('fullpath')));
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 
-CACHE_FILE = fullfile(HERE, 'cache_kinematics_all_comp.mat');
+CACHE_FILE = fullfile(HERE, 'cache_glenohumeral_all_comp.mat');
 if ~isfile(CACHE_FILE)
-    error('Cache introuvable : %s (lance d''abord extract_scapular_kinematics_all_comp.m)', CACHE_FILE);
+    error('Cache introuvable : %s (lance d''abord extract_glenohumeral_kinematics_all_comp.m)', CACHE_FILE);
 end
 load(CACHE_FILE, 'CONDITIONS_ORDERED', 'COND_LABELS', 'DOF_LABELS', 'spmResults', 'ALL_PAIRS', ...
      'indivSigClusters', 'PATIENT_IDS', 'patientMeans');

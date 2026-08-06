@@ -44,7 +44,7 @@
 %                values per significant cluster
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
-%                plotCombinedFigure.m (same folder),
+%                plotCombinedFigure.m (plotting/ subfolder),
 %                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
 %                — permutation-based, Monte Carlo with 10000 iterations
 %                (exact enumeration is infeasible : nPermTotal=factorial(70)
@@ -92,12 +92,13 @@ disp(' ');
 % -------------------------------------------------------------------------
 % CHARGEMENT CONFIGURATION
 % -------------------------------------------------------------------------
-run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditions.m'));
 
 % SPM1D (charge ici, avant la boucle patients, car le SPM1D individuel
 % utilise deja spm1d.stats.nonparam.anova1rm)
-SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
+SPM1D_PATH = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'plotting'));
 rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
 
 % -------------------------------------------------------------------------
@@ -758,7 +759,7 @@ fprintf('=================================================================\n\n')
 % FIGURE FINALE : moyenne de groupe + trajectoires individuelles (N=10),
 % chaque condition vs No FES, avec barres post-hoc groupe + individuelles
 % =========================================================================
-plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
+plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, 'Scapular kinematics', x, ...
                     'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % =========================================================================
@@ -766,7 +767,7 @@ plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LA
 % (P1-P10), pour pouvoir suivre un patient donne d'un panneau a l'autre.
 % Pas de moyenne de groupe ici ; post-hoc intra-individuel uniquement.
 % =========================================================================
-plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, x, ...
+plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, 'Scapular kinematics', x, ...
                            'No FES', FES_CONDS, indivSigClusters, PATIENT_IDS);
 
 % =========================================================================
@@ -774,7 +775,7 @@ plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LAB
 % post-hoc individuelles sont etiquetees P1, P2... pres de l'axe Y, sur la
 % premiere colonne de conditions uniquement (pour eviter la surcharge).
 % =========================================================================
-plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
+plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, 'Scapular kinematics', x, ...
                            'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % -------------------------------------------------------------------------

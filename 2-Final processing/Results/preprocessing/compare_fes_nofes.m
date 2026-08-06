@@ -32,7 +32,7 @@
 % =========================================================================
 
 clear; clc; close all;
-run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditions.m'));
 
 % -------------------------------------------------------------------------
 % CONFIGURATION -- ajuster selon le patient et la condition a inspecter

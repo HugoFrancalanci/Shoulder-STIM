@@ -40,7 +40,7 @@ SORT_BY = 'patient';  % 'patient' ou 'muscle'
 % -------------------------------------------------------------------------
 % CHARGEMENT DU CACHE
 % -------------------------------------------------------------------------
-HERE = fileparts(mfilename('fullpath'));
+HERE = fileparts(fileparts(mfilename('fullpath')));
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 

@@ -30,7 +30,7 @@
 % visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
 
-run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditions.m'));
 
 SYNCHRO_THRESH = 1e-3; % seuil pour considerer le signal comme actif
 

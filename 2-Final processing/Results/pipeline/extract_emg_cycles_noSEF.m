@@ -1,5 +1,5 @@
 % =========================================================================
-% extract_emg_cycles_all_comp.m
+% extract_emg_cycles_noSEF.m
 % =========================================================================
 % Author     :   H. Francalanci
 %                Biomechanics and Translational Research in Surgery Group
@@ -12,57 +12,34 @@
 % Date       :   July 2026
 % -------------------------------------------------------------------------
 % Description:   Extracts and analyses surface EMG cycles (4 muscles) from
-%                K-LAB .mat files for 10 healthy participants across 7 FES
-%                conditions. Same pipeline as extract_emg_cycles_noSEF.m /
-%                _rehab.m (FES artefact removal, cycle segmentation, linear
-%                envelope, amplitude normalisation), EXCEPT the post-hoc
-%                does not compare against a single reference condition
-%                (No FES or Rehab) : it compares ALL possible pairs of
-%                conditions (7 conditions -> 21 pairs), Bonferroni alpha =
-%                0.05/21 — kinematics counterpart of extract_scapular_
-%                kinematics_all_comp.m. Produces 7 output figures:
+%                K-LAB .mat files for 10 healthy participants across 7 FES conditions.
+%                Pipeline per trial: FES artefact removal (MAD x6, blanking
+%                8ms, PCHIP) → cycle segmentation (kinematic frame indices
+%                x22) → time normalisation (PCHIP, 101pts) → linear envelope
+%                (full-wave rectification + Butterworth 2nd-order 6Hz,
+%                Winter 2009) → amplitude normalisation (mean+3*std of first
+%                50 kinematic frames, expressed as % baseline).
+%                Produces 7 output figures per run:
 %                (1) Per-patient : 4 muscles x 7 conditions, mean ± SD
 %                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks,
-%                    balanced via last-block padding) + paired t-tests for
-%                    every pair of conditions (only drawn/logged when
-%                    significant), Bonferroni alpha=0.05/21
+%                    balanced via last-block padding) + paired t-tests each
+%                    FES vs No FES, Bonferroni alpha=0.05/6
 %                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
-%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc on all 21
-%                    pairs, Bonferroni alpha=0.05/21, RFT correction (Pataky 2010)
-%                (5-7) "Figure finale — toutes comparaisons" (plotAllCompFigureEMG.m,
-%                    3 figures) : group-level only (no individual patient
-%                    curves/bars mixed into the same panel as the group).
-%                    Each muscle panel spans the FULL figure height (1 row x
-%                    4 columns) ; significance bars are drawn INSIDE the
-%                    curve panel (not a separate subplot), one distinct
-%                    colour per significant pair (stable across panels),
-%                    identified via the legend rather than inline text —
-%                    (5) group mean ± SD, (6) group mean + every individual
-%                    patient's own curve (desaturated, no SD band), (7) same
-%                    as (5) but with one labelled "P#" row per individually-
-%                    significant patient stacked under each significant
-%                    pair's group bar.
+%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs No FES,
+%                    Bonferroni alpha=0.05/6, RFT correction (Pataky 2010)
+%                (5) Final figure : group mean + individual patient curves,
+%                    group/individual post-hoc bars (grid muscle x condition)
+%                (6) Patient identity figure : same grid, P1-P10 fixed
+%                    colors, intra-individual post-hoc only
+%                (7) Final figure (labelled) : same as (5) with P# labels
+%                    next to each patient's own individual post-hoc bar
 % -------------------------------------------------------------------------
 % Parameters :   LP_FREQ=6Hz, BLANK_MS=8, MAD_FACTOR=6,
 %                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, FS_EMG=2200, FS_KIN=100
-%                ALL_PAIRS (21 condition pairs), ALPHA_POSTHOC=0.05/21
 % Outputs    :   7 figures (see Description); console output per patient
-%                reporting ANOVA result per muscle and significant pairwise
-%                post-hoc clusters; cache_emg_all_comp.mat — on the FIRST
-%                full run, all data needed to redraw the final figure is
-%                cached here (patientMeans, spmResults, indivSigClusters,
-%                PATIENT_IDS, and the display parameters). On every
-%                subsequent run, if this cache file exists, the script skips
-%                the entire patient loop / SPM1D computation and just
-%                reloads the cache to redraw plotAllCompFigureEMG.m in
-%                seconds. Set FORCE_RECOMPUTE=true at the top of the script
-%                to bypass the cache and recompute everything from scratch.
-%                Article-ready summary tables (group/individual/combined)
-%                are generated separately from this cache by
-%                generate_article_table_emg*.m.
+%                reporting ANOVA result per muscle and post-hoc clusters
 % -------------------------------------------------------------------------
 % Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
-%                plotAllCompFigureEMG.m (same folder),
 %                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
 %                — permutation-based, Monte Carlo with 10000 iterations
 %                (exact enumeration is infeasible : nPermTotal=factorial(70)
@@ -76,7 +53,7 @@
 % visit http://creativecommons.org/licenses/by-nc/4.0/
 % =========================================================================
 % Cycles EMG traites par patient et par condition avec enveloppe + SPM1D
-% Projet STIM_KC | K-LAB toolbox Protocol01 | Variante "toutes comparaisons"
+% Projet STIM_KC | K-LAB toolbox Protocol01
 %
 % Pipeline par trial :
 %   1. Retrait artefact FES  : sur sig_proc (Signal.full nettoye) —
@@ -97,47 +74,34 @@
 %
 % Canaux : TRAPS, TRAPM, TRAPI, SERRA (SYNCHRO exclu)
 %
-% Difference cle vs _noSEF.m / _rehab.m : le post-hoc ne compare pas chaque
-% condition a UNE reference fixe, mais TOUTES les paires de conditions
-% (C(7,2) = 21 paires), correction Bonferroni sur 21 comparaisons.
+% Sorties :
+%   - 1 figure par patient : 4 muscles x 7 conditions (moyenne +- ET)
+%   - 1 figure SPM1D par patient : meme layout + barres sig. (N=3 blocs,
+%     exploratoire — puissance limitee par les ddl faibles)
+%   - 1 figure globale P1-P10 : cycle moyen inter-patients +- ET
+%   - 1 figure SPM1D groupee : ANOVA RM + post-hoc vs No FES (N=10)
+%     Correction Bonferroni sur 6 comparaisons (alpha = 0.05/6)
+%     Reference : Pataky TC (2010), J Biomech
 % =========================================================================
 
 clear; clc; close all;
 disp('=========================================');
-disp(' extract_emg_cycles_all_comp.m');
+disp(' extract_emg_cycles_noSEF.m');
 disp('=========================================');
 
-% -------------------------------------------------------------------------
-% CACHE : regeneration rapide de la figure finale seule, sans tout
-% recalculer (le SPM1D non parametrique Monte Carlo est le poste le plus
-% lent). Met FORCE_RECOMPUTE a true pour ignorer le cache et tout refaire.
-% -------------------------------------------------------------------------
-FORCE_RECOMPUTE = false;
-CACHE_FILE = fullfile(fileparts(mfilename('fullpath')), 'cache_emg_all_comp.mat');
-
-if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
-    fprintf('Cache trouve : %s\n', CACHE_FILE);
-    fprintf('→ Regeneration rapide de la figure finale (pas de re-calcul SPM1D).\n');
-    fprintf('  (mettre FORCE_RECOMPUTE=true dans le script pour tout recalculer)\n\n');
-    load(CACHE_FILE, 'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'EMG_LABELS', 'X_CYCLE', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS');
-
-    plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
-                         spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS);
-    return;
-end
-
-run(fullfile(fileparts(mfilename('fullpath')), 'usercommands_conditions.m'));
+run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditions.m'));
 
 % SPM1D (charge ici, avant la boucle patients, car le SPM1D individuel
 % utilise deja spm1d.stats.nonparam.anova1rm)
-SPM1D_PATH = fullfile(fileparts(mfilename('fullpath')), 'spm1dmatlab-master');
+SPM1D_PATH = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'plotting'));
 rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
 
 % -------------------------------------------------------------------------
 % PARAMETRES
 % -------------------------------------------------------------------------
-FS_EMG  = 2200;   % Hz
+FS_EMG  = 2200;   % Hz 
 FS_KIN  = 100;    % Hz
 
 LP_FREQ = 6;      % coupure passe-bas enveloppe (Winter 2009)
@@ -150,7 +114,7 @@ MAD_FACTOR    = 6;
 MIN_PERIOD_MS = 15;
 MAX_BLANK_MS  = 20;
 
-% Canaux a afficher
+% Canaux a afficher 
 EMG_LABELS = {'TRAPS','TRAPM','TRAPI','SERRA'};
 
 CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
@@ -168,20 +132,8 @@ COLORS = [0.35 0.20 0.29;   % No FES       aubergine
 
 warnings = {};
 
-% -------------------------------------------------------------------------
-% TOUTES LES PAIRES DE CONDITIONS (C(7,2) = 21)
-% -------------------------------------------------------------------------
-ALL_PAIRS = {};
-for a = 1:length(CONDITIONS_ORDERED)-1
-    for b = a+1:length(CONDITIONS_ORDERED)
-        ALL_PAIRS(end+1, :) = {CONDITIONS_ORDERED{a}, CONDITIONS_ORDERED{b}}; %#ok<AGROW>
-    end
-end
-N_PAIRS        = size(ALL_PAIRS, 1);
-ALPHA_POSTHOC  = 0.05 / N_PAIRS;  % Bonferroni : 0.05/21 ≈ 0.00238
-PAIR_BAR_COLOR = [0.35 0.35 0.35];  % couleur neutre unique (plus de "vs reference")
-
 % Accumulateur global : globalData.(condName).(muscle) = cell de vecteurs (1,101)
+% Utilise pour la figure globale (visualisation)
 globalData = struct();
 for ic = 1:length(CONDITIONS_ORDERED)
     fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
@@ -201,14 +153,17 @@ for ic = 1:length(CONDITIONS_ORDERED)
     end
 end
 
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
+ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
+BAR_COLORS    = COLORS(2:end, :);
+
 % Accumulateur pour la figure finale : clusters significatifs individuels
-% indivSigClusters{im}.(pairFld){ip} = spmi_t_pt.clusters (cell vide si n.s.)
+% indivSigClusters{im}.(fld_fes){ip} = spmi_t_pt.clusters (cell vide si n.s.)
 indivSigClusters = cell(length(EMG_LABELS), 1);
 for im_i = 1:length(EMG_LABELS)
     indivSigClusters{im_i} = struct();
-    for kp = 1:N_PAIRS
-        fld = pairFieldName(ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2});
-        indivSigClusters{im_i}.(fld) = cell(length(PATIENT_IDS), 1);
+    for fc_i = 1:length(FES_CONDS)
+        indivSigClusters{im_i}.(matlab.lang.makeValidName(FES_CONDS{fc_i})) = cell(length(PATIENT_IDS), 1);
     end
 end
 
@@ -287,7 +242,7 @@ for ip = 1:length(PATIENT_IDS)
 
             emgCh = t.Emg(emgChIdx);
 
-            % Signal.cycle.raw
+            % Signal.cycle.raw 
             if ~isfield(emgCh.Signal, 'cycle') || ~isfield(emgCh.Signal.cycle, 'raw')
                 warnings{end+1} = sprintf('[WARNING] %s trial %d (%s) %s : pas de cycle.raw', patientID, trialIdx, cond, mLabel);
                 continue;
@@ -315,10 +270,10 @@ for ip = 1:length(PATIENT_IDS)
             cycMeans = zeros(nCyclesTr, 101);
             validCyc = false(nCyclesTr, 1);
             for kc = 1:nCyclesTr
-                rng_c = cycles_kin(kc).range;
-                if isempty(rng_c) || length(rng_c) < 2, continue; end
-                i1 = max(1,     round(rng_c(1)   * FS_EMG / FS_KIN));
-                i2 = min(N_emg, round(rng_c(end) * FS_EMG / FS_KIN));
+                rng = cycles_kin(kc).range;
+                if isempty(rng) || length(rng) < 2, continue; end
+                i1 = max(1,     round(rng(1)   * FS_EMG / FS_KIN));
+                i2 = min(N_emg, round(rng(end) * FS_EMG / FS_KIN));
                 if i2 - i1 < 10, continue; end
                 seg    = sig_proc(i1:i2);
                 seg_env = filtfilt(b_lp, a_lp, abs(seg));
@@ -381,6 +336,7 @@ for ip = 1:length(PATIENT_IDS)
                      'DisplayName', cond);
             legendHandles(ic) = h;
 
+            % Bande d'ecart-type (transparente)
             fill([X_CYCLE fliplr(X_CYCLE)], ...
                  [meanCurve+stdCurve fliplr(meanCurve-stdCurve)], ...
                  COLORS(ic,:), 'FaceAlpha', 0.10, 'EdgeColor', 'none', ...
@@ -399,13 +355,8 @@ for ip = 1:length(PATIENT_IDS)
             'FontSize', 13, 'FontWeight', 'bold');
 
     % --- Figure patient SPM1D (N=3 blocs par condition) ---
-    fprintf('\n=== SPM1D individuel EMG (toutes comparaisons) : %s ===\n', patientID);
-    figure('Name', [patientID ' - SPM1D EMG (all comp)'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
-
-    patientSpmResults = struct();
-    for im_init = 1:nMuscles
-        patientSpmResults(im_init).posthoc = struct();
-    end
+    fprintf('\n=== SPM1D individuel : %s ===\n', patientID);
+    figure('Name', [patientID ' - SPM1D'], 'units','normalized','outerposition',[0 0 1 1],'Color','white');
 
     for im = 1:nMuscles
         mLabel = EMG_LABELS{im};
@@ -480,52 +431,48 @@ for ip = 1:length(PATIENT_IDS)
             end
         end
 
-        rowIdx_pt = 0;
         if anova_sig_pt && n_min < 3
             fprintf('  %s — ANOVA : SIGNIFICATIF mais post-hoc ignoré (ddl=%d, N=%d insuffisant pour RFT)\n', ...
                     mLabel, n_min-1, n_min);
         elseif anova_sig_pt
-            fprintf('  %s — ANOVA : SIGNIFICATIF → post-hoc (%d paires testees)\n', mLabel, N_PAIRS);
-            for kp = 1:N_PAIRS
-                condA = ALL_PAIRS{kp,1}; condB = ALL_PAIRS{kp,2};
-                fldA = matlab.lang.makeValidName(condA);
-                fldB = matlab.lang.makeValidName(condB);
-                if isempty(condData_padded.(fldA).(mLabel)) || isempty(condData_padded.(fldB).(mLabel)), continue; end
-                data_A_mat = cat(1, condData_padded.(fldA).(mLabel){:});
-                data_B_mat = cat(1, condData_padded.(fldB).(mLabel){:});
-                try
-                    spm_t_pt  = spm1d.stats.ttest_paired(data_B_mat, data_A_mat);
-                    spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
-                    if ~isempty(spmi_t_pt.clusters)
-                        rowIdx_pt = rowIdx_pt + 1;
-                        fprintf('    %s vs %s : SIGNIFICATIF (%d cluster(s))\n', ...
-                                condLabel(condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(condB, CONDITIONS_ORDERED, COND_LABELS), length(spmi_t_pt.clusters));
-                        y_bar_pt = y_bar_top_pt - (rowIdx_pt-1) * (bar_h_pt + bar_gap_pt);
-                        for cl = 1:length(spmi_t_pt.clusters)
-                            ep = spmi_t_pt.clusters{cl}.endpoints;
-                            rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
-                                      'FaceColor', PAIR_BAR_COLOR, 'EdgeColor','none','FaceAlpha',0.85);
-                            fprintf('      cluster %d : %.1f%%-%.1f%% du cycle (duree %.1f%%)\n', ...
-                                    cl, ep(1)-1, ep(2)-1, ep(2)-ep(1));
+            fprintf('  %s — ANOVA : SIGNIFICATIF → post-hoc\n', mLabel);
+            fld_nofes = matlab.lang.makeValidName('No FES');
+            data_nofes_pt = condData_padded.(fld_nofes).(mLabel);
+            if ~isempty(data_nofes_pt)
+                data_nofes_mat = cat(1, data_nofes_pt{:});
+                for fc = 1:length(FES_CONDS)
+                    fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
+                    if ~isfield(condData_padded, fld_fes) || isempty(condData_padded.(fld_fes).(mLabel)), continue; end
+                    data_fes_mat = cat(1, condData_padded.(fld_fes).(mLabel){:});
+                    try
+                        spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
+                        spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                        if ~isempty(spmi_t_pt.clusters)
+                            fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s))\n', ...
+                                    FES_CONDS{fc}, length(spmi_t_pt.clusters));
+                            y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + bar_gap_pt);
+                            for cl = 1:length(spmi_t_pt.clusters)
+                                ep = spmi_t_pt.clusters{cl}.endpoints;
+                                rectangle('Position', [ep(1)-1, y_bar_pt, ep(2)-ep(1), bar_h_pt], ...
+                                          'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none','FaceAlpha',0.85);
+                                fprintf('      cluster %d : %.1f%%-%.1f%% du cycle (duree %.1f%%)\n', ...
+                                        cl, ep(1)-1, ep(2)-1, ep(2)-ep(1));
+                            end
+                            indivSigClusters{im}.(matlab.lang.makeValidName(FES_CONDS{fc})){ip} = spmi_t_pt.clusters;
+                        else
+                            fprintf('    %s vs No FES : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
+                                    FES_CONDS{fc}, size(data_fes_mat,1)-1, ALPHA_POSTHOC);
                         end
-                        pairFld = pairFieldName(condA, condB);
-                        patientSpmResults(im).posthoc.(pairFld).condA = condA;
-                        patientSpmResults(im).posthoc.(pairFld).condB = condB;
-                        patientSpmResults(im).posthoc.(pairFld).clusters = spmi_t_pt.clusters;
-                        indivSigClusters{im}.(pairFld){ip} = spmi_t_pt.clusters;
+                    catch ME_ph
+                        fprintf('    %s vs No FES : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
                     end
-                catch ME_ph
-                    fprintf('    %s vs %s : erreur — %s\n', condA, condB, ME_ph.message);
                 end
-            end
-            if rowIdx_pt == 0
-                fprintf('    (aucune paire significative — RFT + Bonferroni α=%.5f sur %d comparaisons)\n', ALPHA_POSTHOC, N_PAIRS);
             end
         else
             fprintf('  %s — ANOVA : non significatif\n', mLabel);
         end
 
-        bar_zone_pt = max(rowIdx_pt, 1) * (bar_h_pt + bar_gap_pt);
+        bar_zone_pt = length(FES_CONDS) * (bar_h_pt + bar_gap_pt);
         if isfinite(y_min_pt)
             ylim([y_min_pt - bar_zone_pt - data_range*0.05, y_max_pt + data_range*0.05]);
         end
@@ -538,40 +485,15 @@ for ip = 1:length(PATIENT_IDS)
         grid on; box on; hold off;
     end
 
-    sgtitle(sprintf('%s  —  SPM1D individuel EMG, toutes comparaisons (N=3 blocs par condition)', patientID), ...
+    sgtitle(sprintf('%s  —  SPM1D individuel (N=3 blocs par condition)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
-
-    % --- Tableau recapitulatif individuel ---
-    fprintf('\n  --- Tableau recap. individuel (%s) : cluster significatif ---\n', patientID);
-    fprintf('  %-10s  %-28s  %-9s  %-9s  %s\n', ...
-            'Muscle', 'Comparaison', 'Debut(%)', 'Fin(%)', 'p-value');
-    anyRow_pt = false;
-    for im = 1:nMuscles
-        for kp = 1:N_PAIRS
-            pairFld = pairFieldName(ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2});
-            if ~isfield(patientSpmResults(im).posthoc, pairFld), continue; end
-            ph = patientSpmResults(im).posthoc.(pairFld);
-            if ~isfield(ph, 'clusters') || isempty(ph.clusters), continue; end
-            compLabel = sprintf('%s vs %s', condLabel(ph.condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(ph.condB, CONDITIONS_ORDERED, COND_LABELS));
-            for cl = 1:length(ph.clusters)
-                ep = ph.clusters{cl}.endpoints;
-                pv = ph.clusters{cl}.P;
-                fprintf('  %-10s  %-28s  %-9.1f  %-9.1f  %.4f\n', ...
-                        EMG_LABELS{im}, compLabel, ep(1)-1, ep(2)-1, pv);
-                anyRow_pt = true;
-            end
-        end
-    end
-    if ~anyRow_pt
-        fprintf('  (aucun post-hoc significatif pour %s)\n', patientID);
-    end
 
 end % ip
 
 % =========================================================================
 % FIGURE GLOBALE : cycle EMG moyen inter-patients (P1-P10)
 % =========================================================================
-figure('Name','Global -- Cycles EMG moyens P1-P10 (all comp)', ...
+figure('Name','Global -- Cycles EMG moyens P1-P10', ...
        'units','normalized','outerposition',[0 0 1 1], 'Color','white');
 
 for im = 1:length(EMG_LABELS)
@@ -605,15 +527,19 @@ sgtitle('Comparaison des conditions de stimulation — Ensemble des patients (EM
         'FontSize', 13, 'FontWeight','bold');
 
 % =========================================================================
-% ANALYSE SPM1D : ANOVA RM 7 conditions + post-hoc sur TOUTES les paires
+% ANALYSE SPM1D : ANOVA RM 7 conditions + post-hoc chaque FES vs No FES
 % =========================================================================
+FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
+ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
+BAR_COLORS    = COLORS(2:end, :);
+BAR_HEIGHT    = 0.02;
 
 fprintf('\n=== Choix des tests statistiques (EMG) ===\n');
 fprintf('  Design        : mesures repetees intra-sujet (10 patients x 7 conditions)\n');
 fprintf('  Independance  : 1 moyenne par patient par condition (blocks moyennes)\n');
 fprintf('  Test omnibus  : ANOVA RM non parametrique a 1 facteur (spm1d.stats.nonparam.anova1rm, Monte Carlo 10000 iterations)\n');
-fprintf('  Post-hoc      : t-test apparie sur chacune des %d paires de conditions (spm1d.stats.ttest_paired, parametrique)\n', N_PAIRS);
-fprintf('  Correction    : Bonferroni sur %d comparaisons (alpha = %.5f)\n', N_PAIRS, ALPHA_POSTHOC);
+fprintf('  Post-hoc      : t-test apparie chaque FES vs No FES (spm1d.stats.ttest_paired, parametrique)\n');
+fprintf('  Correction    : Bonferroni sur 6 comparaisons (alpha = %.4f)\n', ALPHA_POSTHOC);
 fprintf('  Temporel      : Random Field Theory via SPM1D (Pataky 2010)\n');
 fprintf('%s\n', repmat('-', 1, 55));
 
@@ -642,8 +568,8 @@ for im = 1:length(EMG_LABELS)
     spmResults(im).posthoc        = struct();
 end
 
-% Figure SPM (courbes + barres empilees uniquement pour les paires significatives)
-figure('Name','SPM1D -- EMG -- ANOVA + post-hoc toutes paires', ...
+% Figure SPM
+figure('Name','SPM1D -- EMG -- ANOVA + post-hoc vs No FES', ...
        'units','normalized','outerposition',[0 0 1 1], 'Color','white');
 
 for im = 1:length(EMG_LABELS)
@@ -668,9 +594,8 @@ for im = 1:length(EMG_LABELS)
         y_max_plot = max(y_max_plot, max(mc+sc));
     end
 
-    BAR_HEIGHT = 0.02;
-    BAR_GAP    = 0.005;
-    y_bar_top  = y_min_plot - 0.02;
+    bar_zone  = length(FES_CONDS) * (BAR_HEIGHT + 0.005);
+    y_bar_top = y_min_plot - 0.02;
 
     % ANOVA RM
     all_mat = []; group_vec = []; subj_vec = [];
@@ -699,65 +624,60 @@ for im = 1:length(EMG_LABELS)
         end
     end
 
-    % Post-hoc : toutes les paires (si ANOVA sig)
-    rowIdx = 0;
-    if anova_sig
-        for kp = 1:N_PAIRS
-            condA = ALL_PAIRS{kp,1}; condB = ALL_PAIRS{kp,2};
-            fldA = matlab.lang.makeValidName(condA);
-            fldB = matlab.lang.makeValidName(condB);
-            if isempty(spmData.(fldA)(im).mat) || isempty(spmData.(fldB)(im).mat), continue; end
-            data_A = spmData.(fldA)(im).mat;
-            data_B = spmData.(fldB)(im).mat;
-
+    % Post-hoc
+    fld_nofes = matlab.lang.makeValidName('No FES');
+    if anova_sig && ~isempty(spmData.(fld_nofes)(im).mat)
+        data_nofes = spmData.(fld_nofes)(im).mat;
+        for fc = 1:length(FES_CONDS)
+            fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
+            if isempty(spmData.(fld_fes)(im).mat), continue; end
+            data_fes = spmData.(fld_fes)(im).mat;
             try
-                spm_t  = spm1d.stats.ttest_paired(data_B, data_A);
+                spm_t  = spm1d.stats.ttest_paired(data_fes, data_nofes);
                 spmi_t = spm_t.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
-
-                pairFld = pairFieldName(condA, condB);
-                spmResults(im).posthoc.(pairFld).clusters = spmi_t.clusters;
-                spmResults(im).posthoc.(pairFld).sig      = ~isempty(spmi_t.clusters);
-                spmResults(im).posthoc.(pairFld).condA    = condA;
-                spmResults(im).posthoc.(pairFld).condB    = condB;
-
+                spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).clusters = spmi_t.clusters;
+                spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).sig      = ~isempty(spmi_t.clusters);
                 if ~isempty(spmi_t.clusters)
-                    rowIdx = rowIdx + 1;
-                    y_bar = y_bar_top - (rowIdx-1) * (BAR_HEIGHT + BAR_GAP);
-                    mc_B_full = nanmean(data_B, 1);
-                    mc_A_full = nanmean(data_A, 1);
+                    y_bar = y_bar_top - (fc-1) * (BAR_HEIGHT + 0.005);
+                    mc_fes_full = nanmean(data_fes, 1);
+                    mc_ref_full = nanmean(data_nofes, 1);
                     ampInfo = struct('range_fes', {}, 'range_ref', {}, 'diff_mean', {});
                     for cl = 1:length(spmi_t.clusters)
                         ep = spmi_t.clusters{cl}.endpoints;
                         rectangle('Position', [ep(1)-1, y_bar, ep(2)-ep(1), BAR_HEIGHT], ...
-                                  'FaceColor', PAIR_BAR_COLOR, 'EdgeColor','none', 'FaceAlpha', 0.85);
+                                  'FaceColor', BAR_COLORS(fc,:), 'EdgeColor','none', 'FaceAlpha', 0.85);
                         idx1 = max(1, round(ep(1))); idx2 = min(101, round(ep(2)));
-                        seg_B = mc_B_full(idx1:idx2);
-                        seg_A = mc_A_full(idx1:idx2);
-                        ampInfo(cl).range_fes = [min(seg_B) max(seg_B)];
-                        ampInfo(cl).range_ref = [min(seg_A) max(seg_A)];
-                        ampInfo(cl).diff_mean = mean(seg_B) - mean(seg_A);
+                        seg_fes = mc_fes_full(idx1:idx2);
+                        seg_ref = mc_ref_full(idx1:idx2);
+                        ampInfo(cl).range_fes = [min(seg_fes) max(seg_fes)];
+                        ampInfo(cl).range_ref = [min(seg_ref) max(seg_ref)];
+                        ampInfo(cl).diff_mean = mean(seg_fes) - mean(seg_ref);
                     end
-                    spmResults(im).posthoc.(pairFld).ampInfo = ampInfo;
+                    spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).ampInfo = ampInfo;
                 end
             catch ME
-                fprintf('  %s | %s vs %s erreur : %s\n', mLabel, condA, condB, ME.message);
+                fprintf('  %s | %s vs No FES erreur : %s\n', mLabel, FES_CONDS{fc}, ME.message);
             end
+        end
+        for fc = 1:length(FES_CONDS)
+            plot(NaN, NaN, 's', 'MarkerFaceColor', BAR_COLORS(fc,:), 'MarkerEdgeColor','none', ...
+                 'MarkerSize', 8, 'DisplayName', [condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS) ' vs No FES']);
         end
     end
 
-    bar_zone = max(rowIdx, 1) * (BAR_HEIGHT + BAR_GAP);
     if isfinite(y_min_plot) && isfinite(y_max_plot) && y_max_plot > y_bar_top - bar_zone - 0.01
         ylim([y_bar_top - bar_zone - 0.01, y_max_plot + 0.02]);
     end
     xlim([0 100]);
     xlabel('% cycle'); ylabel('EMG normalise (% baseline)');
     title(mLabel, 'FontSize', 11, 'FontWeight','bold');
-    valid_h = legendHandles(arrayfun(@(h) isvalid(h) && ~strcmp(h.DisplayName,''), legendHandles));
-    legend(valid_h, 'Location','best', 'FontSize', 7);
+    valid_h = findobj(ax, 'Type','line');
+    valid_h = flipud(valid_h);
+    legend(valid_h(arrayfun(@(h) ~isempty(h.DisplayName), valid_h)), 'Location','best', 'FontSize', 7);
     grid on; box on; hold off;
 end
 
-sgtitle('Comparaison des conditions de stimulation — EMG, toutes paires (Analyse SPM1D)', ...
+sgtitle('Comparaison des conditions de stimulation — EMG (Analyse SPM1D)', ...
         'FontSize', 12, 'FontWeight','bold');
 
 % -------------------------------------------------------------------------
@@ -765,12 +685,12 @@ sgtitle('Comparaison des conditions de stimulation — EMG, toutes paires (Analy
 % -------------------------------------------------------------------------
 fprintf('\n');
 fprintf('=================================================================\n');
-fprintf(' TABLEAU RECAPITULATIF SPM1D — EMG (toutes comparaisons)\n');
-fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Bonferroni alpha=%.5f (%d comparaisons)\n', ALPHA_POSTHOC, N_PAIRS);
+fprintf(' TABLEAU RECAPITULATIF SPM1D — EMG\n');
+fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Bonferroni alpha=%.4f\n', ALPHA_POSTHOC);
 fprintf('=================================================================\n');
-fprintf('%-10s  %-18s  %-28s  %-10s  %-10s  %s\n', ...
-        'Muscle', 'Test', 'Comparaison', 'Debut (%)', 'Fin (%)', 'p-value');
-fprintf('%s\n', repmat('-', 1, 90));
+fprintf('%-12s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
+        'Muscle', 'Test', 'Condition', 'Debut (%)', 'Fin (%)', 'p-value');
+fprintf('%s\n', repmat('-', 1, 80));
 
 for im = 1:length(EMG_LABELS)
     res = spmResults(im);
@@ -778,55 +698,55 @@ for im = 1:length(EMG_LABELS)
         for cl = 1:length(res.anova_clusters)
             ep = res.anova_clusters{cl}.endpoints;
             pv = res.anova_clusters{cl}.P;
-            fprintf('%-10s  %-18s  %-28s  %-10.1f  %-10.1f  %.4f\n', ...
+            fprintf('%-12s  %-18s  %-12s  %-10.1f  %-10.1f  %.4f\n', ...
                     EMG_LABELS{im}, 'ANOVA (7 cond)', '—', ep(1)-1, ep(2)-1, pv);
         end
     else
-        fprintf('%-10s  %-18s  %-28s  %-10s  %-10s  %s\n', ...
+        fprintf('%-12s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
                 EMG_LABELS{im}, 'ANOVA (7 cond)', '—', '—', '—', 'n.s.');
     end
-
-    anyPairSig = false;
     if res.anova_sig
-        for kp = 1:N_PAIRS
-            pairFld = pairFieldName(ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2});
-            if ~isfield(res.posthoc, pairFld), continue; end
-            ph = res.posthoc.(pairFld);
-            if ~isfield(ph, 'sig') || ~ph.sig, continue; end
-            anyPairSig = true;
-            compLabel = sprintf('%s vs %s', condLabel(ph.condA, CONDITIONS_ORDERED, COND_LABELS), condLabel(ph.condB, CONDITIONS_ORDERED, COND_LABELS));
-            for cl = 1:length(ph.clusters)
-                ep = ph.clusters{cl}.endpoints;
-                pv = ph.clusters{cl}.P;
-                fprintf('%-10s  %-18s  %-28s  %-10.1f  %-10.1f  %.4f\n', ...
-                        '', 't-test pairwise', compLabel, ep(1)-1, ep(2)-1, pv);
+        for fc = 1:length(FES_CONDS)
+            fld_fc = matlab.lang.makeValidName(FES_CONDS{fc});
+            if ~isfield(res.posthoc, fld_fc), continue; end
+            ph = res.posthoc.(fld_fc);
+            if ph.sig
+                for cl = 1:length(ph.clusters)
+                    ep = ph.clusters{cl}.endpoints;
+                    pv = ph.clusters{cl}.P;
+                    fprintf('%-12s  %-18s  %-12s  %-10.1f  %-10.1f  %.4f\n', ...
+                            '', 't-test vs No FES', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), ep(1)-1, ep(2)-1, pv);
+                end
+            else
+                fprintf('%-12s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
+                        '', 't-test vs No FES', condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), '—', '—', 'n.s.');
             end
         end
     end
-    if res.anova_sig && ~anyPairSig
-        fprintf('%-10s  %-18s  %-28s  %-10s  %-10s  %s\n', ...
-                '', 't-test pairwise', sprintf('(aucune des %d paires sig.)', N_PAIRS), '—', '—', 'n.s.');
-    end
-    fprintf('%s\n', repmat('-', 1, 90));
+    fprintf('%s\n', repmat('-', 1, 80));
 end
 fprintf('=================================================================\n\n');
 
-% -------------------------------------------------------------------------
-% SAUVEGARDE CACHE : permet de relancer uniquement la figure finale au
-% prochain run (voir bloc CACHE en haut du script), sans re-lancer tout le
-% SPM1D non parametrique (le plus lent).
-% -------------------------------------------------------------------------
-save(CACHE_FILE, 'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'EMG_LABELS', 'X_CYCLE', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS');
-fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
+% =========================================================================
+% FIGURE FINALE (1) : moyenne groupe + courbes individuelles + post-hoc
+% groupe/individuel, grille muscle x condition comparee vs No FES
+% =========================================================================
+plotCombinedFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
+                      'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % =========================================================================
-% FIGURE FINALE — TOUTES COMPARAISONS : moyennes de groupe uniquement (pas
-% de courbes ni barres individuelles), avec les post-hoc significatifs de
-% TOUTES les paires affiches en dessous de chaque graphe muscle
-% (sous-graphe dedie, pas superpose aux courbes), etiquetes "Cond A vs Cond B".
+% FIGURE FINALE (2) : identification individuelle P1-P10 (intra-individuel
+% uniquement, pas de moyenne groupe)
 % =========================================================================
-plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
-                     spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS);
+plotPatientIdentityFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, EMG_LABELS, X_CYCLE, ...
+                             'No FES', FES_CONDS, indivSigClusters, PATIENT_IDS);
+
+% =========================================================================
+% FIGURE FINALE (3) : identique a (1) mais les barres post-hoc individuelles
+% sont etiquetees P1, P2... juste a cote de la barre du patient concerne
+% =========================================================================
+plotCombinedFigureLabeledEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
+                             'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
 
 % -------------------------------------------------------------------------
 % WARNINGS
@@ -840,10 +760,6 @@ disp(' '); disp('Termine.');
 % =========================================================================
 % FONCTIONS LOCALES
 % =========================================================================
-
-function fld = pairFieldName(condA, condB)
-    fld = matlab.lang.makeValidName(sprintf('%s_vs_%s', condA, condB));
-end
 
 function lbl = condLabel(condRaw, CONDITIONS_ORDERED, COND_LABELS)
     % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une

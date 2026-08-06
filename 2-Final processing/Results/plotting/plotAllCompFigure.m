@@ -1,4 +1,4 @@
-function plotAllCompFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, x, ...
+function plotAllCompFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, jointLabel, x, ...
                             spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS)
 % =========================================================================
 % plotAllCompFigure.m
@@ -47,6 +47,9 @@ function plotAllCompFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS
 %                COND_LABELS         — display labels (underscore -> space)
 %                COLORS              — Nx3 RGB, one row per CONDITIONS_ORDERED
 %                DOF_LABELS          — cell array of DOF titles (3)
+%                jointLabel          — string used in the sgtitle, e.g.
+%                                      'Scapular kinematics' or
+%                                      'Glenohumeral kinematics'
 %                x                   — cycle axis, 0:100
 %                spmResults          — struct array (1x3, per DOF) :
 %                                      spmResults(idof).posthoc.(pairFld).clusters/.sig
@@ -188,10 +191,10 @@ drawFigure('sd', 'labelled');
         end
 
         if strcmp(curveMode, 'sd') && strcmp(barMode, 'group')
-            sgtitle('Scapular kinematics pattern between FES conditions', ...
+            sgtitle(sprintf('%s pattern between FES conditions', jointLabel), ...
                     'FontSize', 13, 'FontWeight', 'bold');
         else
-            sgtitle(sprintf('Scapular kinematics — group mean, all pairwise post-hoc comparisons %s', titleSuffix), ...
+            sgtitle(sprintf('%s — group mean, all pairwise post-hoc comparisons %s', jointLabel, titleSuffix), ...
                     'FontSize', 13, 'FontWeight', 'bold');
         end
 

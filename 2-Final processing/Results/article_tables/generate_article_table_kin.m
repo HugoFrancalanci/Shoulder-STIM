@@ -9,7 +9,7 @@
 % -------------------------------------------------------------------------
 % Description :  Builds a compact, publication-ready summary table (group +
 %                individual results combined in one row per comparison)
-%                from cache_kinematics_all_comp.mat, WITHOUT rerunning any
+%                from cache_scapulothoracic_all_comp.mat, WITHOUT rerunning any
 %                statistics — reads the same cache used by
 %                extract_scapular_kinematics_all_comp.m to redraw the final
 %                figure. One row per pairwise comparison : DOF, comparison
@@ -32,7 +32,7 @@
 %                                    0% ; clip to 0 for display if true
 % Outputs    :   Markdown table printed to the console
 % -------------------------------------------------------------------------
-% Dependencies : cache_kinematics_all_comp.mat (produced by
+% Dependencies : cache_scapulothoracic_all_comp.mat (produced by
 %                extract_scapular_kinematics_all_comp.m), spm1dmatlab-master/
 % =========================================================================
 
@@ -48,11 +48,11 @@ CLIP_NEGATIVE_START = true;
 % -------------------------------------------------------------------------
 % CHARGEMENT DU CACHE
 % -------------------------------------------------------------------------
-HERE = fileparts(mfilename('fullpath'));
+HERE = fileparts(fileparts(mfilename('fullpath')));
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 
-CACHE_FILE = fullfile(HERE, 'cache_kinematics_all_comp.mat');
+CACHE_FILE = fullfile(HERE, 'cache_scapulothoracic_all_comp.mat');
 if ~isfile(CACHE_FILE)
     error('Cache introuvable : %s (lance d''abord extract_scapular_kinematics_all_comp.m)', CACHE_FILE);
 end
