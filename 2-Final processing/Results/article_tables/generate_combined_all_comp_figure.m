@@ -44,7 +44,7 @@ CACHE_VARS = {'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', ...
 
 CACHE_GH = fullfile(HERE, 'cache_glenohumeral_all_comp.mat');
 if ~isfile(CACHE_GH)
-    error('Cache introuvable : %s (lance d''abord extract_glenohumeral_kinematics_all_comp.m)', CACHE_GH);
+    error('Cache introuvable');
 end
 jointGH = load(CACHE_GH, CACHE_VARS{:});
 jointGH.rowLabel   = 'Glenohumeral';
@@ -52,7 +52,7 @@ jointGH.jointLabel = 'Glenohumeral kinematics';
 
 CACHE_ST = fullfile(HERE, 'cache_scapulothoracic_all_comp.mat');
 if ~isfile(CACHE_ST)
-    error('Cache introuvable : %s (lance d''abord extract_scapular_kinematics_all_comp.m)', CACHE_ST);
+    error('Cache introuvable');
 end
 jointST = load(CACHE_ST, CACHE_VARS{:});
 jointST.rowLabel   = 'Scapulothoracic';

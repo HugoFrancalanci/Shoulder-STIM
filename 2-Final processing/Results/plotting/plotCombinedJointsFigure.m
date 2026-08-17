@@ -60,8 +60,6 @@ for r = 1:nRows
     nCols = max(nCols, length(joints{r}.DOF_LABELS));
 end
 
-% --- Coherence entre lignes : meme reference de conditions/couleurs, sinon
-% la legende partagee (une seule fois, pas une par ligne) n'a pas de sens ---
 ref = joints{1};
 for r = 2:nRows
     if ~isequal(joints{r}.CONDITIONS_ORDERED, ref.CONDITIONS_ORDERED) || ...
@@ -73,9 +71,6 @@ for r = 2:nRows
     end
 end
 
-% Palette qualitative pour les paires significatives (10 couleurs
-% distinctes, style Tableau10 ; une paire garde la meme couleur sur toutes
-% les lignes/joints et tous les DOF ou elle apparait)
 QUAL_PALETTE = [ ...
     0.121 0.466 0.705;
     1.000 0.498 0.055;
@@ -88,8 +83,6 @@ QUAL_PALETTE = [ ...
     0.737 0.741 0.133;
     0.090 0.745 0.812];
 
-% --- Recenser une seule fois TOUTES les paires significatives, tous joints
-% et tous DOF confondus, dans l'ordre de premiere rencontre ---
 sigPairFlds  = {};
 sigPairLabel = {};
 for r = 1:nRows
@@ -116,11 +109,18 @@ else
     pairColorIdx = containers.Map();
 end
 
-% --- Taille normale, relative a l'ecran (identique a plotAllCompFigure.m
-% et toutes les autres figures du projet) : garantit que la fenetre tient
-% toujours a l'ecran, quelle que soit sa taille/resolution/DPI ---
-figure('Name', 'Final figure -- All pairwise comparisons (combined joints)', ...
+figure('Name', 'Final figure', ...
        'units','normalized','outerposition',[0 0 1 1], 'Color','white');
+
+TOP_MARGIN    = 0.03;   
+BOTTOM_MARGIN = 0.14;  
+ROW_GAP       = 0.07;  
+row_h = (1 - TOP_MARGIN - BOTTOM_MARGIN - (nRows-1)*ROW_GAP) / nRows;
+
+LEFT_MARGIN  = 0.09;
+RIGHT_MARGIN = 0.09;
+COL_GAP      = 0.04;
+col_w = (1 - LEFT_MARGIN - RIGHT_MARGIN - (nCols-1)*COL_GAP) / nCols;
 
 for r = 1:nRows
     J = joints{r};
@@ -128,6 +128,12 @@ for r = 1:nRows
 
     for idof = 1:nDOF
         subplot(nRows, nCols, (r-1)*nCols + idof); hold on;
+        pos = get(gca, 'Position');            
+        pos(2) = 1 - TOP_MARGIN - r*row_h - (r-1)*ROW_GAP; 
+        pos(4) = row_h;
+        pos(1) = LEFT_MARGIN + (idof-1)*(col_w + COL_GAP);
+        pos(3) = col_w;
+        set(gca, 'Position', pos);
 
         y_min = Inf; y_max = -Inf;
         for ic = 1:length(J.CONDITIONS_ORDERED)
@@ -165,90 +171,117 @@ for r = 1:nRows
             for cl = 1:length(ph.clusters)
                 ep = ph.clusters{cl}.endpoints;
                 rectangle('Position', [ep(1)-1, y_row, ep(2)-ep(1), bar_h], ...
-                          'FaceColor', col, 'EdgeColor', 'none', 'FaceAlpha', 0.9);
+                          'FaceColor', col, 'EdgeColor', 'k', 'LineWidth', 0.5, 'FaceAlpha', 0.9);
             end
         end
 
         y_bottom = y_bar_top - max(rowIdx,1) * (bar_h + row_gap_b);
         ylim([y_bottom, y_max + data_range*0.08]);
         xlim([0 100]);
-        title(dofTitle(J.DOF_LABELS{idof}), 'FontSize', 10);
+        title(dofTitle(J.DOF_LABELS{idof}), 'FontSize', 15, 'FontName', 'Times New Roman');
         if idof == 1
-            ylabel(sprintf('%s — Angle (°)', J.rowLabel), 'FontSize', 10);
-        else
-            ylabel('Angle (°)', 'FontSize', 10);
+            ylabel('Angle (°)', 'FontSize', 14, 'FontName', 'Times New Roman');
         end
-        if r == nRows, xlabel('Cycle (%)', 'FontSize', 10); end
-        set(gca, 'FontSize', 8);
+        if r == nRows, xlabel('Cycle (%)', 'FontSize', 14, 'FontName', 'Times New Roman'); end
+        set(gca, 'FontSize', 9, 'FontName', 'Times New Roman');
         grid on; box on; hold off;
     end
 end
 
-sgtitle('Final figure — all pairwise comparisons', 'FontSize', 14, 'FontWeight', 'bold');
+rowLabelAx = axes('Position', [0 0 1 1], 'Visible', 'off');
+hold(rowLabelAx, 'on');
+for r = 1:nRows
+    row_bottom = 1 - TOP_MARGIN - r*row_h - (r-1)*ROW_GAP;
+    text(rowLabelAx, 0.03, row_bottom + row_h/2, joints{r}.rowLabel, ...
+         'Rotation', 90, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+         'FontSize', 13, 'FontName', 'Times New Roman', 'FontWeight', 'bold');
+end
 
-drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE);
+% sgtitle('Differences in glenohumeral and scapulothoracic kinematics between the seven conditions', 'FontSize', 15, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
+
+drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN);
 
 end
 
 
 function s = dofTitle(label)
-    % Un seul cas particulier : "Plane of elevation" n'a pas de sens
-    % physique en +/- sans preciser le sens (contrairement aux autres DOF
-    % qui portent deja leur convention de signe dans le libelle). Ajoute ici
-    % uniquement -- ne touche pas DOF_LABELS dans les caches/scripts source.
-    % Convention Anterior(+)/Posterior(-) choisie par analogie avec l'usage
-    % le plus courant en litterature d'epaule (0 = plan coronal, + vers la
-    % flexion/anterieur) -- pas verifiee contre la definition exacte des
-    % axes segment (Wu et al. 2005) pour cette sequence XZY composee ; a
-    % confirmer si besoin.
-    if strcmpi(strtrim(label), 'Plane of elevation')
-        s = {'Plane of elevation', '(Anterior +, Posterior -)'};
+    lbl = strtrim(label);
+    if strcmpi(lbl, 'Plane of elevation')
+        s = {'Anterior (-) / posterior (+) plane of elevation'};
+    elseif strcmpi(lbl, 'Elevation')
+        s = {'Flexion (-) / extension (+)'};
+    elseif strcmpi(lbl, 'Protraction (+) / retraction (-)')
+        s = {'External (-) / internal (+) rotation'};
+    elseif strcmpi(lbl, 'Posterior (+) / anterior (-) tilt')
+        s = {'Anterior (-) / Posterior (+) tilt'};
     else
         s = label;
     end
 end
 
 
-function drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE)
-    % Legende conditions (1 ligne) directement au-dessus de la legende
-    % paires significatives (jusqu'a 2 lignes, NumColumns = ceil(n/2) force
-    % le passage a la ligne des qu'il y a plus de la moitie des entrees) --
-    % ecart minimal entre les deux, comme dans plotAllCompFigure.m.
+function drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN)
 
-    legAx1 = axes('Position', [0.03 0.033 0.95 0.028], 'Visible', 'off');
+    LEG_GAP = 0.012;
+    h1 = 0.63 * BOTTOM_MARGIN;
+    h2 = BOTTOM_MARGIN - h1 - LEG_GAP;
+    legAx1 = axes('Position', [0.03, h2 + LEG_GAP, 0.95, h1], 'Visible', 'off');
     hold(legAx1, 'on');
     legHandles1 = gobjects(1, length(ref.CONDITIONS_ORDERED));
     for ic = 1:length(ref.CONDITIONS_ORDERED)
         legHandles1(ic) = plot(legAx1, NaN, NaN, 'Color', ref.COLORS(ic,:), 'LineWidth', 2.5, ...
                                 'DisplayName', ref.COND_LABELS{ic});
     end
-    lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, ...
-                   'NumColumns', length(ref.CONDITIONS_ORDERED));
+    lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 9, ...
+                   'NumColumns', length(ref.CONDITIONS_ORDERED), 'FontName', 'Times New Roman');
     drawnow;
     lgd1.Units = 'normalized';
     lgd1.Position(1) = 0.5 - lgd1.Position(3)/2;
-    lgd1.Position(2) = 0.033;
+    lgd1.Position(2) = h2 + LEG_GAP;
     hold(legAx1, 'off');
 
-    if nSigPairs > 0
-        legAx2 = axes('Position', [0.03 0.002 0.95 0.03], 'Visible', 'off');
-        hold(legAx2, 'on');
-        legHandles2 = gobjects(1, nSigPairs);
-        for k = 1:nSigPairs
-            col = QUAL_PALETTE(mod(k-1, size(QUAL_PALETTE,1)) + 1, :);
-            legHandles2(k) = plot(legAx2, NaN, NaN, 's', ...
-                'MarkerFaceColor', col, 'MarkerEdgeColor', 'none', 'MarkerSize', 8, ...
-                'DisplayName', sigPairLabel{k});
-        end
-        nCols2 = ceil(nSigPairs / 2);  % force le passage sur 2 lignes des que possible
-        lgd2 = legend(legAx2, legHandles2, 'Orientation','horizontal', 'Box','off', 'FontSize', 7.5, ...
-                       'NumColumns', nCols2);
-        drawnow;
-        lgd2.Units = 'normalized';
-        lgd2.Position(1) = 0.5 - lgd2.Position(3)/2;
-        lgd2.Position(2) = 0.002;
-        hold(legAx2, 'off');
+nRow1   = ceil(nSigPairs / 2);
+idxRow1 = 1:nRow1;
+idxRow2 = (nRow1+1):nSigPairs;
+rowH    = h2 / 2;   
+legAx2a = axes('Position', [0.03, rowH, 0.95, rowH], 'Visible', 'off');
+hold(legAx2a, 'on');
+legHandles2a = gobjects(1, length(idxRow1));
+for kk = 1:length(idxRow1)
+    k = idxRow1(kk);
+    col = QUAL_PALETTE(mod(k-1, size(QUAL_PALETTE,1)) + 1, :);
+    legHandles2a(kk) = plot(legAx2a, NaN, NaN, 's', 'MarkerFaceColor', col, ...
+        'MarkerEdgeColor', 'none', 'MarkerSize', 9, 'DisplayName', sigPairLabel{k});
+end
+
+
+lgd2a = legend(legAx2a, legHandles2a, 'Orientation','horizontal', 'Box','off', ...
+               'FontSize', 9, 'FontName', 'Times New Roman', 'NumColumns', length(idxRow1));
+drawnow;
+lgd2a.Units = 'normalized';
+lgd2a.Position(1) = 0.5 - lgd2a.Position(3)/2;
+lgd2a.Position(2) = rowH;
+hold(legAx2a, 'off');
+
+if ~isempty(idxRow2)
+    legAx2b = axes('Position', [0.03, 0, 0.95, rowH], 'Visible', 'off');
+    hold(legAx2b, 'on');
+    legHandles2b = gobjects(1, length(idxRow2));
+    for kk = 1:length(idxRow2)
+        k = idxRow2(kk);
+        col = QUAL_PALETTE(mod(k-1, size(QUAL_PALETTE,1)) + 1, :);
+        legHandles2b(kk) = plot(legAx2b, NaN, NaN, 's', 'MarkerFaceColor', col, ...
+            'MarkerEdgeColor', 'none', 'MarkerSize', 9, 'DisplayName', sigPairLabel{k});
     end
+    lgd2b = legend(legAx2b, legHandles2b, 'Orientation','horizontal', 'Box','off', ...
+                   'FontSize', 9, 'FontName', 'Times New Roman', 'NumColumns', length(idxRow2));
+    drawnow;
+    lgd2b.Units = 'normalized';
+    lgd2b.Position(1) = 0.5 - lgd2b.Position(3)/2;
+    lgd2b.Position(2) = -0.002;
+    hold(legAx2b, 'off');
+end
+
 end
 
 

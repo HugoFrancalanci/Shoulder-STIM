@@ -183,19 +183,19 @@ drawFigure('sd', 'labelled');
             y_bottom = y_bar_top - max(rowIdx,1) * (bar_h + row_gap);
             ylim([y_bottom, y_max + data_range*0.08]);
             xlim([0 100]);
-            title(DOF_LABELS{idof}, 'FontSize', 10);
-            ylabel('Angle (°)', 'FontSize', 11);
-            xlabel('Cycle (%)', 'FontSize', 10);
+            title(DOF_LABELS{idof}, 'FontSize', 14, 'FontName', 'Times New Roman');
+            ylabel('Angle (°)', 'FontSize', 11, 'FontName', 'Times New Roman');
+            xlabel('Cycle (%)', 'FontSize', 11, 'FontName', 'Times New Roman');
             set(gca, 'FontSize', 8);
             grid on; box on; hold off;
         end
 
         if strcmp(curveMode, 'sd') && strcmp(barMode, 'group')
             sgtitle(sprintf('%s pattern between FES conditions', jointLabel), ...
-                    'FontSize', 13, 'FontWeight', 'bold');
+                    'FontSize', 15, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
         else
             sgtitle(sprintf('%s — group mean, all pairwise post-hoc comparisons %s', jointLabel, titleSuffix), ...
-                    'FontSize', 13, 'FontWeight', 'bold');
+                    'FontSize', 15, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
         end
 
         drawLegend();
@@ -294,9 +294,6 @@ drawFigure('sd', 'labelled');
 
 
     function drawLegend()
-        % Deux legendes empilees, chacune sur une seule ligne, pour que
-        % chacune se centre correctement (une legende qui passe a la ligne
-        % aligne sa derniere rangee incomplete a gauche, jamais au centre).
 
         % --- Ligne du haut : couleurs des conditions ---
         legAx1 = axes('Position', [0.03 0.033 0.95 0.03], 'Visible', 'off');
@@ -306,7 +303,7 @@ drawFigure('sd', 'labelled');
             legHandles1(ic) = plot(legAx1, NaN, NaN, 'Color', COLORS(ic,:), 'LineWidth', 2.5, ...
                                     'DisplayName', COND_LABELS{ic});
         end
-        lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, ...
+        lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 10, 'FontName', 'Times New Roman', ...
                        'NumColumns', length(CONDITIONS_ORDERED));
         drawnow;
         lgd1.Units = 'normalized';
@@ -314,7 +311,7 @@ drawFigure('sd', 'labelled');
         lgd1.Position(2) = 0.033;
         hold(legAx1, 'off');
 
-        % --- Ligne du bas : paires significatives (si il y en a) ---
+        % --- Ligne du bas : paires significatives ---
         if nSigPairs > 0
             legAx2 = axes('Position', [0.03 0.002 0.95 0.03], 'Visible', 'off');
             hold(legAx2, 'on');
@@ -325,7 +322,7 @@ drawFigure('sd', 'labelled');
                     'MarkerFaceColor', col, 'MarkerEdgeColor', 'none', 'MarkerSize', 10, ...
                     'DisplayName', sigPairLabel{k});
             end
-            lgd2 = legend(legAx2, legHandles2, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, ...
+            lgd2 = legend(legAx2, legHandles2, 'Orientation','horizontal', 'Box','off', 'FontSize', 10, 'FontName', 'Times New Roman',...
                            'NumColumns', nSigPairs);
             drawnow;
             lgd2.Units = 'normalized';

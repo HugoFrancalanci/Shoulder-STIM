@@ -61,6 +61,13 @@ function plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COL
 
 nMusc  = length(EMG_LABELS);
 nPairs = size(ALL_PAIRS, 1);
+MUSCLE_LABELS = containers.Map( ...
+    {'TRAPS', 'TRAPM', 'TRAPI', 'SERRA'}, ...
+    {'Upper trapezius', 'Middle Trapezius', 'Lower trapezius', 'Serratus anterior'});
+
+set(groot, 'defaultAxesFontName', 'Times New Roman');
+set(groot, 'defaultTextFontName', 'Times New Roman');
+set(groot, 'defaultLegendFontName', 'Times New Roman');
 
 % Palette qualitative pour les paires significatives (10 couleurs
 % distinctes, style Tableau10 ; une paire garde la meme couleur sur tous
@@ -151,7 +158,7 @@ drawFigure('sd', 'labelled');
                         if all(isnan(curve)), continue; end
                         desatColor = COLORS(ic,:) * 0.8 + [0.6 0.6 0.6] * 0.2;
                         pInd = plot(x, curve, 'Color', desatColor, 'LineWidth', 0.6, 'HandleVisibility','off');
-                        pInd.Color(4) = 0.65;
+                        pInd.Color(4) = 0.90;
                         y_min = min(y_min, min(curve));
                         y_max = max(y_max, max(curve));
                     end
@@ -176,10 +183,16 @@ drawFigure('sd', 'labelled');
             y_bottom = y_bar_top - max(rowIdx,1) * (bar_h + row_gap);
             ylim([y_bottom, y_max + data_range*0.08]);
             xlim([0 100]);
-            title(mLabel, 'FontSize', 10);
-            ylabel('EMG (% baseline)', 'FontSize', 11);
-            xlabel('Cycle (%)', 'FontSize', 10);
-            set(gca, 'FontSize', 8);
+            if isKey(MUSCLE_LABELS, mLabel)
+    title(MUSCLE_LABELS(mLabel), 'FontSize', 15);
+else
+    title(mLabel, 'FontSize', 15);
+end
+            if im == 1
+            ylabel('Normalized EMG (%)', 'FontSize', 14);
+            end
+            xlabel('Cycle (%)', 'FontSize', 14);
+            set(gca, 'FontSize', 9);
             grid on; box on; hold off;
         end
 
@@ -187,7 +200,7 @@ drawFigure('sd', 'labelled');
             sgtitle('EMG pattern between FES conditions', ...
                     'FontSize', 13, 'FontWeight', 'bold');
         else
-            sgtitle(sprintf('EMG — group mean, all pairwise post-hoc comparisons %s', titleSuffix), ...
+            sgtitle(sprintf('Electromyographic pattern between FES conditions'), ...
                     'FontSize', 13, 'FontWeight', 'bold');
         end
 
@@ -299,7 +312,7 @@ drawFigure('sd', 'labelled');
             legHandles1(ic) = plot(legAx1, NaN, NaN, 'Color', COLORS(ic,:), 'LineWidth', 2.5, ...
                                     'DisplayName', COND_LABELS{ic});
         end
-        lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, ...
+        lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 9, ...
                        'NumColumns', length(CONDITIONS_ORDERED));
         drawnow;
         lgd1.Units = 'normalized';
@@ -318,7 +331,7 @@ drawFigure('sd', 'labelled');
                     'MarkerFaceColor', col, 'MarkerEdgeColor', 'none', 'MarkerSize', 10, ...
                     'DisplayName', sigPairLabel{k});
             end
-            lgd2 = legend(legAx2, legHandles2, 'Orientation','horizontal', 'Box','off', 'FontSize', 8, ...
+            lgd2 = legend(legAx2, legHandles2, 'Orientation','horizontal', 'Box','off', 'FontSize', 9, ...
                            'NumColumns', nSigPairs);
             drawnow;
             lgd2.Units = 'normalized';

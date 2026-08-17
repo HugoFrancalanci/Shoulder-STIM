@@ -166,7 +166,7 @@ COLORS = [0.35 0.20 0.29;   % No FES       aubergine
           0.30 0.47 0.46;   % Min_stress   bleu-vert (teal) fonce
           0.91 0.76 0.45;   % Random       jaune dore
           0.89 0.63 0.33;   % Min_pulse_width (Min PW) orange
-          0.45 0.55 0.68;   % Rehab        bleu-gris (assorti a la palette)
+          0.45 0.55 0.68;   % Rehab        bleu-gris
           0.75 0.35 0.35];  % Min_force    rouge saumon
 
 % Filtre passe-bas
