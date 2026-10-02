@@ -1,5 +1,5 @@
 function plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, jointLabel, x, ...
-                                    refCond, fesConds, spmResults, indivSigClusters, patientIDs)
+                                    refCond, fesConds, spmResults, indivSigClusters, patientIDs, exclZone)
 % =========================================================================
 % plotCombinedFigureLabeled.m
 % =========================================================================
@@ -21,12 +21,14 @@ function plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS
 %                x-axis stays [0,100] on every panel (no widening), so the
 %                curves are never re-scaled relative to the other figures.
 % -------------------------------------------------------------------------
-% Parameters :   same as plotCombinedFigure.m (including jointLabel) — see
-%                that file for details.
+% Parameters :   same as plotCombinedFigure.m (including jointLabel and the
+%                optional exclZone) — see that file for details.
 % Outputs    :   1 figure : grid DOF x length(fesConds)
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies : drawExclusionZone.m (same plotting/ folder)
 % =========================================================================
+
+if nargin < 13, exclZone = []; end
 
 nDOF = length(DOF_LABELS);
 nFes = length(fesConds);
@@ -43,6 +45,7 @@ figure('Name', sprintf('Final figure (labelled) -- Each condition vs %s', refCon
 for idof = 1:nDOF
     for fc = 1:nFes
         subplot(nDOF, nFes, (idof-1)*nFes + fc); hold on;
+        drawExclusionZone(gca, exclZone);
 
         fld_fes = matlab.lang.makeValidName(fesConds{fc});
         condIdx = find(strcmp(CONDITIONS_ORDERED, fesConds{fc}), 1);
@@ -196,6 +199,7 @@ legHandles(end) = plot(legAx, NaN, NaN, 's', 'MarkerFaceColor', [0.70 0.70 0.70]
                         'MarkerEdgeColor', 'none', 'MarkerSize', 11, ...
                         'DisplayName', 'Post-hoc intra-individual (per patients)');
 
+legHandles = [legHandles, drawExclusionZone(legAx, exclZone, 'legend')];
 lgd = legend(legAx, legHandles, 'Orientation','horizontal', ...
              'Box','off', 'FontSize', 9);
 drawnow;

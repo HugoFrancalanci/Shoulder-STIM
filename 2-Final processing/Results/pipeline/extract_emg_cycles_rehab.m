@@ -23,10 +23,10 @@
 %                (1) Per-patient : 4 muscles x 7 conditions, mean ± SD
 %                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks,
 %                    balanced via last-block padding) + paired t-tests each
-%                    condition vs Rehab, Bonferroni alpha=0.05/5
+%                    condition vs Rehab, Holm-Bonferroni alpha=0.05
 %                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
 %                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs Rehab,
-%                    Bonferroni alpha=0.05/5, RFT correction (Pataky 2010)
+%                    Holm-Bonferroni alpha=0.05, RFT correction (Pataky 2010)
 %                (5) Final figure : group mean + individual patient curves,
 %                    group/individual post-hoc bars (grid muscle x condition)
 %                (6) Patient identity figure : same grid, P1-P10 fixed
@@ -47,7 +47,7 @@
 %                (exact enumeration is infeasible : nPermTotal=factorial(70)
 %                since the permuter shuffles all patient*condition rows,
 %                not within-subject) — and the parametric
-%                spm1d.stats.ttest_paired for the Bonferroni-corrected
+%                spm1d.stats.ttest_paired for the Holm-Bonferroni-corrected
 %                post-hoc, unchanged)
 % -------------------------------------------------------------------------
 % This work is licensed under the Creative Commons Attribution -
@@ -82,7 +82,7 @@
 %     exploratoire — puissance limitee par les ddl faibles)
 %   - 1 figure globale P1-P10 : cycle moyen inter-patients +- ET
 %   - 1 figure SPM1D groupee : ANOVA RM + post-hoc vs Rehab (N=10)
-%     Correction Bonferroni sur 5 comparaisons (alpha = 0.05/5)
+%     Correction Holm-Bonferroni sur 5 comparaisons (FWER alpha = 0.05)
 %     Reference : Pataky TC (2010), J Biomech
 % =========================================================================
 
@@ -98,6 +98,7 @@ run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditio
 SPM1D_PATH = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'plotting'));
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'helpers'));
 rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
 
 % -------------------------------------------------------------------------
@@ -161,7 +162,7 @@ end
 % avec la couleur associee a chacune (BAR_COLORS)
 REF_COND  = 'Rehab';
 FES_CONDS = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Min_force'};
-ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
+ALPHA_FWER    = 0.05;  % Holm-Bonferroni : seuil alpha/(m-k+1) par comparaison (helpers/holmAlphaSPM1D.m)
 BAR_COLORS = [COLORS(2,:); COLORS(3,:); COLORS(4,:); COLORS(5,:); COLORS(7,:)];
 
 % Accumulateur pour la figure finale : clusters significatifs individuels
@@ -447,16 +448,28 @@ for ip = 1:length(PATIENT_IDS)
             data_ref_pt = condData_padded.(fld_ref).(mLabel);
             if ~isempty(data_ref_pt)
                 data_ref_mat = cat(1, data_ref_pt{:});
+                % Passe 1 : SPM{t} de chaque comparaison ; passe 2 : inference au
+                % seuil Holm-Bonferroni propre a chaque comparaison
+                % (helpers/holmAlphaSPM1D.m)
+                spmList_pt = cell(1, length(FES_CONDS));
                 for fc = 1:length(FES_CONDS)
                     fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
                     if ~isfield(condData_padded, fld_fes) || isempty(condData_padded.(fld_fes).(mLabel)), continue; end
-                    data_fes_mat = cat(1, condData_padded.(fld_fes).(mLabel){:});
                     try
-                        spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_ref_mat);
-                        spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                        spmList_pt{fc} = spm1d.stats.ttest_paired(cat(1, condData_padded.(fld_fes).(mLabel){:}), data_ref_mat);
+                    catch ME_ph
+                        fprintf('    %s vs Rehab : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
+                    end
+                end
+                [alphaHolm_pt, pHolm_pt] = holmAlphaSPM1D(spmList_pt, ALPHA_FWER);
+
+                for fc = 1:length(FES_CONDS)
+                    if isempty(spmList_pt{fc}), continue; end
+                    try
+                        spmi_t_pt = spmList_pt{fc}.inference(alphaHolm_pt(fc), 'two_tailed', true, 'interp', true);
                         if ~isempty(spmi_t_pt.clusters)
-                            fprintf('    %s vs Rehab : SIGNIFICATIF (%d cluster(s))\n', ...
-                                    FES_CONDS{fc}, length(spmi_t_pt.clusters));
+                            fprintf('    %s vs Rehab : SIGNIFICATIF (%d cluster(s), Holm p=%.5f < alpha=%.4f)\n', ...
+                                    FES_CONDS{fc}, length(spmi_t_pt.clusters), pHolm_pt(fc), alphaHolm_pt(fc));
                             y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + bar_gap_pt);
                             for cl = 1:length(spmi_t_pt.clusters)
                                 ep = spmi_t_pt.clusters{cl}.endpoints;
@@ -467,8 +480,8 @@ for ip = 1:length(PATIENT_IDS)
                             end
                             indivSigClusters{im}.(matlab.lang.makeValidName(FES_CONDS{fc})){ip} = spmi_t_pt.clusters;
                         else
-                            fprintf('    %s vs Rehab : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
-                                    FES_CONDS{fc}, size(data_fes_mat,1)-1, ALPHA_POSTHOC);
+                            fprintf('    %s vs Rehab : n.s.  (ddl=%d, Holm p=%.4f >= alpha=%.4f)\n', ...
+                                    FES_CONDS{fc}, N_TARGET-1, pHolm_pt(fc), alphaHolm_pt(fc));
                         end
                     catch ME_ph
                         fprintf('    %s vs Rehab : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
@@ -538,7 +551,7 @@ sgtitle('Comparaison des conditions de stimulation — Ensemble des patients (EM
 % =========================================================================
 
 FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Min_force'};
-ALPHA_POSTHOC = 0.05 / length(FES_CONDS);  % Bonferroni : 0.05/5 = 0.01
+ALPHA_FWER    = 0.05;  % Holm-Bonferroni : seuil alpha/(m-k+1) par comparaison (helpers/holmAlphaSPM1D.m)
 BAR_COLORS    = [COLORS(2,:); COLORS(3,:); COLORS(4,:); COLORS(5,:); COLORS(7,:)];
 BAR_HEIGHT    = 0.02;
 
@@ -547,7 +560,8 @@ fprintf('  Design        : mesures repetees intra-sujet (10 patients x 7 conditi
 fprintf('  Independance  : 1 moyenne par patient par condition (blocks moyennes)\n');
 fprintf('  Test omnibus  : ANOVA RM non parametrique a 1 facteur (spm1d.stats.nonparam.anova1rm, Monte Carlo 10000 iterations)\n');
 fprintf('  Post-hoc      : t-test apparie chaque condition vs Rehab (spm1d.stats.ttest_paired, parametrique)\n');
-fprintf('  Correction    : Bonferroni sur 5 comparaisons (alpha = %.4f)\n', ALPHA_POSTHOC);
+fprintf('  Correction    : Holm-Bonferroni sur %d comparaisons (FWER alpha = %.2f ;\n', length(FES_CONDS), ALPHA_FWER);
+fprintf('                  seuils de alpha/%d = %.4f a alpha/1 = %.2f selon le rang de la p-valeur)\n', length(FES_CONDS), ALPHA_FWER/length(FES_CONDS), ALPHA_FWER);
 fprintf('  Temporel      : Random Field Theory via SPM1D (Pataky 2010)\n');
 fprintf('%s\n', repmat('-', 1, 55));
 
@@ -636,14 +650,29 @@ for im = 1:length(EMG_LABELS)
     fld_ref = matlab.lang.makeValidName(REF_COND);
     if anova_sig && ~isempty(spmData.(fld_ref)(im).mat)
         data_ref = spmData.(fld_ref)(im).mat;
+        % Passe 1 : SPM{t} de chaque comparaison ; passe 2 : inference au
+        % seuil Holm-Bonferroni propre a chaque comparaison
+        spmList = cell(1, length(FES_CONDS));
         for fc = 1:length(FES_CONDS)
             fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
             if isempty(spmData.(fld_fes)(im).mat), continue; end
+            try
+                spmList{fc} = spm1d.stats.ttest_paired(spmData.(fld_fes)(im).mat, data_ref);
+            catch ME
+                fprintf('  %s | %s vs Rehab erreur : %s\n', mLabel, FES_CONDS{fc}, ME.message);
+            end
+        end
+        [alphaHolm, pHolm] = holmAlphaSPM1D(spmList, ALPHA_FWER);
+
+        for fc = 1:length(FES_CONDS)
+            if isempty(spmList{fc}), continue; end
+            fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
             data_fes = spmData.(fld_fes)(im).mat;
             try
-                spm_t  = spm1d.stats.ttest_paired(data_fes, data_ref);
-                spmi_t = spm_t.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                spmi_t = spmList{fc}.inference(alphaHolm(fc), 'two_tailed', true, 'interp', true);
                 spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).clusters = spmi_t.clusters;
+                spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).p_holm     = pHolm(fc);
+                spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).alpha_holm = alphaHolm(fc);
                 spmResults(im).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).sig      = ~isempty(spmi_t.clusters);
                 if ~isempty(spmi_t.clusters)
                     y_bar = y_bar_top - (fc-1) * (BAR_HEIGHT + 0.005);
@@ -694,7 +723,7 @@ sgtitle('Comparaison des conditions de stimulation — EMG (Analyse SPM1D vs Reh
 fprintf('\n');
 fprintf('=================================================================\n');
 fprintf(' TABLEAU RECAPITULATIF SPM1D — EMG (ref. Rehab)\n');
-fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Bonferroni alpha=%.4f\n', ALPHA_POSTHOC);
+fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Holm-Bonferroni alpha=%.2f (%d comparaisons)\n', ALPHA_FWER, length(FES_CONDS));
 fprintf('=================================================================\n');
 fprintf('%-12s  %-18s  %-12s  %-10s  %-10s  %s\n', ...
         'Muscle', 'Test', 'Condition', 'Debut (%)', 'Fin (%)', 'p-value');

@@ -14,8 +14,10 @@
 %                extract_scapular_kinematics_all_comp.m to redraw the final
 %                figure. One row per pairwise comparison : DOF, comparison
 %                label, significant cycle window, group p-value, mean
-%                angular value (°) of each condition over that window, their
-%                difference, and how many patients (of 10) were ALSO
+%                angular value (°) of each condition over that window (mean
+%                ± SD across the 10 patients of each patient's own window-
+%                averaged angle), their paired difference (B - A, mean ±
+%                SD), and how many patients (of 10) were ALSO
 %                individually significant for that same pair.
 %                Prints a Markdown table to the console (paste-ready for
 %                Word/most editors).
@@ -56,7 +58,7 @@ CACHE_FILE = fullfile(HERE, 'cache_scapulothoracic_all_comp.mat');
 if ~isfile(CACHE_FILE)
     error('Cache introuvable : %s (lance d''abord extract_scapular_kinematics_all_comp.m)', CACHE_FILE);
 end
-load(CACHE_FILE, 'CONDITIONS_ORDERED', 'COND_LABELS', 'DOF_LABELS', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS');
+load(CACHE_FILE, 'CONDITIONS_ORDERED', 'COND_LABELS', 'DOF_LABELS', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS', 'patientMeans');
 
 DOF_SHORT = DOF_LABELS;  % deja en anglais, sans prefixe X/Y/Z (voir extract_scapular_kinematics_all_comp.m)
 nDOF   = length(DOF_LABELS);
@@ -108,21 +110,13 @@ for idof = 1:nDOF
                     endPct   = ep(2) - 1;
                     if CLIP_NEGATIVE_START, startPct = max(startPct, 0); end
 
-                    if isfield(ph, 'angleInfo') && cl <= length(ph.angleInfo)
-                        vi = ph.angleInfo(cl);
-                        meanA = mean(vi.range_ref);
-                        meanB = mean(vi.range_fes);
-                        diffAB = vi.diff_mean;
-                    else
-                        meanA = NaN; meanB = NaN; diffAB = NaN;
-                    end
+                    [sA, sB, sD] = groupWindowStats(patientMeans, condA, condB, idof, ep);
 
                     window = sprintf('%.1f-%.1f', startPct, endPct);
                     pStr = formatP(pv);
 
                     rows(end+1,:) = {DOF_SHORT{idof}, compLabel, window, pStr, ...
-                                      sprintf('%.1f', meanA), sprintf('%.1f', meanB), ...
-                                      sprintf('%+.1f', diffAB), patStr}; %#ok<AGROW>
+                                      sA, sB, sD, patStr}; %#ok<AGROW>
                 end
             end
         end
@@ -136,7 +130,7 @@ end
 % -------------------------------------------------------------------------
 % COLONNES
 % -------------------------------------------------------------------------
-colNames = {'DOF', 'Comparison', 'Window_pct', 'p', 'Mean_A_deg', 'Mean_B_deg', 'Diff_deg', 'Patients_sig'};
+colNames = {'DOF', 'Comparison', 'Window_pct', 'p', 'Mean_A_deg (mean ± SD)', 'Mean_B_deg (mean ± SD)', 'Diff_B-A_deg (mean ± SD)', 'Patients_sig'};
 
 % -------------------------------------------------------------------------
 % AFFICHAGE MARKDOWN (copier-coller Word)
@@ -171,4 +165,22 @@ function s = formatP(pv)
     else
         s = sprintf('%.3f', pv);
     end
+end
+
+
+function [sA, sB, sD] = groupWindowStats(patientMeans, condA, condB, idof, ep)
+    % Angle moyen sur la fenetre significative, calcule PAR PATIENT (moyenne
+    % des points de la fenetre sur sa courbe patientMeans), puis moyenne +- ET
+    % inter-patients (N=10) ; difference = B - A appariee patient par patient.
+    % Memes indices de fenetre que les tableaux individuels (round(ep)).
+    idx1 = max(1, round(ep(1)));
+    idx2 = min(101, round(ep(2)));
+    stackA = cat(3, patientMeans.(matlab.lang.makeValidName(condA)){:});  % (nDOF,101,N)
+    stackB = cat(3, patientMeans.(matlab.lang.makeValidName(condB)){:});
+    wA = squeeze(mean(stackA(idof, idx1:idx2, :), 2));  % (N,1)
+    wB = squeeze(mean(stackB(idof, idx1:idx2, :), 2));
+    d  = wB - wA;
+    sA = sprintf('%.1f ± %.1f', mean(wA, 'omitnan'), std(wA, 'omitnan'));
+    sB = sprintf('%.1f ± %.1f', mean(wB, 'omitnan'), std(wB, 'omitnan'));
+    sD = sprintf('%+.1f ± %.1f', mean(d, 'omitnan'), std(d, 'omitnan'));
 end

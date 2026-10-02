@@ -1,5 +1,5 @@
 function plotAllCompFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, jointLabel, x, ...
-                            spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS)
+                            spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS, exclZone)
 % =========================================================================
 % plotAllCompFigure.m
 % =========================================================================
@@ -62,10 +62,17 @@ function plotAllCompFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS
 %                                      indivSigClusters{idof}.(pairFld){ip} =
 %                                      spm1d clusters (cell, empty if n.s.)
 %                PATIENT_IDS         — cell array of patient ID strings (N=10)
+%                exclZone            — optional, struct from computeExclusionZone.m
+%                                      (humerothoracic elevation > 90 deg) :
+%                                      drawn as a grey vertical band in every
+%                                      panel + one legend entry ; [] or
+%                                      omitted = no zone
 % Outputs    :   3 figures : 1 row x length(DOF_LABELS) columns each
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies : drawExclusionZone.m (same plotting/ folder)
 % =========================================================================
+
+if nargin < 12, exclZone = []; end
 
 nDOF   = length(DOF_LABELS);
 nPairs = size(ALL_PAIRS, 1);
@@ -138,6 +145,7 @@ drawFigure('sd', 'labelled');
 
         for idof = 1:nDOF
             subplot(1, nDOF, idof); hold on;
+            drawExclusionZone(gca, exclZone);
 
             y_min = Inf; y_max = -Inf;
             for ic = 1:length(CONDITIONS_ORDERED)
@@ -303,8 +311,9 @@ drawFigure('sd', 'labelled');
             legHandles1(ic) = plot(legAx1, NaN, NaN, 'Color', COLORS(ic,:), 'LineWidth', 2.5, ...
                                     'DisplayName', COND_LABELS{ic});
         end
+        legHandles1 = [legHandles1, drawExclusionZone(legAx1, exclZone, 'legend')];
         lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 10, 'FontName', 'Times New Roman', ...
-                       'NumColumns', length(CONDITIONS_ORDERED));
+                       'NumColumns', length(legHandles1));
         drawnow;
         lgd1.Units = 'normalized';
         lgd1.Position(1) = 0.5 - lgd1.Position(3)/2;

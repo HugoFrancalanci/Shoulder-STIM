@@ -1,5 +1,5 @@
 function plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, jointLabel, x, ...
-                             refCond, fesConds, spmResults, indivSigClusters, patientIDs)
+                             refCond, fesConds, spmResults, indivSigClusters, patientIDs, exclZone)
 % =========================================================================
 % plotCombinedFigure.m
 % =========================================================================
@@ -44,10 +44,16 @@ function plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLOR
 %                                      indivSigClusters{idof}.(fld){ip} =
 %                                      spm1d clusters (cell, empty if n.s.)
 %                patientIDs          — cell array of patient ID strings (N=10)
+%                exclZone            — optional, struct from computeExclusionZone.m
+%                                      (humerothoracic elevation > 90 deg) :
+%                                      grey vertical band in every panel + one
+%                                      legend entry ; [] or omitted = no zone
 % Outputs    :   1 figure : grid DOF x length(fesConds)
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies : drawExclusionZone.m (same plotting/ folder)
 % =========================================================================
+
+if nargin < 13, exclZone = []; end
 
 nDOF = length(DOF_LABELS);
 nFes = length(fesConds);
@@ -64,6 +70,7 @@ figure('Name', sprintf('Final figure -- Each condition vs %s', refCond), ...
 for idof = 1:nDOF
     for fc = 1:nFes
         subplot(nDOF, nFes, (idof-1)*nFes + fc); hold on;
+        drawExclusionZone(gca, exclZone);
 
         fld_fes = matlab.lang.makeValidName(fesConds{fc});
         condIdx = find(strcmp(CONDITIONS_ORDERED, fesConds{fc}), 1);
@@ -181,6 +188,7 @@ legHandles(end) = plot(legAx, NaN, NaN, 's', 'MarkerFaceColor', [0.70 0.70 0.70]
                         'MarkerEdgeColor', 'none', 'MarkerSize', 11, ...
                         'DisplayName', 'Post-hoc intra-individual (per patient)');
 
+legHandles = [legHandles, drawExclusionZone(legAx, exclZone, 'legend')];
 lgd = legend(legAx, legHandles, 'Orientation','horizontal', ...
              'Box','off', 'FontSize', 9);
 drawnow;

@@ -46,12 +46,17 @@ function plotCombinedJointsFigure(joints)
 %                                        spmResults(idof).posthoc.(pairFld).clusters/.sig
 %                  .ALL_PAIRS          — Nx2 cell array of condition pairs
 %                  .PATIENT_IDS        — cell array of patient ID strings
+%                  .EXCL_ZONE          — optional, struct from
+%                                        computeExclusionZone.m (humerothoracic
+%                                        elevation > 90 deg), grey vertical
+%                                        band in every panel of that row ;
+%                                        missing/[] = no zone
 %                CONDITIONS_ORDERED / COND_LABELS / COLORS must be IDENTICAL
 %                across all rows (checked, errors otherwise) -- they share a
 %                single condition legend.
 % Outputs    :   1 figure : length(joints) rows x max(nDOF) columns.
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies : drawExclusionZone.m (same plotting/ folder)
 % =========================================================================
 
 nRows = length(joints);
@@ -134,6 +139,7 @@ for r = 1:nRows
         pos(1) = LEFT_MARGIN + (idof-1)*(col_w + COL_GAP);
         pos(3) = col_w;
         set(gca, 'Position', pos);
+        if isfield(J, 'EXCL_ZONE'), drawExclusionZone(gca, J.EXCL_ZONE); end
 
         y_min = Inf; y_max = -Inf;
         for ic = 1:length(J.CONDITIONS_ORDERED)
@@ -199,7 +205,14 @@ end
 
 % sgtitle('Differences in glenohumeral and scapulothoracic kinematics between the seven conditions', 'FontSize', 15, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
 
-drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN);
+exclZoneLeg = [];
+for r = 1:nRows
+    if isfield(joints{r}, 'EXCL_ZONE') && ~isempty(joints{r}.EXCL_ZONE)
+        exclZoneLeg = joints{r}.EXCL_ZONE;
+        break;
+    end
+end
+drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN, exclZoneLeg);
 
 end
 
@@ -220,7 +233,7 @@ function s = dofTitle(label)
 end
 
 
-function drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN)
+function drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN, exclZone)
 
     LEG_GAP = 0.012;
     h1 = 0.63 * BOTTOM_MARGIN;
@@ -232,8 +245,9 @@ function drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN)
         legHandles1(ic) = plot(legAx1, NaN, NaN, 'Color', ref.COLORS(ic,:), 'LineWidth', 2.5, ...
                                 'DisplayName', ref.COND_LABELS{ic});
     end
+    legHandles1 = [legHandles1, drawExclusionZone(legAx1, exclZone, 'legend')];
     lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 9, ...
-                   'NumColumns', length(ref.CONDITIONS_ORDERED), 'FontName', 'Times New Roman');
+                   'NumColumns', length(legHandles1), 'FontName', 'Times New Roman');
     drawnow;
     lgd1.Units = 'normalized';
     lgd1.Position(1) = 0.5 - lgd1.Position(3)/2;

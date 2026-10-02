@@ -21,8 +21,8 @@
 %                (101 pts) by the denominator muscle's mean cycle
 %                (patientMeans.(cond).(muscle){patient}. Same statistical
 %                design as the amplitude pipeline : SPM1D non-parametric
-%                ANOVA RM (7 conditions, N=10 patients), Bonferroni-
-%                corrected paired t-test post-hoc on all 21 condition pairs.
+%                ANOVA RM (7 conditions, N=10 patients), Holm-
+%                Bonferroni-corrected paired t-test post-hoc on all 21 condition pairs.
 %
 % -------------------------------------------------------------------------
 % Parameters :   RATIO_DEFS -- struct array, one entry per ratio, generated
@@ -63,6 +63,7 @@ HERE = fileparts(fileparts(mfilename('fullpath')));
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 addpath(fullfile(HERE, 'plotting'));
+addpath(fullfile(HERE, 'helpers'));
 
 DENOM_EPS = 1e-6;  % % baseline -- garde-fou division par (quasi) zero
 
@@ -73,7 +74,25 @@ DENOM_EPS = 1e-6;  % % baseline -- garde-fou division par (quasi) zero
 FORCE_RECOMPUTE = false;
 CACHE_FILE = fullfile(HERE, 'cache_emg_ratio_all_comp.mat');
 
+% Methode de correction post-hoc : un cache calcule avec une autre
+% correction (ex. ancien Bonferroni) est ignore et tout est recalcule.
+POSTHOC_CORRECTION = 'holm';
+
+cacheValid = false;
+cachedCorrection = '';
 if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
+    try
+        cacheInfo = whos('-file', CACHE_FILE);
+        if ismember('POSTHOC_CORRECTION', {cacheInfo.name})
+            S_check = load(CACHE_FILE, 'POSTHOC_CORRECTION');
+            cachedCorrection = S_check.POSTHOC_CORRECTION;
+        end
+    catch
+    end
+    cacheValid = strcmp(cachedCorrection, POSTHOC_CORRECTION);
+end
+
+if cacheValid
     fprintf('Cache trouve : %s\n', CACHE_FILE);
     fprintf('-> Regeneration rapide de la figure finale (pas de re-calcul SPM1D).\n');
     fprintf('  (mettre FORCE_RECOMPUTE=true dans le script pour tout recalculer)\n\n');
@@ -83,6 +102,8 @@ if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
     plotAllCompFigureEMGRatio(ratioPatientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, ...
                                RATIO_LABELS, RATIO_DISPLAY, X_CYCLE, spmResults, ALL_PAIRS);
     return;
+elseif isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
+    fprintf('Cache trouve mais obsolete (correction "%s" -> "%s") : recalcul complet.\n\n', cachedCorrection, POSTHOC_CORRECTION);
 end
 
 % -------------------------------------------------------------------------
@@ -123,7 +144,7 @@ nRatios       = length(RATIO_DEFS);
 
 rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
 N_PAIRS        = size(ALL_PAIRS, 1);
-ALPHA_POSTHOC  = 0.05 / N_PAIRS;  % Bonferroni : 0.05/21 ~ 0.00238
+ALPHA_FWER     = 0.05;  % Holm-Bonferroni : seuil alpha/(m-k+1) par paire (helpers/holmAlphaSPM1D.m)
 PAIR_BAR_COLOR = [0.35 0.35 0.35];
 
 % -------------------------------------------------------------------------
@@ -191,7 +212,8 @@ fprintf('  Design        : mesures repetees intra-sujet (10 patients x 7 conditi
 fprintf('  Donnees       : ratio point-par-point (num/den) des cycles moyens deja caches\n');
 fprintf('  Test omnibus  : ANOVA RM non parametrique a 1 facteur (spm1d.stats.nonparam.anova1rm, Monte Carlo 10000 iterations)\n');
 fprintf('  Post-hoc      : t-test apparie sur chacune des %d paires de conditions (spm1d.stats.ttest_paired, parametrique)\n', N_PAIRS);
-fprintf('  Correction    : Bonferroni sur %d comparaisons (alpha = %.5f)\n', N_PAIRS, ALPHA_POSTHOC);
+fprintf('  Correction    : Holm-Bonferroni sur %d comparaisons (FWER alpha = %.2f ;\n', N_PAIRS, ALPHA_FWER);
+fprintf('                  seuils de alpha/%d = %.5f a alpha/1 = %.2f selon le rang de la p-valeur)\n', N_PAIRS, ALPHA_FWER/N_PAIRS, ALPHA_FWER);
 fprintf('  Temporel      : Random Field Theory via SPM1D (Pataky 2010)\n');
 fprintf('%s\n', repmat('-', 1, 55));
 
@@ -282,20 +304,36 @@ for ir = 1:nRatios
     % Post-hoc : toutes les paires (si ANOVA sig)
     rowIdx = 0;
     if anova_sig
+        % Passe 1 : SPM{t} de chaque paire testee ; passe 2 : inference au
+        % seuil Holm-Bonferroni propre a chaque paire
+        spmList = cell(1, N_PAIRS);
         for kp = 1:N_PAIRS
+            fldA = matlab.lang.makeValidName(ALL_PAIRS{kp,1});
+            fldB = matlab.lang.makeValidName(ALL_PAIRS{kp,2});
+            if isempty(spmData.(fldA)(ir).mat) || isempty(spmData.(fldB)(ir).mat), continue; end
+            try
+                spmList{kp} = spm1d.stats.ttest_paired(spmData.(fldB)(ir).mat, spmData.(fldA)(ir).mat);
+            catch ME
+                fprintf('  %s | %s vs %s erreur : %s\n', RATIO_DEFS(ir).display, ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2}, ME.message);
+            end
+        end
+        [alphaHolm, pHolm] = holmAlphaSPM1D(spmList, ALPHA_FWER);
+
+        for kp = 1:N_PAIRS
+            if isempty(spmList{kp}), continue; end
             condA = ALL_PAIRS{kp,1}; condB = ALL_PAIRS{kp,2};
             fldA = matlab.lang.makeValidName(condA);
             fldB = matlab.lang.makeValidName(condB);
-            if isempty(spmData.(fldA)(ir).mat) || isempty(spmData.(fldB)(ir).mat), continue; end
             data_A = spmData.(fldA)(ir).mat;
             data_B = spmData.(fldB)(ir).mat;
 
             try
-                spm_t  = spm1d.stats.ttest_paired(data_B, data_A);
-                spmi_t = spm_t.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                spmi_t = spmList{kp}.inference(alphaHolm(kp), 'two_tailed', true, 'interp', true);
 
                 pairFld = pairFieldName(condA, condB);
                 spmResults(ir).posthoc.(pairFld).clusters = spmi_t.clusters;
+                spmResults(ir).posthoc.(pairFld).p_holm     = pHolm(kp);
+                spmResults(ir).posthoc.(pairFld).alpha_holm = alphaHolm(kp);
                 spmResults(ir).posthoc.(pairFld).sig      = ~isempty(spmi_t.clusters);
                 spmResults(ir).posthoc.(pairFld).condA    = condA;
                 spmResults(ir).posthoc.(pairFld).condB    = condB;
@@ -344,7 +382,7 @@ sgtitle('Comparaison des conditions de stimulation — Ratio EMG, toutes paires 
 fprintf('\n');
 fprintf('=================================================================\n');
 fprintf(' TABLEAU RECAPITULATIF SPM1D — RATIO EMG (toutes comparaisons)\n');
-fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Bonferroni alpha=%.5f (%d comparaisons)\n', ALPHA_POSTHOC, N_PAIRS);
+fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Holm-Bonferroni alpha=%.2f (%d comparaisons)\n', ALPHA_FWER, N_PAIRS);
 fprintf('=================================================================\n');
 fprintf('%-24s  %-18s  %-28s  %-10s  %-10s  %s\n', ...
         'Ratio', 'Test', 'Comparaison', 'Debut (%)', 'Fin (%)', 'p-value');
@@ -394,7 +432,7 @@ fprintf('=================================================================\n\n')
 % prochain run, sans re-lancer tout le SPM1D non parametrique.
 % -------------------------------------------------------------------------
 save(CACHE_FILE, 'ratioPatientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', ...
-                  'RATIO_LABELS', 'RATIO_DISPLAY', 'X_CYCLE', 'spmResults', 'ALL_PAIRS');
+                  'RATIO_LABELS', 'RATIO_DISPLAY', 'X_CYCLE', 'spmResults', 'ALL_PAIRS', 'POSTHOC_CORRECTION');
 fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
 
 % =========================================================================

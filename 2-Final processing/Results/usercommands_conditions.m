@@ -71,6 +71,13 @@ SCAPULA_JOINT_IDX = containers.Map({'R','L'}, {3, 8});
 % -> voir APPLY_LGH_SIGN_CORRECTION dans extract_glenohumeral_kinematics_*.m
 GLENOHUMERAL_JOINT_IDX = containers.Map({'R','L'}, {2, 7});
 
+% Index du joint humerothoracique selon le côté (1-based)
+% Joint(1) = RHT, Joint(6) = LHT (humerus par rapport au thorax, seq XZY pour
+% ANALYTIC2). dim 1 = X = elevation (- = elevation). Utilise uniquement pour
+% la zone d'exclusion > 90° d'elevation (non interpretabilite GH / ST) —
+% voir helpers/extractHTElevation.m et helpers/computeExclusionZone.m
+HUMEROTHORACIC_JOINT_IDX = containers.Map({'R','L'}, {1, 6});
+
 % -------------------------------------------------------------------------
 % 8ÈME ANALYTIC2 TOUJOURS VIDE (tous patients)
 % Confirmé sur P1.mat : 8ème trial → Rcycle vide, Signal.cycle absent

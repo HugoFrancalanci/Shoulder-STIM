@@ -39,8 +39,10 @@ SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 addpath(fullfile(HERE, 'plotting'));
 
+% EXCL_ZONE : zone grisee (elevation humerothoracique > 90°), absente des
+% caches anterieurs a la correction Holm -> relancer les extract_*_all_comp
 CACHE_VARS = {'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', ...
-              'DOF_LABELS', 'x', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS'};
+              'DOF_LABELS', 'x', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS', 'EXCL_ZONE'};
 
 CACHE_GH = fullfile(HERE, 'cache_glenohumeral_all_comp.mat');
 if ~isfile(CACHE_GH)

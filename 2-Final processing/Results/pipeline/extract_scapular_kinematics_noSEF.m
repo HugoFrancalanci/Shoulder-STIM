@@ -19,10 +19,10 @@
 %                (1) Per-patient : 3 DOF x 7 conditions, mean ± SD across blocks
 %                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks as
 %                    observations, balanced via last-block padding) + paired
-%                    t-tests each FES vs No FES, Bonferroni alpha=0.05/6
+%                    t-tests each FES vs No FES, Holm-Bonferroni alpha=0.05
 %                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
 %                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc vs No FES,
-%                    Bonferroni alpha=0.05/6, RFT correction (Pataky 2010)
+%                    Holm-Bonferroni alpha=0.05, RFT correction (Pataky 2010)
 %                Also prints, for each significant cluster (individual and
 %                group), a recap table with the % cycle window, p-value,
 %                and the real angular value (°) of the condition and of
@@ -37,7 +37,12 @@
 % -------------------------------------------------------------------------
 % Parameters :   Joint index : RST=3 (right) / LST=8 (left), from
 %                DOMINANT_SIDE map in usercommands_conditions.m
-%                FES_CONDS, ALPHA_POSTHOC=0.05/6, BAR_COLORS
+%                FES_CONDS, ALPHA_FWER=0.05 (Holm-Bonferroni step-down over
+%                the compared conditions, helpers/holmAlphaSPM1D.m),
+%                EXCL_ELEV_THRESHOLD=90 deg (grey 'not interpretable'
+%                zone where humerothoracic elevation exceeds 90 deg,
+%                helpers/computeExclusionZone.m — visual only, statistics
+%                still run on the full cycle), BAR_COLORS
 % Outputs    :   5 figures (see Description); console output per patient
 %                reporting ANOVA p-value per DOF and post-hoc clusters,
 %                plus recap tables (individual and group) with angular
@@ -50,7 +55,7 @@
 %                (exact enumeration is infeasible : nPermTotal=factorial(70)
 %                since the permuter shuffles all patient*condition rows,
 %                not within-subject) — and the parametric
-%                spm1d.stats.ttest_paired for the Bonferroni-corrected
+%                spm1d.stats.ttest_paired for the Holm-Bonferroni-corrected
 %                post-hoc, unchanged)
 % -------------------------------------------------------------------------
 % This work is licensed under the Creative Commons Attribution -
@@ -79,7 +84,7 @@
 %     exploratoire — puissance limitee par les ddl faibles)
 %   - 1 figure globale P1-P10 : cycle moyen inter-patients +- ET
 %   - 1 figure SPM1D groupee : ANOVA RM + post-hoc vs No FES (N=10)
-%     Correction Bonferroni sur 6 comparaisons (alpha = 0.05/6)
+%     Correction Holm-Bonferroni sur 6 comparaisons (FWER alpha = 0.05)
 %     Reference : Pataky TC (2010), J Biomech
 % =========================================================================
 
@@ -99,6 +104,7 @@ run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditio
 SPM1D_PATH = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'plotting'));
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'helpers'));
 rng(0);  % reproductibilite des tests non parametriques (permutation Monte Carlo)
 
 % -------------------------------------------------------------------------
@@ -126,6 +132,13 @@ DOF_SHORT  = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
 
 warnings = {};
 
+% Zone de non interpretabilite : portion du cycle ou l'elevation
+% humerothoracique depasse ce seuil (bande grise verticale sur les figures,
+% statistiques inchangees). Groupe : courbe moyenne des 10 patients ;
+% figures individuelles : courbe propre au patient.
+EXCL_ELEV_THRESHOLD = 90;  % deg
+htPatientMeans = {};       % un vecteur (1,101) par patient, toutes conditions confondues
+
 % Accumulateur global : globalData.(condName) = cell array de vecteurs (3,101), un par trial
 % Utilise pour la figure globale (visualisation).
 globalData = struct();
@@ -141,7 +154,7 @@ for ic = 1:length(CONDITIONS_ORDERED)
 end
 
 FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
-ALPHA_POSTHOC = 0.05 / length(FES_CONDS);
+ALPHA_FWER    = 0.05;  % Holm-Bonferroni : seuil alpha/(m-k+1) par comparaison (helpers/holmAlphaSPM1D.m)
 BAR_COLORS    = COLORS(2:end, :);
 
 % Accumulateur pour la figure finale : clusters significatifs individuels
@@ -164,6 +177,7 @@ for ip = 1:length(PATIENT_IDS)
     jscap     = SCAPULA_JOINT_IDX(side);
     cycleKey  = 'rcycle';
     if strcmp(side, 'L'), cycleKey = 'lcycle'; end
+    jht = HUMEROTHORACIC_JOINT_IDX(side);  % elevation humerothoracique (zone d'exclusion)
 
     pnum    = str2double(patientID(2:end));
     matFile = fullfile(dataFolder, ['P' num2str(pnum) '.mat']);
@@ -199,6 +213,8 @@ for ip = 1:length(PATIENT_IDS)
         missingCondPos = PATIENT_EXCEPTIONS.(patientID).missingCondPositions;
     end
 
+    htTrials = {};  % elevation humerothoracique (1,101) par trial valide
+
     % Boucle sur les positions de condition (1→nCond)
     % trialIdx : compteur indépendant de trials consommés depuis analyticTrials
     % → si position dans missingCondPos : NaN sans consommer de trial
@@ -230,7 +246,19 @@ for ip = 1:length(PATIENT_IDS)
         fld = matlab.lang.makeValidName(cond);
         condData.(fld){end+1} = data; % (3, 101)
         globalData.(fld){end+1} = data; % accumulation inter-patients
+
+        ht = extractHTElevation(Trial(itrial), jht, cycleKey);
+        if ~isempty(ht), htTrials{end+1} = ht; end %#ok<AGROW>
     end
+
+    % --- Zone d'exclusion propre au patient (elevation HT > seuil) ---
+    if isempty(htTrials)
+        htPatientMeans{end+1} = NaN(1, 101); %#ok<AGROW>
+        warnings{end+1} = sprintf('[WARNING] %s : elevation humerothoracique absente (pas de zone d exclusion)', patientID);
+    else
+        htPatientMeans{end+1} = nanmean(cat(1, htTrials{:}), 1); %#ok<AGROW>
+    end
+    zonePt = computeExclusionZone(htPatientMeans{end}, x, EXCL_ELEV_THRESHOLD);
 
     % --- Moyenne des blocks par condition pour SPM (une ligne par patient) ---
     for ic = 1:length(CONDITIONS_ORDERED)
@@ -251,6 +279,7 @@ for ip = 1:length(PATIENT_IDS)
     for idof = 1:3
         subplot(1, 3, idof);
         hold on;
+        drawExclusionZone(gca, zonePt);
 
         legendHandles = gobjects(length(CONDITIONS_ORDERED), 1);
 
@@ -301,6 +330,7 @@ for ip = 1:length(PATIENT_IDS)
     for idof = 1:3
         subplot(1, 3, idof);
         hold on;
+        drawExclusionZone(gca, zonePt);
         legendHandles_spm = gobjects(length(CONDITIONS_ORDERED), 1);
         y_min_pt = Inf; y_max_pt = -Inf;
 
@@ -382,6 +412,11 @@ for ip = 1:length(PATIENT_IDS)
                 for kb = 1:N_TARGET
                     data_nofes_mat(kb,:) = trials_nofes{kb}(idof,:);
                 end
+                % Passe 1 : SPM{t} de chaque comparaison ; passe 2 : inference au
+                % seuil Holm-Bonferroni propre a chaque comparaison
+                % (helpers/holmAlphaSPM1D.m)
+                spmList_pt = cell(1, length(FES_CONDS));
+                dataFes_pt = cell(1, length(FES_CONDS));
                 for fc = 1:length(FES_CONDS)
                     fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
                     if ~isfield(condData_padded, fld_fes) || isempty(condData_padded.(fld_fes)), continue; end
@@ -390,12 +425,23 @@ for ip = 1:length(PATIENT_IDS)
                     for kb = 1:N_TARGET
                         data_fes_mat(kb,:) = trials_fes{kb}(idof,:);
                     end
+                    dataFes_pt{fc} = data_fes_mat;
                     try
-                        spm_t_pt  = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
-                        spmi_t_pt = spm_t_pt.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                        spmList_pt{fc} = spm1d.stats.ttest_paired(data_fes_mat, data_nofes_mat);
+                    catch ME_ph
+                        fprintf('    %s vs No FES : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
+                    end
+                end
+                [alphaHolm_pt, pHolm_pt] = holmAlphaSPM1D(spmList_pt, ALPHA_FWER);
+
+                for fc = 1:length(FES_CONDS)
+                    if isempty(spmList_pt{fc}), continue; end
+                    data_fes_mat = dataFes_pt{fc};
+                    try
+                        spmi_t_pt = spmList_pt{fc}.inference(alphaHolm_pt(fc), 'two_tailed', true, 'interp', true);
                         if ~isempty(spmi_t_pt.clusters)
-                            fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s))\n', ...
-                                    FES_CONDS{fc}, length(spmi_t_pt.clusters));
+                            fprintf('    %s vs No FES : SIGNIFICATIF (%d cluster(s), Holm p=%.5f < alpha=%.4f)\n', ...
+                                    FES_CONDS{fc}, length(spmi_t_pt.clusters), pHolm_pt(fc), alphaHolm_pt(fc));
                             y_bar_pt = y_bar_top_pt - (fc-1) * (bar_h_pt + 0.1);
                             mc_fes_full_pt = mean(data_fes_mat, 1);
                             mc_ref_full_pt = mean(data_nofes_mat, 1);
@@ -416,8 +462,8 @@ for ip = 1:length(PATIENT_IDS)
                             patientSpmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).clusterInfo = clusterInfo_pt;
                             indivSigClusters{idof}.(matlab.lang.makeValidName(FES_CONDS{fc})){ip} = spmi_t_pt.clusters;
                         else
-                            fprintf('    %s vs No FES : n.s.  (ddl=%d, seuil RFT élevé + Bonferroni α=%.4f)\n', ...
-                                    FES_CONDS{fc}, length(trials_fes)-1, ALPHA_POSTHOC);
+                            fprintf('    %s vs No FES : n.s.  (ddl=%d, Holm p=%.4f >= alpha=%.4f)\n', ...
+                                    FES_CONDS{fc}, N_TARGET-1, pHolm_pt(fc), alphaHolm_pt(fc));
                         end
                     catch ME_ph
                         fprintf('    %s vs No FES : erreur — %s\n', FES_CONDS{fc}, ME_ph.message);
@@ -471,6 +517,22 @@ for ip = 1:length(PATIENT_IDS)
 end % ip
 
 % =========================================================================
+% ZONE D'EXCLUSION GROUPE : elevation humerothoracique moyenne (10 patients,
+% toutes conditions) > EXCL_ELEV_THRESHOLD
+% =========================================================================
+htGroupMean = nanmean(cat(1, htPatientMeans{:}), 1);  % (1,101)
+EXCL_ZONE   = computeExclusionZone(htGroupMean, x, EXCL_ELEV_THRESHOLD);
+fprintf('\n=== Zone d''exclusion (elevation humerothoracique moyenne > %g°) ===\n', EXCL_ELEV_THRESHOLD);
+[htMax, iHtMax] = max(htGroupMean);
+fprintf('  Elevation HT moyenne max : %.1f° a %d %% du cycle\n', htMax, x(iHtMax));
+if isempty(EXCL_ZONE.windows)
+    fprintf('  (seuil jamais depasse : aucune zone grisee)\n');
+end
+for kz = 1:size(EXCL_ZONE.windows, 1)
+    fprintf('  Zone %d : %.1f %% -> %.1f %% du cycle\n', kz, EXCL_ZONE.windows(kz,1), EXCL_ZONE.windows(kz,2));
+end
+
+% =========================================================================
 % FIGURE GLOBALE : cycle moyen inter-patients (P1-P10), 3 DOF, 7 conditions
 % =========================================================================
 figure('Name', 'Global -- Cycle moyen scapulaire P1-P10', ...
@@ -479,6 +541,7 @@ figure('Name', 'Global -- Cycle moyen scapulaire P1-P10', ...
 for idof = 1:3
     subplot(1, 3, idof);
     hold on;
+    drawExclusionZone(gca, EXCL_ZONE);
     legendHandles = gobjects(length(CONDITIONS_ORDERED), 1);
 
     for ic = 1:length(CONDITIONS_ORDERED)
@@ -517,11 +580,13 @@ sgtitle('Comparaison des conditions de stimulation pour l''ensemble des patients
 %   - ANOVA : spm1d.stats.nonparam.anova1rm (repeated-measures one-way ANOVA,
 %     permutation-based, Monte Carlo, 10000 iterations)
 %   - Post-hoc : spm1d.stats.ttest_paired (t-test apparie, memes patients,
-%     reste parametrique — Bonferroni inchange)
-%   - Correction Bonferroni sur les 6 comparaisons post-hoc : alpha = 0.05/6
+%     reste parametrique)
+%   - Correction Holm-Bonferroni sur les 6 comparaisons post-hoc (FWER
+%     alpha = 0.05) : la k-ieme plus petite p-valeur est comparee a
+%     alpha/(m-k+1), arret a la premiere non rejetee (helpers/holmAlphaSPM1D.m)
 % =========================================================================
 FES_CONDS     = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
-ALPHA_POSTHOC = 0.05 / length(FES_CONDS);  % Bonferroni : 0.05/6 ≈ 0.0083
+ALPHA_FWER    = 0.05;  % Holm-Bonferroni (helpers/holmAlphaSPM1D.m)
 % Couleurs barres post-hoc : meme ordre que CONDITIONS_ORDERED (indices 2-7)
 BAR_COLORS  = COLORS(2:end, :);
 BAR_HEIGHT  = 0.8;
@@ -555,7 +620,9 @@ fprintf('  Test omnibus  : ANOVA RM non parametrique a 1 facteur (spm1d.stats.no
 fprintf('                  → controle la variabilite inter-individuelle\n');
 fprintf('  Post-hoc      : t-test apparie chaque FES vs No FES (spm1d.stats.ttest_paired, parametrique)\n');
 fprintf('                  → memes patients dans les deux conditions comparees\n');
-fprintf('  Correction    : Bonferroni sur 6 comparaisons post-hoc (alpha = %.4f)\n', ALPHA_POSTHOC);
+fprintf('  Correction    : Holm-Bonferroni sur %d comparaisons post-hoc (FWER alpha = %.2f ;\n', length(FES_CONDS), ALPHA_FWER);
+fprintf('                  seuils de alpha/%d = %.4f a alpha/1 = %.2f selon le rang de la p-valeur)\n', length(FES_CONDS), ALPHA_FWER/length(FES_CONDS), ALPHA_FWER);
+fprintf('  Zone grisee   : elevation humerothoracique > %g° (visuel uniquement, stats sur tout le cycle)\n', EXCL_ELEV_THRESHOLD);
 fprintf('  Temporel      : Random Field Theory via SPM1D (Pataky 2010)\n');
 fprintf('  Parametrique  : N=10, robustesse de l ANOVA RM aux deviations moderates\n');
 fprintf('                  de normalite acceptee (standard en biomecanique clinique)\n');
@@ -577,6 +644,7 @@ figure('Name', 'SPM1D -- Cinematique scapulaire -- ANOVA + post-hoc vs No FES', 
 for idof = 1:3
     ax = subplot(1, 3, idof);
     hold on;
+    drawExclusionZone(ax, EXCL_ZONE);
 
     % --- Tracer les courbes moyennes (meme apparence que figure globale) ---
     legendHandles = gobjects(length(CONDITIONS_ORDERED), 1);
@@ -634,17 +702,32 @@ for idof = 1:3
     if anova_sig && ~isempty(spmData.(fld_nofes))
         data_nofes = spmData.(fld_nofes)(idof).mat;
 
+        % Passe 1 : SPM{t} de chaque comparaison ; passe 2 : inference au
+        % seuil Holm-Bonferroni propre a chaque comparaison
+        spmList = cell(1, length(FES_CONDS));
         for fc = 1:length(FES_CONDS)
             fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
             if isempty(spmData.(fld_fes)), continue; end
+            try
+                spmList{fc} = spm1d.stats.ttest_paired(spmData.(fld_fes)(idof).mat, data_nofes);
+            catch ME
+                fprintf('  DOF %d | %s vs No FES erreur : %s\n', idof, condLabel(FES_CONDS{fc}, CONDITIONS_ORDERED, COND_LABELS), ME.message);
+            end
+        end
+        [alphaHolm, pHolm] = holmAlphaSPM1D(spmList, ALPHA_FWER);
+
+        for fc = 1:length(FES_CONDS)
+            if isempty(spmList{fc}), continue; end
+            fld_fes = matlab.lang.makeValidName(FES_CONDS{fc});
             data_fes = spmData.(fld_fes)(idof).mat;
 
             try
-                spm_t  = spm1d.stats.ttest_paired(data_fes, data_nofes);
-                spmi_t = spm_t.inference(ALPHA_POSTHOC, 'two_tailed', true, 'interp', true);
+                spmi_t = spmList{fc}.inference(alphaHolm(fc), 'two_tailed', true, 'interp', true);
 
                 % Stocker resultats post-hoc
                 spmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).clusters = spmi_t.clusters;
+                spmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).p_holm     = pHolm(fc);
+                spmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).alpha_holm = alphaHolm(fc);
                 spmResults(idof).posthoc.(matlab.lang.makeValidName(FES_CONDS{fc})).sig = ~isempty(spmi_t.clusters);
 
                 if ~isempty(spmi_t.clusters)
@@ -704,7 +787,7 @@ DOF_SHORT = {'X (Rot lat/med)', 'Y (Pro/Ret)', 'Z (Basc post/ant)'};
 fprintf('\n');
 fprintf('=================================================================\n');
 fprintf(' TABLEAU RECAPITULATIF SPM1D — Cinematique scapulaire\n');
-fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Bonferroni alpha=%.4f\n', ALPHA_POSTHOC);
+fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Holm-Bonferroni alpha=%.2f (%d comparaisons)\n', ALPHA_FWER, length(FES_CONDS));
 fprintf('=================================================================\n');
 fprintf('%-20s  %-18s  %-12s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
         'DOF', 'Test', 'Condition', 'Debut (%)', 'Fin (%)', 'p-value', 'Angle cond (°)', 'Angle No FES (°)', 'Diff (°)');
@@ -760,7 +843,7 @@ fprintf('=================================================================\n\n')
 % chaque condition vs No FES, avec barres post-hoc groupe + individuelles
 % =========================================================================
 plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, 'Scapular kinematics', x, ...
-                    'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
+                    'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS, EXCL_ZONE);
 
 % =========================================================================
 % FIGURE PATIENTS INDIVIDUELS : meme grille, une couleur fixe par patient
@@ -768,7 +851,7 @@ plotCombinedFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LA
 % Pas de moyenne de groupe ici ; post-hoc intra-individuel uniquement.
 % =========================================================================
 plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, 'Scapular kinematics', x, ...
-                           'No FES', FES_CONDS, indivSigClusters, PATIENT_IDS);
+                           'No FES', FES_CONDS, indivSigClusters, PATIENT_IDS, EXCL_ZONE);
 
 % =========================================================================
 % FIGURE FINALE ANNOTEE : identique a la figure finale, mais les barres
@@ -776,7 +859,7 @@ plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LAB
 % premiere colonne de conditions uniquement (pour eviter la surcharge).
 % =========================================================================
 plotCombinedFigureLabeled(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, DOF_LABELS, 'Scapular kinematics', x, ...
-                           'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS);
+                           'No FES', FES_CONDS, spmResults, indivSigClusters, PATIENT_IDS, EXCL_ZONE);
 
 % -------------------------------------------------------------------------
 % WARNINGS

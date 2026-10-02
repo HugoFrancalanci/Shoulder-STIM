@@ -116,16 +116,10 @@ for idof = 1:nDOF
                 ep = ph.clusters{cl}.endpoints;
                 pv = ph.clusters{cl}.P;
                 window = sprintf('%.1f-%.1f', max(ep(1)-1,0), ep(2)-1);
-                if isfield(ph, 'angleInfo') && cl <= length(ph.angleInfo)
-                    vi = ph.angleInfo(cl);
-                    meanA = mean(vi.range_ref);
-                    meanB = mean(vi.range_fes);
-                    diffAB = vi.diff_mean;
-                else
-                    meanA = NaN; meanB = NaN; diffAB = NaN;
-                end
+                % Groupe : moyenne ± ET inter-patients ; lignes patient : valeur du patient seul
+                [sA, sB, sD] = groupWindowStats(patientMeans, condA, condB, idof, ep);
                 rows(end+1,:) = {DOF_SHORT{idof}, compLabel, 'Group (N=10)', window, formatP(pv), ...
-                                  sprintf('%.1f', meanA), sprintf('%.1f', meanB), sprintf('%+.1f', diffAB)}; %#ok<AGROW>
+                                  sA, sB, sD}; %#ok<AGROW>
             end
         end
 
@@ -173,4 +167,22 @@ function s = formatP(pv)
     else
         s = sprintf('%.3f', pv);
     end
+end
+
+
+function [sA, sB, sD] = groupWindowStats(patientMeans, condA, condB, idof, ep)
+    % Angle moyen sur la fenetre significative, calcule PAR PATIENT (moyenne
+    % des points de la fenetre sur sa courbe patientMeans), puis moyenne +- ET
+    % inter-patients (N=10) ; difference = B - A appariee patient par patient.
+    % Memes indices de fenetre que les tableaux individuels (round(ep)).
+    idx1 = max(1, round(ep(1)));
+    idx2 = min(101, round(ep(2)));
+    stackA = cat(3, patientMeans.(matlab.lang.makeValidName(condA)){:});  % (nDOF,101,N)
+    stackB = cat(3, patientMeans.(matlab.lang.makeValidName(condB)){:});
+    wA = squeeze(mean(stackA(idof, idx1:idx2, :), 2));  % (N,1)
+    wB = squeeze(mean(stackB(idof, idx1:idx2, :), 2));
+    d  = wB - wA;
+    sA = sprintf('%.1f ± %.1f', mean(wA, 'omitnan'), std(wA, 'omitnan'));
+    sB = sprintf('%.1f ± %.1f', mean(wB, 'omitnan'), std(wB, 'omitnan'));
+    sD = sprintf('%+.1f ± %.1f', mean(d, 'omitnan'), std(d, 'omitnan'));
 end

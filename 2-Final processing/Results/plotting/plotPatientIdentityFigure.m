@@ -1,5 +1,5 @@
 function plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, DOF_LABELS, jointLabel, x, ...
-                                    refCond, fesConds, indivSigClusters, patientIDs)
+                                    refCond, fesConds, indivSigClusters, patientIDs, exclZone)
 % =========================================================================
 % plotPatientIdentityFigure.m
 % =========================================================================
@@ -38,10 +38,16 @@ function plotPatientIdentityFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS
 %                                      indivSigClusters{idof}.(fld){ip} =
 %                                      spm1d clusters (cell, empty if n.s.)
 %                patientIDs          — cell array of patient ID strings (N=10)
+%                exclZone            — optional, struct from computeExclusionZone.m
+%                                      (humerothoracic elevation > 90 deg) :
+%                                      grey vertical band in every panel + one
+%                                      legend entry ; [] or omitted = no zone
 % Outputs    :   1 figure : grid DOF x length(fesConds)
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies : drawExclusionZone.m (same plotting/ folder)
 % =========================================================================
+
+if nargin < 11, exclZone = []; end
 
 nDOF = length(DOF_LABELS);
 nFes = length(fesConds);
@@ -73,6 +79,7 @@ figure('Name', sprintf('Individual patients -- Each condition vs %s', refCond), 
 for idof = 1:nDOF
     for fc = 1:nFes
         subplot(nDOF, nFes, (idof-1)*nFes + fc); hold on;
+        drawExclusionZone(gca, exclZone);
 
         fld_fes = matlab.lang.makeValidName(fesConds{fc});
         stackFes = getPatientStack(patientMeans, fesConds{fc});
@@ -157,7 +164,8 @@ legHandles(end-1) = plot(legAx, NaN, NaN, 'Color', [0.2 0.2 0.2], 'LineStyle', '
 legHandles(end) = plot(legAx, NaN, NaN, 'Color', [0.2 0.2 0.2], 'LineStyle', '--', ...
                         'LineWidth', 2, 'DisplayName', sprintf('%s (dashed)', refCond));
 
-lgd = legend(legAx, legHandles, 'Orientation','horizontal', 'Box','off', 'FontSize', 9, 'NumColumns', nPat+2);
+legHandles = [legHandles, drawExclusionZone(legAx, exclZone, 'legend')];
+lgd = legend(legAx, legHandles, 'Orientation','horizontal', 'Box','off', 'FontSize', 9, 'NumColumns', numel(legHandles));
 drawnow;
 lgd.Units = 'normalized';
 lgd.Position(1) = 0.5 - lgd.Position(3)/2;
