@@ -13,9 +13,7 @@ function plotDiscreteEMGManuscript(disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS
 %                (extract_emg_discrete_all_comp.m) : grid metric (rows) x
 %                muscle (columns), restricted to the requested muscles /
 %                metrics (typically the 3 metrics of the Methods : peak
-%                amplitude, peak timing, activity duration > 50 % — the
-%                25 % sensitivity threshold stays in the supplementary
-%                grid, plotDiscreteEMGFigure.m). Same layout conventions as
+%                amplitude, peak timing, activity duration > 50 %). Same layout conventions as
 %                plotCombinedJointsFigure.m : metric name written
 %                vertically on the left of each row (bold), unit only on
 %                the y-axis, muscle names on top, Times New Roman.

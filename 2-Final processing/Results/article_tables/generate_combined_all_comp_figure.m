@@ -35,6 +35,7 @@
 clear; clc; close all;
 
 HERE = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(HERE, 'helpers'));  % dataDir() : dossier des donnees privees (caches, Excel)
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 addpath(fullfile(HERE, 'plotting'));
@@ -44,7 +45,7 @@ addpath(fullfile(HERE, 'plotting'));
 CACHE_VARS = {'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', ...
               'DOF_LABELS', 'x', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS', 'EXCL_ZONE'};
 
-CACHE_GH = fullfile(HERE, 'cache_glenohumeral_all_comp.mat');
+CACHE_GH = fullfile(dataDir(), 'cache_glenohumeral_all_comp.mat');
 if ~isfile(CACHE_GH)
     error('Cache introuvable');
 end
@@ -52,7 +53,7 @@ jointGH = load(CACHE_GH, CACHE_VARS{:});
 jointGH.rowLabel   = 'Glenohumeral';
 jointGH.jointLabel = 'Glenohumeral kinematics';
 
-CACHE_ST = fullfile(HERE, 'cache_scapulothoracic_all_comp.mat');
+CACHE_ST = fullfile(dataDir(), 'cache_scapulothoracic_all_comp.mat');
 if ~isfile(CACHE_ST)
     error('Cache introuvable');
 end

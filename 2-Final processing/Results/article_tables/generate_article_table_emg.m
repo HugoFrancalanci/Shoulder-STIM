@@ -50,10 +50,11 @@ CLIP_NEGATIVE_START = true;
 % CHARGEMENT DU CACHE
 % -------------------------------------------------------------------------
 HERE = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(HERE, 'helpers'));  % dataDir() : dossier des donnees privees (caches, Excel)
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 
-CACHE_FILE = fullfile(HERE, 'cache_emg_all_comp.mat');
+CACHE_FILE = fullfile(dataDir(), 'cache_emg_all_comp.mat');
 if ~isfile(CACHE_FILE)
     error('Cache introuvable : %s (lance d''abord extract_emg_cycles_all_comp.m)', CACHE_FILE);
 end

@@ -41,10 +41,11 @@ clear; clc;
 PYTHON_EXE = 'python';
 
 HERE = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(HERE, 'helpers'));  % dataDir() : dossier des donnees privees (caches, Excel)
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 
-OUT_FILE  = fullfile(HERE, 'Kinematics_SPM1D_results.xlsx');
+OUT_FILE  = fullfile(dataDir(), 'Kinematics_results.xlsx');
 BUILDER   = fullfile(fileparts(mfilename('fullpath')), 'build_reviewer_workbook_kin.py');
 JSON_FILE = [tempname '.json'];
 
@@ -55,7 +56,7 @@ joints = {'Glenohumeral', 'cache_glenohumeral_all_comp.mat'; 'Scapulothoracic', 
 out = struct();
 out.curves = {}; out.anova = {}; out.posthoc = {}; out.indiv = {}; out.zone = struct();
 for j = 1:size(joints, 1)
-    cacheFile = fullfile(HERE, joints{j,2});
+    cacheFile = fullfile(dataDir(), joints{j,2});
     if ~isfile(cacheFile)
         error('Cache introuvable : %s (lance d''abord le script extract_*_all_comp.m correspondant)', cacheFile);
     end

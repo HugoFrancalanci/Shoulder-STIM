@@ -139,7 +139,7 @@ APPLY_LGH_SIGN_CORRECTION = false;
 % figure calculee avec l'autre reglage de signe sans s'en rendre compte).
 % -------------------------------------------------------------------------
 FORCE_RECOMPUTE = false;
-CACHE_FILE = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'cache_glenohumeral_all_comp.mat');
+CACHE_FILE = fullfile(dataDir(), 'cache_glenohumeral_all_comp.mat');
 
 % Methode de correction post-hoc : sauvegardee dans le cache, un cache
 % calcule avec une autre correction (ex. ancien Bonferroni) ou sans zone

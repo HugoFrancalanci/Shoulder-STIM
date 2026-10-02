@@ -39,18 +39,19 @@ clear; clc;
 PYTHON_EXE = 'python';
 
 HERE = fileparts(fileparts(mfilename('fullpath')));
+addpath(fullfile(HERE, 'helpers'));  % dataDir() : dossier des donnees privees (caches, Excel)
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
 
-OUT_FILE  = fullfile(HERE, 'EMG_SPM1D_discrete_results.xlsx');
+OUT_FILE  = fullfile(dataDir(), 'Electromyography_results.xlsx');
 BUILDER   = fullfile(fileparts(mfilename('fullpath')), 'build_reviewer_workbook_emg.py');
 JSON_FILE = [tempname '.json'];
 
 % -------------------------------------------------------------------------
 % (1) EXPORT DES CACHES
 % -------------------------------------------------------------------------
-CACHE_EMG  = fullfile(HERE, 'cache_emg_all_comp.mat');
-CACHE_DISC = fullfile(HERE, 'cache_emg_discrete_all_comp.mat');
+CACHE_EMG  = fullfile(dataDir(), 'cache_emg_all_comp.mat');
+CACHE_DISC = fullfile(dataDir(), 'cache_emg_discrete_all_comp.mat');
 if ~isfile(CACHE_EMG),  error('Cache introuvable : %s (lance extract_emg_cycles_all_comp.m)', CACHE_EMG); end
 if ~isfile(CACHE_DISC), error('Cache introuvable : %s (lance extract_emg_discrete_all_comp.m)', CACHE_DISC); end
 S = load(CACHE_EMG);
@@ -60,10 +61,8 @@ if ~isfield(S, 'POSTHOC_CORRECTION')
 end
 
 % Libelles d'affichage des parametres discrets (memes que extract_emg_discrete_all_comp.m)
-PARAM_LABELS = {'Peak amplitude (% baseline)', 'Peak timing (% cycle)'};
-for th = D.ACT_THRESHOLDS
-    PARAM_LABELS{end+1} = sprintf('Activity duration > %d%% (%% cycle)', th); %#ok<SAGROW>
-end
+PARAM_LABELS = {'Peak amplitude (% baseline)', 'Peak timing (% cycle)', ...
+                sprintf('Activity duration > %d%% (%% cycle)', D.ACT_THRESHOLD)};
 
 MUS = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...
     {'Upper trapezius (UT)', 'Middle trapezius (MT)', 'Lower trapezius (LT)', 'Serratus anterior (SA)'});
@@ -71,7 +70,7 @@ out = struct('curves', {{}}, 'anova', {{}}, 'posthoc', {{}}, 'indiv', {{}}, ...
              'disc', {{}}, 'discAnova', {{}}, 'discPairs', {{}});
 out.conditions = S.COND_LABELS;
 out.correction = S.POSTHOC_CORRECTION;
-out.thresholds = D.ACT_THRESHOLDS;
+out.threshold = D.ACT_THRESHOLD;
 for im = 1:numel(S.EMG_LABELS)
     m = S.EMG_LABELS{im}; mn = MUS(m);
     % courbes individuelles

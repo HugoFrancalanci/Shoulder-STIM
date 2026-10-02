@@ -21,15 +21,14 @@
 %                  - peak amplitude  : max of the envelope (% baseline)
 %                  - peak timing     : % cycle at which the max occurs
 %                  - activity duration : total % of the cycle during which
-%                    the envelope exceeds min + X % x (peak - min), X = 50
-%                    (primary, full width at half maximum, FWHM —
-%                    Cappellini et al. 2006 ; Martino et al. 2014) and
-%                    X = 25 (sensitivity analysis). Crossing points are
+%                    the envelope exceeds min + 50 % x (peak - min), i.e.
+%                    the full width at half maximum (FWHM — Cappellini et
+%                    al. 2006 ; Martino et al. 2014). Crossing points are
 %                    linearly interpolated. Threshold relative to each
 %                    curve's own peak/minimum -> independent of amplitude
 %                    normalisation.
 %                  - onset / offset of the main burst (the supra-threshold
-%                    window containing the peak, primary threshold) —
+%                    window containing the peak) —
 %                    descriptive only.
 %                Block values are averaged per patient (N = 10 per
 %                condition). Statistics, same design as the SPM1D analysis :
@@ -40,16 +39,13 @@
 %                Also prints a targeted check of the hypotheses suggested
 %                by the SPM1D curves (TARGET_CHECKS below).
 % -------------------------------------------------------------------------
-% Parameters :   ACT_THRESHOLDS — % of (peak - min) defining "active" :
-%                                 first = primary (50, FWHM), others =
-%                                 sensitivity
+% Parameters :   ACT_THRESHOLD — % of (peak - min) defining "active"
+%                                 (50 = FWHM)
 %                ALPHA_ANOVA, ALPHA_FWER, N_ITER
 %                TARGET_CHECKS — muscle / conditions / parameters to
 %                                 highlight in the console
 %                MANUSCRIPT_MUSCLES / MANUSCRIPT_PARAMS — columns and rows
-%                                 of the manuscript figure (3 metrics of the
-%                                 Methods ; 25 % sensitivity threshold kept
-%                                 in the supplementary grid only)
+%                                 of the manuscript figure
 % Outputs    :   console tables (descriptive, statistics, targeted checks),
 %                2 figures : supplementary grid (plotDiscreteEMGFigure.m)
 %                and manuscript figure (plotDiscreteEMGManuscript.m),
@@ -92,7 +88,7 @@ addpath(fullfile(HERE, 'helpers'));
 % -------------------------------------------------------------------------
 % PARAMETRES
 % -------------------------------------------------------------------------
-ACT_THRESHOLDS = [50 25];  % % de (pic - min) : 50 = FWHM (principal), 25 = sensibilite
+ACT_THRESHOLD  = 50;       % % de (pic - min) : 50 = largeur a mi-hauteur (FWHM)
 ALPHA_ANOVA    = 0.05;
 ALPHA_FWER     = 0.05;     % Holm-Bonferroni sur les 21 paires (par muscle x parametre)
 N_ITER         = 10000;    % permutations ANOVA RM non parametrique
@@ -107,23 +103,25 @@ TARGET_CHECKS = struct( ...
     'params', {{'dur50', 'peakTime'}, {'peakAmp', 'peakTime'}});
 
 % Figure manuscrit : les 4 muscles x les 3 metriques de la methode (pic,
-% instant du pic, duree d'activite au seuil principal 50 %). Le seuil 25 %
-% (sensibilite) reste uniquement dans la grille supplementaire.
+% instant du pic, duree d'activite).
 MANUSCRIPT_MUSCLES = {'TRAPS', 'TRAPM', 'TRAPI', 'SERRA'};
 MANUSCRIPT_PARAMS  = {'peakAmp', 'peakTime', 'dur50'};
 
 % -------------------------------------------------------------------------
 % CACHE : regeneration rapide (tableaux + figure) sans refaire les
-% permutations. Ignore si les seuils ont change ou si FORCE_RECOMPUTE.
+% permutations. Ignore si le seuil a change ou si FORCE_RECOMPUTE.
 % -------------------------------------------------------------------------
 FORCE_RECOMPUTE = false;
-CACHE_FILE   = fullfile(HERE, 'cache_emg_discrete_all_comp.mat');
-SOURCE_CACHE = fullfile(HERE, 'cache_emg_all_comp.mat');
+CACHE_FILE   = fullfile(dataDir(), 'cache_emg_discrete_all_comp.mat');
+SOURCE_CACHE = fullfile(dataDir(), 'cache_emg_all_comp.mat');
 
 cacheValid = false;
 if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
-    S_check = load(CACHE_FILE, 'ACT_THRESHOLDS');
-    cacheValid = isfield(S_check, 'ACT_THRESHOLDS') && isequal(S_check.ACT_THRESHOLDS, ACT_THRESHOLDS);
+    cacheInfo = whos('-file', CACHE_FILE);
+    if ismember('ACT_THRESHOLD', {cacheInfo.name})
+        S_check = load(CACHE_FILE, 'ACT_THRESHOLD');
+        cacheValid = isequal(S_check.ACT_THRESHOLD, ACT_THRESHOLD);
+    end
 end
 
 if cacheValid
@@ -146,11 +144,8 @@ else
     % ---------------------------------------------------------------------
     % PARAMETRES DISCRETS (definition)
     % ---------------------------------------------------------------------
-    PARAMS = {'peakAmp', 'peakTime'};
-    for th = ACT_THRESHOLDS
-        PARAMS{end+1} = sprintf('dur%d', th); %#ok<SAGROW>
-    end
-    DESCR_ONLY = {sprintf('onset%d', ACT_THRESHOLDS(1)), sprintf('offset%d', ACT_THRESHOLDS(1))};
+    PARAMS     = {'peakAmp', 'peakTime', sprintf('dur%d', ACT_THRESHOLD)};
+    DESCR_ONLY = {sprintf('onset%d', ACT_THRESHOLD), sprintf('offset%d', ACT_THRESHOLD)};
 
     nPat  = numel(PATIENT_IDS);
     nCond = numel(CONDITIONS_ORDERED);
@@ -173,7 +168,7 @@ else
                 if nB == 0, continue; end
                 vals = NaN(nB, numel(PARAMS) + numel(DESCR_ONLY));
                 for kb = 1:nB
-                    vals(kb, :) = discreteParams(B(kb, :), X_CYCLE, ACT_THRESHOLDS);
+                    vals(kb, :) = discreteParams(B(kb, :), X_CYCLE, ACT_THRESHOLD);
                 end
                 v = mean(vals, 1, 'omitnan');
                 allF = [PARAMS DESCR_ONLY];
@@ -233,7 +228,7 @@ else
         end
     end
 
-    save(CACHE_FILE, 'disc', 'nBlocks', 'stats', 'PARAMS', 'DESCR_ONLY', 'ACT_THRESHOLDS', ...
+    save(CACHE_FILE, 'disc', 'nBlocks', 'stats', 'PARAMS', 'DESCR_ONLY', 'ACT_THRESHOLD', ...
          'ALPHA_ANOVA', 'ALPHA_FWER', 'N_ITER', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', ...
          'EMG_LABELS', 'X_CYCLE', 'ALL_PAIRS', 'PATIENT_IDS', 'pairIdx');
     fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
@@ -243,21 +238,19 @@ end
 % Libelles d'affichage "Metrique (unite)" : redefinis a chaque run (et non
 % relus du cache) pour pouvoir les modifier sans recalcul
 % -------------------------------------------------------------------------
-PARAM_LABELS = {'Peak amplitude (Normalised EMG (%))', 'Peak timing (Cycle (%))'};
-for th = ACT_THRESHOLDS
-    PARAM_LABELS{end+1} = sprintf('Activity duration > %d%% (Cycle (%%))', th); %#ok<SAGROW>
-end
+PARAM_LABELS = {'Peak amplitude (Normalised EMG (%))', 'Peak timing (Cycle (%))', ...
+                sprintf('Activity duration > %d%% (Cycle (%%))', ACT_THRESHOLD)};
 
 % -------------------------------------------------------------------------
 % TABLEAUX CONSOLE
 % -------------------------------------------------------------------------
-printMethods(ACT_THRESHOLDS, ALPHA_ANOVA, ALPHA_FWER, N_ITER);
+printMethods(ACT_THRESHOLD, ALPHA_ANOVA, ALPHA_FWER, N_ITER);
 printDescriptive(disc, PARAMS, DESCR_ONLY, EMG_LABELS, MUSCLE_DISPLAY, COND_LABELS);
 printStats(stats, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ALL_PAIRS, CONDITIONS_ORDERED, COND_LABELS, disc, pairIdx);
 printTargetChecks(TARGET_CHECKS, stats, disc, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ALL_PAIRS, CONDITIONS_ORDERED, COND_LABELS, pairIdx);
 
 % -------------------------------------------------------------------------
-% FIGURES : grille supplementaire (4 muscles x 4 parametres) + figure
+% FIGURES : grille supplementaire (4 muscles x 3 parametres) + figure
 % manuscrit (MANUSCRIPT_MUSCLES / MANUSCRIPT_PARAMS)
 % -------------------------------------------------------------------------
 plotDiscreteEMGFigure(disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ...
@@ -272,26 +265,21 @@ disp(' '); disp('Termine.');
 % FONCTIONS LOCALES
 % =========================================================================
 
-function v = discreteParams(c, x, thresholds)
-    % [peakAmp, peakTime, dur(th1), dur(th2)..., onset(th1), offset(th1)]
+function v = discreteParams(c, x, threshold)
+    % [peakAmp, peakTime, duree d'activite, onset, offset de la bouffee principale]
     c = c(:)';
-    v = NaN(1, 2 + numel(thresholds) + 2);
+    v = NaN(1, 5);
     if all(isnan(c)), return; end
     [pk, ipk] = max(c);
     mn = min(c);
     v(1) = pk;
     v(2) = x(ipk);
-    for k = 1:numel(thresholds)
-        thr = mn + thresholds(k) / 100 * (pk - mn);
-        W = supraThresholdWindows(c, x, thr);
-        v(2 + k) = sum(W(:,2) - W(:,1));
-        if k == 1 && ~isempty(W)
-            main = find(W(:,1) <= x(ipk) & W(:,2) >= x(ipk), 1);
-            if ~isempty(main)
-                v(end-1) = W(main, 1);
-                v(end)   = W(main, 2);
-            end
-        end
+    W = supraThresholdWindows(c, x, mn + threshold / 100 * (pk - mn));
+    v(3) = sum(W(:,2) - W(:,1));
+    main = find(W(:,1) <= x(ipk) & W(:,2) >= x(ipk), 1);
+    if ~isempty(main)
+        v(4) = W(main, 1);
+        v(5) = W(main, 2);
     end
 end
 
@@ -318,7 +306,7 @@ function printMethods(th, aA, aF, nIt)
     fprintf('\n=== Parametres discrets EMG (toutes comparaisons) ===\n');
     fprintf('  Niveau        : courbe moyenne de chaque bloc -> parametres -> moyenne des blocs par patient (N=10)\n');
     fprintf('  Pic           : amplitude max de l''enveloppe (%% baseline) et instant (%% cycle)\n');
-    fprintf('  Duree activite: %% du cycle ou l''enveloppe > min + X%% x (pic - min), X = %s (1er = principal, FWHM ; Cappellini 2006)\n', mat2str(th));
+    fprintf('  Duree activite: %% du cycle ou l''enveloppe > min + %g%% x (pic - min) (FWHM ; Cappellini 2006)\n', th);
     fprintf('  Omnibus       : ANOVA RM non parametrique (spm1d 0D, %d permutations), alpha = %.2f\n', nIt, aA);
     fprintf('  Post-hoc      : t-tests apparies sur les 21 paires, Holm-Bonferroni (FWER %.2f) par muscle x parametre,\n', aF);
     fprintf('                  interpretes uniquement si l''ANOVA est significative\n');

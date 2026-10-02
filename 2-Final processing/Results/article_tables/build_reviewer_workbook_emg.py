@@ -70,7 +70,7 @@ def title(ws, text, sub):
     ws['A2'] = sub; ws['A2'].font = F_NOTE
 
 wb = Workbook()
-th = d['thresholds']
+th = d['threshold']
 
 # =====================================================================
 # README
@@ -90,7 +90,7 @@ lines = [
     ('• Individual level (exploratory): same design within each participant using the 3 trials as observations (df = 2).', F_BASE),
     ('', F_BASE),
     ('Discrete parameters (secondary, exploratory analysis)', F_BOLD),
-    (f'• Computed on each trial\'s mean envelope, then averaged over the trials of each condition per participant: peak amplitude (% baseline), peak timing (% cycle), activity duration = total % of the cycle where the envelope exceeds min + X % × (peak − min), X = {th[0]} (full width at half maximum, FWHM — Cappellini et al. 2006, J Neurophysiol; Martino et al. 2014, J Neurophysiol) and X = {th[1]} (sensitivity analysis); crossing points linearly interpolated. Onset/offset of the main burst (window containing the peak, X = {th[0]}) are descriptive only. Peak timing is preferred to onset/offset detection for continuous shoulder elevation (Hawkes et al. 2019, PLoS One).', F_BASE),
+    (f'• Computed on each trial\'s mean envelope, then averaged over the trials of each condition per participant: peak amplitude (% baseline), peak timing (% cycle), activity duration = total % of the cycle where the envelope exceeds min + {th:g} % × (peak − min), i.e. the full width at half maximum (FWHM — Cappellini et al. 2006, J Neurophysiol; Martino et al. 2014, J Neurophysiol); crossing points linearly interpolated. Onset/offset of the main burst (window containing the peak) are descriptive only. Peak timing is preferred to onset/offset detection for continuous shoulder elevation (Hawkes et al. 2019, PLoS One).', F_BASE),
     ('• Statistics per muscle × parameter: non-parametric RM-ANOVA (permutation, 10 000 iterations, α = 0.05); if significant, paired t-tests on the 21 pairs with Holm-Bonferroni (family-wise α = 0.05). Pairwise results are interpreted only when the ANOVA is significant. Sheet Discrete_Stats reproduces the Holm decision with live Excel formulas.', F_BASE),
     ('• Caution: peak amplitude is sensitive to isolated extreme values (possible residual stimulation artefacts in some trials); activity duration and peak timing are threshold-relative and independent of amplitude normalisation.', F_BASE),
     ('', F_BASE),
@@ -194,8 +194,8 @@ style_body(wi, 5, row-1, len(cols))
 PARAMS = d['discParams']; DESCR = d['discDescr']; LABELS = d['discLabels']
 allF = PARAMS + DESCR
 FLABEL = dict(zip(PARAMS, LABELS))
-FLABEL[DESCR[0]] = f'Main-burst onset > {th[0]}% (% cycle)'
-FLABEL[DESCR[1]] = f'Main-burst offset > {th[0]}% (% cycle)'
+FLABEL[DESCR[0]] = f'Main-burst onset > {th:g}% (% cycle)'
+FLABEL[DESCR[1]] = f'Main-burst offset > {th:g}% (% cycle)'
 wp = wb.create_sheet('Discrete_Participants')
 title(wp, 'Discrete EMG parameters — every participant × condition × muscle', 'Each value = mean over the participant\'s trials of that condition (column "Trials used").')
 cols = ['Muscle', 'Condition', 'Participant', 'Trials used'] + [FLABEL[f] for f in allF]

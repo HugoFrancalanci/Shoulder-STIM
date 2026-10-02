@@ -72,7 +72,7 @@ DENOM_EPS = 1e-6;  % % baseline -- garde-fou division par (quasi) zero
 % recalculer. True pour ignorer le cache et tout refaire.
 % -------------------------------------------------------------------------
 FORCE_RECOMPUTE = false;
-CACHE_FILE = fullfile(HERE, 'cache_emg_ratio_all_comp.mat');
+CACHE_FILE = fullfile(dataDir(), 'cache_emg_ratio_all_comp.mat');
 
 % Methode de correction post-hoc : un cache calcule avec une autre
 % correction (ex. ancien Bonferroni) est ignore et tout est recalcule.
@@ -109,7 +109,7 @@ end
 % -------------------------------------------------------------------------
 % SOURCE : cache_emg_all_comp.mat (amplitude par muscle, deja calculee)
 % -------------------------------------------------------------------------
-SOURCE_CACHE = fullfile(HERE, 'cache_emg_all_comp.mat');
+SOURCE_CACHE = fullfile(dataDir(), 'cache_emg_all_comp.mat');
 if ~isfile(SOURCE_CACHE)
     error('Cache source introuvable : %s (lance d''abord extract_emg_cycles_all_comp.m)', SOURCE_CACHE);
 end

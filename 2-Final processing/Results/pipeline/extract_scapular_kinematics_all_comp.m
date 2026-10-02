@@ -129,7 +129,7 @@ addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'helpers'));
 % lent). Met FORCE_RECOMPUTE a true pour ignorer le cache et tout refaire.
 % -------------------------------------------------------------------------
 FORCE_RECOMPUTE = false;
-CACHE_FILE = fullfile(fileparts(fileparts(mfilename('fullpath'))), 'cache_scapulothoracic_all_comp.mat');
+CACHE_FILE = fullfile(dataDir(), 'cache_scapulothoracic_all_comp.mat');
 
 % Methode de correction post-hoc : sauvegardee dans le cache, un cache
 % calcule avec une autre correction (ex. ancien Bonferroni) ou sans zone
