@@ -2,30 +2,25 @@ function plotRhythmFigure(joints, ELEV_GRID, CONDITIONS_ORDERED, COND_LABELS, CO
 % =========================================================================
 % plotRhythmFigure.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Scapulohumeral-rhythm figure (extract_scapulohumeral_
-%                rhythm_all_comp.m) : one row per joint (GH, ST), one column
-%                per DOF ; x-axis = humerothoracic elevation (deg, ascending
-%                phase) instead of % cycle. Group mean ± SD per condition,
-%                Holm-significant pairs as coloured bars under the curves
-%                (one colour per pair, stable across panels and listed in
-%                the legend) — same visual conventions as
-%                plotCombinedJointsFigure.m (Times New Roman, joint name on
-%                the left, condition legend at the bottom, same DOF titles
-%                via dofTitle, kept identical to plotCombinedJointsFigure.m).
+% Description : Article Figure 2: joint angles as a function of
+%               humerothoracic elevation (ascending phase), one row per joint
+%               and one column per degree of freedom. Group mean +/- SD per
+%               condition, significant pairs as coloured bars under the
+%               curves.
 % -------------------------------------------------------------------------
-% Parameters :   joints — cell of structs (.name, .DOF_LABELS,
-%                         .rhythmMeans.(cond){ip} = (nDOF, nGrid),
-%                         .spmResults(idof).posthoc.(pair).clusters/.sig)
-%                ELEV_GRID, CONDITIONS_ORDERED, COND_LABELS, COLORS, ALL_PAIRS
-% Outputs    :   1 figure
+% Parameters  : joints : cell array of structs (name, DOF_LABELS, rhythmMeans,
+%                        spmResults)
+%               ELEV_GRID, CONDITIONS_ORDERED, COND_LABELS, COLORS, ALL_PAIRS
+% Outputs     : 1 figure
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 FONT = 'Times New Roman';

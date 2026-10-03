@@ -1,56 +1,38 @@
 % =========================================================================
 % extract_scapulohumeral_rhythm_all_comp.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description:   Glenohumeral (GH) and scapulo-thoracic (ST) angles
-%                expressed as a function of HUMEROTHORACIC ELEVATION instead
-%                of time (% cycle), during the ascending phase — i.e. the
-%                scapulohumeral rhythm. Separates a change in the TIME
-%                COURSE of the movement (the arm being simply lower at a
-%                given % of the cycle, see extract_humerothoracic_elevation_
-%                all_comp.m) from a change in joint COORDINATION (different
-%                GH / ST angles at the SAME arm elevation).
-%                Post-processes the GH, ST and HT _all_comp caches only (no
-%                raw data re-read). For every patient x condition, on the
-%                ascending phase (cycle start -> HT peak) : for each
-%                elevation of ELEV_GRID, the first time the HT elevation
-%                reaches it is found (linear interpolation, robust to
-%                slightly non-monotonic curves), and the GH / ST angles are
-%                read at that time. ELEV_GRID = 20:1:90 deg (requested
-%                range for the article ; capped at 90 deg, GH / ST not
-%                interpreted above, cf. grey zone). A curve starting
-%                slightly above 20 deg is prolonged with its first value
-%                over at most MAX_EXTRAP_DEG ; a patient whose ascent starts
-%                higher than that in any condition (P005, arm never below
-%                ~36 deg) is excluded from this analysis (listwise, N = 9).
-%                Statistics, same design as the time-domain analyses, the
-%                1D domain now being HT elevation : non-parametric RM-ANOVA
-%                (7 conditions, 10 000 permutations) per joint x DOF, then
-%                paired SPM{t} post-hoc on the 21 pairs, Holm-Bonferroni
-%                (helpers/holmAlphaSPM1D.m).
-%                Console : ANOVA clusters and significant pairs (in deg of
-%                HT elevation), and the per-patient contrast optimal
-%                commands (Min) vs {No FES, Random, Rehab} averaged over the
-%                grid (descriptive).
+% Description : Scapulothoracic and glenohumeral angles as a function of
+%               humerothoracic elevation during the ascending phase (article
+%               Figure 2). For each elevation between 20 and 90 deg (1 deg
+%               steps), the angles are read at the first instant the arm
+%               reaches that elevation. Curves starting less than 2.5 deg above
+%               20 deg are extended with their first value; participants whose
+%               elevation does not cover the range are excluded (N = 9).
+%               SPM1D comparison of the conditions with humerothoracic
+%               elevation as the domain.
+%               Statistics: non-parametric repeated-measures ANOVA across the
+%               7 conditions (10 000 permutations), then, if significant,
+%               paired t-tests on the 21 pairs of conditions with
+%               Holm-Bonferroni correction (alpha = 0.05).
 % -------------------------------------------------------------------------
-% Parameters :   ELEV_GRID (deg), MAX_EXTRAP_DEG, FIGURE_JOINTS, N_ITER, ALPHA_FWER
-% Outputs    :   console tables ; 1 figure (plotRhythmFigure.m, joints in
-%                FIGURE_JOINTS — ST only for the article) ;
-%                cache_scapulohumeral_rhythm_all_comp.mat in dataDir()
+% Parameters  : ELEV_GRID = 20:1:90 deg, MAX_EXTRAP_DEG = 2.5 deg
+%               FIGURE_JOINTS : joints shown in the figure
+%               N_ITER, ALPHA_FWER
+% Outputs     : Console tables, 1 figure (plotRhythmFigure.m),
+%               cache_scapulohumeral_rhythm_all_comp.mat
 % -------------------------------------------------------------------------
-% Dependencies : cache_glenohumeral_all_comp.mat, cache_scapulothoracic_
-%                all_comp.mat, cache_humerothoracic_all_comp.mat (dataDir()),
-%                helpers/ (holmAlphaSPM1D, dataDir), plotting/plotRhythmFigure.m,
-%                spm1dmatlab-master/
+% Dependencies: cache_glenohumeral_all_comp.mat,
+%               cache_scapulothoracic_all_comp.mat,
+%               cache_humerothoracic_all_comp.mat, helpers/,
+%               plotting/plotRhythmFigure.m, spm1dmatlab-master/
+% References  : Pataky TC (2010), J Biomech 43:1976-1982
 % =========================================================================
 
 clear; clc; close all;
@@ -265,5 +247,5 @@ end
 
 
 function s = fmtP(p)
-    if isnan(p), s = '—'; elseif p < 0.001, s = '<0.001'; else, s = sprintf('%.3f', p); end
+    if isnan(p), s = '-'; elseif p < 0.001, s = '<0.001'; else, s = sprintf('%.3f', p); end
 end

@@ -3,73 +3,28 @@ function plotAllCompFigure(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS
 % =========================================================================
 % plotAllCompFigure.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   July 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : July 2026
 % -------------------------------------------------------------------------
-% Description :  "Figure finale — toutes comparaisons" companion to
-%                plotCombinedFigure.m, for the all-pairwise-comparisons
-%                variant (extract_scapular_kinematics_all_comp.m). Unlike
-%                plotCombinedFigure.m : no reference condition — all 7
-%                condition group means are overlaid together in a single
-%                panel per DOF, spanning the FULL figure height (1 row x
-%                nDOF columns). Significance bars are drawn INSIDE the same
-%                panel, below the curves (ylim extended downward). Since
-%                only a handful of the 21 possible pairs are typically
-%                significant, each significant pair is assigned its OWN
-%                distinct color (consistent across all DOF panels and
-%                across all figures below) and identified via the legend,
-%                instead of an inline text label next to every bar.
-%                Produces THREE figures (same curve/legend logic reused
-%                across all three) :
-%                  (1) group mean ± SD band, one shaded band per condition,
-%                      group-level post-hoc bars only.
-%                  (2) group mean + every individual patient's own curve
-%                      (thin, desaturated ~45% toward grey, semi-transparent),
-%                      no SD band — real trajectories instead of a summary
-%                      band. Group-level post-hoc bars only.
-%                  (3) same curves as (1) (mean ± SD), but for every
-%                      significant pair : the opaque group-level bar is
-%                      followed underneath by one semi-transparent row per
-%                      patient who was ALSO individually significant for
-%                      that same pair (indivSigClusters), each labelled
-%                      "P#" next to its own bar — same label-placement
-%                      logic as plotCombinedFigureLabeled.m (next to the
-%                      first cluster, flips to the left if too close to the
-%                      right edge or if the patient has several close
-%                      clusters on the same row).
+% Description : Group figures of the kinematic scripts: all 7 conditions
+%               overlaid in one panel per degree of freedom, with the pairs of
+%               conditions that differ significantly shown as coloured bars
+%               under the curves (one colour per pair, listed in the legend).
+%               Three versions: group mean +/- SD, group mean with individual
+%               curves, and group mean +/- SD with individual significant
+%               windows labelled by participant.
 % -------------------------------------------------------------------------
-% Parameters :   patientMeans        — struct, patientMeans.(cond) = cell of
-%                                      (3,101) matrices, one per patient
-%                CONDITIONS_ORDERED  — cell array of condition names (7)
-%                COND_LABELS         — display labels (underscore -> space)
-%                COLORS              — Nx3 RGB, one row per CONDITIONS_ORDERED
-%                DOF_LABELS          — cell array of DOF titles (3)
-%                jointLabel          — string used in the sgtitle, e.g.
-%                                      'Scapular kinematics' or
-%                                      'Glenohumeral kinematics'
-%                x                   — cycle axis, 0:100
-%                spmResults          — struct array (1x3, per DOF) :
-%                                      spmResults(idof).posthoc.(pairFld).clusters/.sig
-%                                      pairFld = pairFieldName(condA,condB)
-%                ALL_PAIRS           — Nx2 cell array of condition-name
-%                                      pairs {condA, condB} (raw names from
-%                                      CONDITIONS_ORDERED, same ones used to
-%                                      build pairFld in the calling script)
-%                indivSigClusters    — cell array (1x3, per DOF) of structs :
-%                                      indivSigClusters{idof}.(pairFld){ip} =
-%                                      spm1d clusters (cell, empty if n.s.)
-%                PATIENT_IDS         — cell array of patient ID strings (N=10)
-%                exclZone            — optional, struct from computeExclusionZone.m
-%                                      (humerothoracic elevation > 90 deg) :
-%                                      drawn as a grey vertical band in every
-%                                      panel + one legend entry ; [] or
-%                                      omitted = no zone
-% Outputs    :   3 figures : 1 row x length(DOF_LABELS) columns each
+% Parameters  : patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS
+%               DOF_LABELS, jointLabel, x (0:100)
+%               spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS
+%               exclZone (optional) : struct from computeExclusionZone.m
+% Outputs     : 3 figures
 % -------------------------------------------------------------------------
-% Dependencies : drawExclusionZone.m (same plotting/ folder)
+% Dependencies: drawExclusionZone.m
 % =========================================================================
 
 if nargin < 12, exclZone = []; end
@@ -202,7 +157,7 @@ drawFigure('sd', 'labelled');
             sgtitle(sprintf('%s pattern between FES conditions', jointLabel), ...
                     'FontSize', 15, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
         else
-            sgtitle(sprintf('%s — group mean, all pairwise post-hoc comparisons %s', jointLabel, titleSuffix), ...
+            sgtitle(sprintf('%s - group mean, all pairwise post-hoc comparisons %s', jointLabel, titleSuffix), ...
                     'FontSize', 15, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
         end
 
@@ -270,8 +225,7 @@ drawFigure('sd', 'labelled');
 
                     % Etiquette P# juste a cote du premier cluster de ce
                     % patient (bascule a gauche si trop pres du bord droit
-                    % ou si plusieurs clusters proches) — meme logique que
-                    % plotCombinedFigureLabeled.m
+                    % ou si plusieurs clusters proches)
                     patNum  = str2double(PATIENT_IDS{ip}(2:end));
                     epFirst = clusters_ip{1}.endpoints;
                     xStart  = epFirst(1) - 1;

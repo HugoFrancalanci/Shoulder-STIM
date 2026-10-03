@@ -2,31 +2,24 @@ function elev = extractHTElevation(trial, jht, cycleKey)
 % =========================================================================
 % extractHTElevation.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Humerothoracic elevation (humerus relative to thorax) of
-%                one trial, mean over its cycles, expressed POSITIVE upward
-%                (deg). Used only to locate the part of the cycle where the
-%                arm is elevated above EXCL_ELEV_THRESHOLD (90 deg), where
-%                glenohumeral / scapulo-thoracic angles are not interpreted
-%                (see computeExclusionZone.m / drawExclusionZone.m).
-%                Source : Trial.Joint(jht).Euler.rcycle / lcycle, sequence
-%                XZY for ANALYTIC2 (ComputeKinematics.m), dim 1 = X =
-%                elevation with "- = elevation" (same convention as GH),
-%                hence the sign flip.
+% Description : Humerothoracic elevation (humerus relative to thorax) of one
+%               trial, averaged over its cycles and expressed positive upward
+%               (deg). Read from Trial.Joint(jht).Euler (XZY sequence, first
+%               angle, sign inverted so that + = elevation).
 % -------------------------------------------------------------------------
-% Parameters :   trial    — one element of the K-LAB Trial struct array
-%                jht      — humerothoracic joint index (HUMEROTHORACIC_JOINT_IDX
-%                           in usercommands_conditions.m : RHT=1 / LHT=6)
-%                cycleKey — 'rcycle' or 'lcycle'
-% Outputs    :   elev — (1,101) mean elevation (deg, + = elevation), or []
-%                       if the kinematics is missing
+% Parameters  : trial    : one element of the K-LAB Trial struct array
+%               jht      : humerothoracic joint index (R = 1, L = 6)
+%               cycleKey : 'rcycle' or 'lcycle'
+% Outputs     : elev : (1,101) mean elevation (deg), [] if missing
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 elev = [];

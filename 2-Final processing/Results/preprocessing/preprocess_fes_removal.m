@@ -1,74 +1,23 @@
 % =========================================================================
 % preprocess_fes_removal.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   July 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : July 2026
 % -------------------------------------------------------------------------
-% Description:   Visual verification of FES artefact removal on raw EMG
-%                for a single patient across all 6 FES conditions. Loops
-%                over ALL_FES_CONDS and produces 2 figures per condition
-%                (12 total): cycle-aligned overlay (No FES/raw FES/cleaned)
-%                and 300ms zoom for pulse-by-pulse inspection. The first
-%                figure concatenates N_CYCLES_DISPLAY movement cycles
-%                (Rcycle/Lcycle.range, same convention as
-%                extract_emg_cycles_noSEF.m) instead of the full trial, so No FES
-%                and FES traces cover a comparable duration and are easier
-%                to compare (dotted lines mark cycle boundaries). ylim of
-%                the full-signal figure is set from cleaned+No FES range
-%                only (raw FES artefacts excluded from scale). Removal
-%                parameters are identical to extract_emg_cycles_noSEF.m.
+% Description : Visual check of the stimulation-artefact removal for one
+%               participant and all FES conditions: No FES, raw and cleaned
+%               signals over a few movement cycles, and a 300 ms zoom.
 % -------------------------------------------------------------------------
-% Parameters :   PATIENT_ID, VERIFY_BLOCK=1, NOFES_COND='No FES',
-%                N_CYCLES_DISPLAY=5, BLANK_MS=8, MAD_FACTOR=6,
-%                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, ZOOM_V_START=7.0s,
-%                ZOOM_V_DUR=0.3s
-% Outputs    :   12 figures (6 conditions x 2 : cycle-aligned signal + 300ms zoom)
+% Parameters  : PATIENT_ID, VERIFY_BLOCK, N_CYCLES_DISPLAY
+%               BLANK_MS = 8, MAD_FACTOR = 6, MIN_PERIOD_MS = 15, MAX_BLANK_MS = 20
+%               ZOOM_V_START, ZOOM_V_DUR
+% Outputs     : 2 figures per FES condition
 % -------------------------------------------------------------------------
-% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
-% =========================================================================
-%
-% VERIFICATION DU RETRAIT DE L'ARTEFACT FES — signal brut EMG
-% ------------------------------------------------------------
-% Methode : detection de pics + blanking + interpolation cubique
-% Parametres identiques a extract_emg_cycles_noSEF.m
-%
-% Principe :
-%   1. DETECTION  : seuil adaptatif MAD_FACTOR x MAD(signal).
-%                   Pics positifs ET negatifs (spike biphasique).
-%                   Distance minimale entre pics = 15ms.
-%
-%   2. BLANKING   : fenetre BLANK_MS = 8ms centree sur chaque pic -> NaN.
-%                   (spike ~4ms mesure, marge x2 pour le biphasique)
-%
-%   3. INTERPOLATION : reconstruction pchip sur 3 points voisins valides.
-%                   Trous > MAX_BLANK_MS = 20ms non interpoles.
-%
-% Figures produites (boucle sur toutes les conditions FES) :
-%   Pour chaque condition FES (VERIFY_BLOCK) — 2 figures :
-%   - Signal "complet" : N_CYCLES_DISPLAY cycles concatenes (Rcycle/Lcycle),
-%     noir = No FES (ref), gris = brut, bleu = nettoye. Cycles delimites par
-%     des pointilles gris. ylim adapte aux signaux d'interet (artefacts
-%     bruts exclus de l'echelle). No FES et FES sont ainsi sur une duree
-%     comparable (au lieu du trial entier, de duree variable), ce qui
-%     facilite la comparaison visuelle.
-%   - Zoom 300ms    : pleine echelle sur le trial entier — voir le retrait
-%     pulse par pulse.
-%   Soit 12 figures au total (6 conditions x 2).
-%
-% Limitations connues :
-%   - P001 : 4 trials FES avec SYNCHRO inactif — detection directe sur EMG.
-%   - Si pic musculaire > seuil : 8ms de signal reel efface (faux positif).
+% Dependencies: usercommands_conditions.m, K-LAB .mat files
 % =========================================================================
 
 clear; clc; close all;
@@ -79,7 +28,7 @@ run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditio
 % -------------------------------------------------------------------------
 PATIENT_ID     = 'P001';
 FS             = 2200;          % Hz (verifie via check_fs.m)
-FS_KIN         = 100;           % Hz — frequence camera (pour Rcycle/Lcycle.range)
+FS_KIN         = 100;           % Hz: frequence camera (pour Rcycle/Lcycle.range)
 
 N_CYCLES_DISPLAY = 3;           % nombre de cycles concatenes pour la figure
                                 % "signal complet" (au lieu du trial entier),
@@ -237,7 +186,7 @@ end
 % -------------------------------------------------------------------------
 seqN = find(strcmp(condList.condition, NOFES_COND) & condList.block == NOFES_BLOCK, 1);
 if isempty(seqN)
-    warning('Condition %s b%d introuvable pour %s — courbe de reference omise.', NOFES_COND, NOFES_BLOCK, PATIENT_ID);
+    warning('Condition %s b%d introuvable pour %s - courbe de reference omise.', NOFES_COND, NOFES_BLOCK, PATIENT_ID);
     tN = [];
 else
     tN = Trial(allIdx(seqN));
@@ -317,7 +266,7 @@ for ifc = 1:length(ALL_FES_CONDS)
                 legend({'Brut', 'Nettoye'}, 'Location','northeast');
             end
         end
-        if ji == nEmg, xlabel(sprintf('Temps (s) — %d cycles concatenes', N_CYCLES_DISPLAY)); end
+        if ji == nEmg, xlabel(sprintf('Temps (s) - %d cycles concatenes', N_CYCLES_DISPLAY)); end
     end
 
     sgtitle(sprintf('%s  --  %s b%d  --  %d cycles concatenes  (noir=No FES, gris=brut, bleu=nettoye)', ...

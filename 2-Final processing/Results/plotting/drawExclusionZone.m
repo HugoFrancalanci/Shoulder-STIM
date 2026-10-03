@@ -2,30 +2,23 @@ function h = drawExclusionZone(ax, zone, mode)
 % =========================================================================
 % drawExclusionZone.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Draws the "not interpretable" zone (humerothoracic
-%                elevation > threshold, see computeExclusionZone.m) as a
-%                transparent grey vertical band spanning the full height of
-%                the axes (xregion : follows any later ylim change, does not
-%                alter the axis limits, hidden from legends). Call it right
-%                after "hold on", before the curves, so it stays behind.
-%                mode = 'legend' instead draws an invisible dummy patch in
-%                a legend axes and returns its handle, to add the matching
-%                grey entry to a custom legend.
+% Description : Draws the zone where humerothoracic elevation exceeds 90 deg
+%               (see computeExclusionZone.m) as a grey vertical band. With
+%               mode = 'legend', returns a dummy patch for a custom legend.
 % -------------------------------------------------------------------------
-% Parameters :   ax   — target axes
-%                zone — struct from computeExclusionZone.m (.threshold,
-%                       .windows) ; [] or no window = nothing drawn
-%                mode — optional, 'plot' (default) or 'legend'
-% Outputs    :   h — handles of the xregion objects ('plot') or of the
-%                    dummy legend patch ('legend') ; empty if no zone
+% Parameters  : ax   : target axes
+%               zone : struct from computeExclusionZone.m ([] = nothing drawn)
+%               mode : 'plot' (default) or 'legend'
+% Outputs     : h : graphic handles (empty if no zone)
 % -------------------------------------------------------------------------
-% Dependencies : MATLAB R2023a+ (xregion)
+% Dependencies: MATLAB R2023a or later (xregion)
 % =========================================================================
 
 EXCL_COLOR = [0.55 0.55 0.55];

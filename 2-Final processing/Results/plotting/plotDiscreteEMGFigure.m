@@ -3,35 +3,23 @@ function plotDiscreteEMGFigure(disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS, MU
 % =========================================================================
 % plotDiscreteEMGFigure.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Supplementary figure of the discrete EMG parameters
-%                (extract_emg_discrete_all_comp.m) : grid parameter (rows)
-%                x muscle (columns). Each panel shows, per condition, every
-%                patient's value (grey dots, joined across conditions by
-%                thin lines so within-subject changes are visible) and the
-%                group mean ± SD (coloured marker + error bar). Pairs
-%                significant after Holm-Bonferroni (paired t-test,
-%                significant RM-ANOVA) are marked by brackets with stars,
-%                packed on as few levels as possible. The RM-ANOVA p-value
-%                is given in each panel title.
-%                The manuscript version (one muscle, selected parameters)
-%                is plotDiscreteEMGManuscript.m.
+% Description : Discrete EMG parameters, all parameters x all muscles. Per
+%               condition: individual values (grey dots joined across
+%               conditions) and group mean +/- SD. Significant pairs (Holm)
+%               shown as brackets with stars, ANOVA p-value in each title.
 % -------------------------------------------------------------------------
-% Parameters :   disc        — struct, disc.(param) = (nPat, nCond, nMus)
-%                stats       — struct array (1 x nMus), stats(im).(param)
-%                              .anova_p / .anova_sig / .sig / .pHolm
-%                PARAMS, PARAM_LABELS — tested parameter names / labels
-%                EMG_LABELS, MUSCLE_DISPLAY — muscle names / display map
-%                COND_LABELS, COLORS — condition labels / colours
-%                pairIdx     — (nPairs x 2) condition indices of each pair
-% Outputs    :   1 figure
+% Parameters  : disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS,
+%               MUSCLE_DISPLAY, COND_LABELS, COLORS, pairIdx
+% Outputs     : 1 figure
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 FONT  = 'Times New Roman';

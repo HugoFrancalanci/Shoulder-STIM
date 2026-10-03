@@ -3,42 +3,26 @@ function plotDiscreteEMGManuscript(disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS
 % =========================================================================
 % plotDiscreteEMGManuscript.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Manuscript version of the discrete EMG figure
-%                (extract_emg_discrete_all_comp.m) : grid metric (rows) x
-%                muscle (columns), restricted to the requested muscles /
-%                metrics (typically the 3 metrics of the Methods : peak
-%                amplitude, peak timing, activity duration > 50 %). Same layout conventions as
-%                plotCombinedJointsFigure.m : metric name written
-%                vertically on the left of each row (bold), unit only on
-%                the y-axis, muscle names on top, Times New Roman.
-%                Per condition : every patient's value (grey dots joined
-%                across conditions by thin lines) and the group mean ± SD
-%                (coloured marker + error bar). Pairs significant after
-%                Holm-Bonferroni (paired t-test, significant RM-ANOVA) are
-%                marked by brackets with stars (* p<0.05, ** p<0.01,
-%                *** p<0.001, Holm-adjusted), packed on as few levels as
-%                possible (non-overlapping brackets share a level). Muscle
-%                names on top (ANOVA p-values are not shown in the figure).
-%                Metric name and unit are
-%                written at a fixed position left of each row (aligned).
-%                Bottom legend as in plotCombinedJointsFigure.m : one
-%                colour entry per condition + individual participants (star
-%                thresholds go in the figure caption).
+% Description : Article Figure 3: discrete EMG parameters, one row per
+%               parameter and one column per muscle. Per condition: individual
+%               values (grey dots joined across conditions) and group mean +/-
+%               SD. Significant pairs (Holm) shown as brackets with stars.
+%               Parameter names and units on the left, legend at the bottom.
 % -------------------------------------------------------------------------
-% Parameters :   disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS,
-%                MUSCLE_DISPLAY, COND_LABELS, COLORS, pairIdx — see
-%                plotDiscreteEMGFigure.m
-%                muscles — cell array of EMG labels (columns, in order)
-%                params  — cell array of metric names (rows, in order)
-% Outputs    :   1 figure
+% Parameters  : disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS,
+%               MUSCLE_DISPLAY, COND_LABELS, COLORS, pairIdx
+%               muscles : muscles to plot (columns)
+%               params  : parameters to plot (rows)
+% Outputs     : 1 figure
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 FONT  = 'Times New Roman';

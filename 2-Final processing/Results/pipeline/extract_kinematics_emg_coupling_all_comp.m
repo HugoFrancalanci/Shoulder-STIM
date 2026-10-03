@@ -1,71 +1,37 @@
 % =========================================================================
 % extract_kinematics_emg_coupling_all_comp.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description:   Links the timing of the arm elevation to the timing of the
-%                scapular muscles' activity. The optimal stimulation
-%                commands ("Min") slow the early humerothoracic (HT)
-%                elevation (longer rise time) ; this script tests whether
-%                the EMG timing follows the same pattern, participant by
-%                participant. Post-processes existing caches only (no raw
-%                data re-read, no SPM recomputation) :
-%                  - HT rise time / peak timing per patient x condition
-%                    (cache_humerothoracic_all_comp.mat) ;
-%                  - EMG peak timing and activity duration > 50 % per
-%                    patient x condition (cache_emg_discrete_all_comp.mat) ;
-%                  - per-block EMG envelopes (cache_emg_all_comp.mat), each
-%                    normalised to its own peak for the time-course panel.
-%                Statistics : repeated-measures correlation (Bakdash &
-%                Marusich 2017, helpers/rmCorr.m) between each kinematic
-%                and EMG timing parameter, all muscles (console) ; for
-%                COUPLING_MUSCLE also the correlation after removing both
-%                the subject and the condition means (does the coupling
-%                hold beyond the condition effect ?) and the number of
-%                participants in whom "Min" commands change both the HT
-%                rise time and the EMG parameter in the same direction as
-%                the group.
-%                SPM1D on the peak-normalised envelopes (each trial divided
-%                by its own peak, Burden 2010 ; averaged per patient), all
-%                muscles : non-parametric RM-ANOVA (7 conditions, 10 000
-%                permutations) then, if significant, paired SPM{t} on the
-%                21 pairs, Holm-Bonferroni (helpers/holmAlphaSPM1D.m) ; tests
-%                the shape / timing of the activation independently of its
-%                amplitude (and of the uniform amplitude loss caused by the
-%                FES-artefact blanking). Own cache
-%                (cache_emg_peaknorm_spm_all_comp.mat). Significant pairs
-%                drawn as bars under the curves of the all-muscle figure.
+% Description : Coupling between the timing of arm elevation and the timing of
+%               scapular muscle activity (article Figure 4). Uses the caches
+%               of the humerothoracic and EMG scripts.
+%                 - SPM1D comparison of the EMG envelopes normalised to the peak
+%                   of each trial (averaged per participant), all muscles
+%                 - repeated-measures correlation between the humerothoracic
+%                   rise time and the EMG peak timing and activity duration
+%               Statistics: non-parametric repeated-measures ANOVA across the
+%               7 conditions (10 000 permutations), then, if significant,
+%               paired t-tests on the 21 pairs of conditions with
+%               Holm-Bonferroni correction (alpha = 0.05).
 % -------------------------------------------------------------------------
-% Parameters :   COUPLING_MUSCLE (figure), KIN_PARAM (x of the scatters),
-%                EMG_PARAMS (2 EMG parameters of the bottom panels),
-%                MIN_CONDS (optimal stimulation commands)
-% Outputs    :   console tables ; 2 figures : COUPLING_MUSCLE alone
-%                (plotKinEmgCouplingFigure.m) and all muscles
-%                (plotKinEmgCouplingAllMuscles.m)
+% Parameters  : COUPLING_MUSCLE : muscle of the single-muscle figure
+%               KIN_PARAM, EMG_PARAMS, MIN_CONDS
+%               ALPHA_ANOVA, ALPHA_FWER, N_ITER, FORCE_RECOMPUTE_SPM
+% Outputs     : Console tables, 2 figures (single muscle, all muscles),
+%               cache_emg_peaknorm_spm_all_comp.mat
 % -------------------------------------------------------------------------
-% Dependencies : cache_humerothoracic_all_comp.mat (extract_humerothoracic_
-%                elevation_all_comp.m), cache_emg_all_comp.mat
-%                (extract_emg_cycles_all_comp.m), cache_emg_discrete_
-%                all_comp.mat (extract_emg_discrete_all_comp.m) — all in
-%                dataDir() ; helpers/rmCorr.m, helpers/dataDir.m ;
-%                plotting/plotKinEmgCouplingFigure.m, plotKinEmgCouplingAllMuscles.m
-% References :   Bakdash JZ, Marusich LR (2017), Repeated measures
-%                correlation, Front Psychol 8:456
-%                Burden A (2010), How should we normalize electromyograms
-%                obtained from healthy participants? J Electromyogr Kinesiol
-%                20:1023-1035
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
+% Dependencies: cache_humerothoracic_all_comp.mat, cache_emg_all_comp.mat,
+%               cache_emg_discrete_all_comp.mat, helpers/rmCorr.m,
+%               helpers/holmAlphaSPM1D.m, plotting/plotKinEmgCouplingFigure.m,
+%               plotting/plotKinEmgCouplingAllMuscles.m, spm1dmatlab-master/
+% References  : Bakdash JZ, Marusich LR (2017), Front Psychol 8:456
+%               Burden A (2010), J Electromyogr Kinesiol 20:1023-1035
 % =========================================================================
 
 clear; clc; close all;

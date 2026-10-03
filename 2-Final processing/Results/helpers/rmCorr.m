@@ -2,26 +2,24 @@ function [r, p, df, slope] = rmCorr(X, Y)
 % =========================================================================
 % rmCorr.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Repeated-measures correlation (Bakdash & Marusich 2017,
-%                Front Psychol 8:456) : common within-subject linear
-%                association between two variables measured in several
-%                conditions per subject. Each subject's values are centred
-%                on that subject's mean (removes between-subject
-%                differences), then Pearson r on the pooled centred values,
-%                df = N_obs - N_subjects - 1. Pairs with a NaN are dropped
-%                (a subject's mean is computed on its complete pairs).
+% Description : Repeated-measures correlation: common within-participant
+%               linear association between two variables measured in several
+%               conditions. Values are centred on each participant's mean, then
+%               pooled; df = N_obs - N_participants - 1.
 % -------------------------------------------------------------------------
-% Parameters :   X, Y — (nSubjects, nConditions)
-% Outputs    :   r, p (two-tailed), df, slope (common within-subject slope
-%                of Y on X)
+% Parameters  : X, Y : (nParticipants, nConditions)
+% Outputs     : r, p (two-tailed), df, slope (common within-participant slope
+%               of Y on X)
 % -------------------------------------------------------------------------
-% Dependencies : none (p from the incomplete beta function)
+% Dependencies: none
+% References  : Bakdash JZ, Marusich LR (2017), Front Psychol 8:456
 % =========================================================================
 
 ok = ~isnan(X) & ~isnan(Y);

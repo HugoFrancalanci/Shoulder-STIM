@@ -2,54 +2,29 @@ function plotKinEmgCouplingAllMuscles(K)
 % =========================================================================
 % plotKinEmgCouplingAllMuscles.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  All-muscle version of plotKinEmgCouplingFigure.m
-%                (extract_kinematics_emg_coupling_all_comp.m), manuscript
-%                figure, Times New Roman, grid of 3 rows x nMuscles columns
-%                (the humerothoracic elevation itself is shown in its own
-%                article figure, not repeated here) :
-%                row 1 — per muscle, the envelope normalised to each
-%                        trial's own peak (% of peak), group mean ± SD
-%                        (across participants) per condition, dotted line =
-%                        50 % activity threshold ;
-%                        If K.spm is given : SPM1D post-hoc pairs significant
-%                        after Holm-Bonferroni drawn as bars under the
-%                        curves (one colour per pair, black edge, same
-%                        convention as plotCombinedJointsFigure.m), listed
-%                        on a second legend line ;
-%                rows 2-3 — per muscle, kinematic parameter (x) vs EMG peak
-%                        timing (row 2) and activity duration (row 3) : one
-%                        dot per participant x condition, condition mean ±
-%                        SD on both axes, common within-subject slope of
-%                        the repeated-measures correlation : solid dark line
-%                        if p < 0.05, light dashed line otherwise (r_rm and
-%                        p reported in the text) ; same x limits in a row.
-%                Same layout conventions as plotDiscreteEMGManuscript.m :
-%                metric name (bold) and unit written vertically at a fixed
-%                position left of each row, muscle names on top, bottom
-%                legend (conditions, individual participants, within-
-%                subject slope).
+% Description : Article Figure 4, one column per muscle.
+%               Row 1: EMG envelope normalised to the peak of each trial,
+%               group mean +/- SD per condition, dotted line at 50 %, and
+%               significant pairs (SPM1D, Holm) as bars under the curves.
+%               Rows 2-3: humerothoracic rise time against EMG peak timing and
+%               activity duration; one dot per participant x condition,
+%               condition means +/- SD, and the within-participant slope of the
+%               repeated-measures correlation (solid if p < 0.05, dashed
+%               otherwise).
 % -------------------------------------------------------------------------
-% Parameters :   K — struct :
-%                  x (1,101), COND_LABELS, COLORS (nCond,3)
-%                  kin (nPat,nCond), kinXLabel
-%                  muscleNames — cell (1,nMus)
-%                  emgMean, emgSD — cells (1,nMus) of (nCond,101)
-%                  emg — cell {param}{muscle} of (nPat,nCond)
-%                  rm — struct array (nParam, nMus) : r, p, slope
-%                  rowNames — cell of 2 metric names (rows 2-3)
-%                  actThreshold
-%                  spm (optional) — struct array (1,nMus) : pairSig (nP,1),
-%                         pairClusters {nP} of [start end p] (% cycle)
-%                  ALL_PAIRS (with spm) — (nP,2) condition indices
-% Outputs    :   1 figure
+% Parameters  : K : struct with x, COND_LABELS, COLORS, kin, kinXLabel,
+%                   muscleNames, emgMean, emgSD, emg, rm, rowNames,
+%                   actThreshold, and optional spm, ALL_PAIRS
+% Outputs     : 1 figure
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 FONT  = 'Times New Roman';

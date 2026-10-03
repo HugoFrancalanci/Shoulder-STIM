@@ -2,31 +2,25 @@ function zone = computeExclusionZone(elevCurve, x, threshold)
 % =========================================================================
 % computeExclusionZone.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Finds the part(s) of the normalised cycle where the
-%                humerothoracic elevation exceeds a threshold (90 deg) :
-%                above it, glenohumeral and scapulo-thoracic angles are
-%                considered not interpretable and are greyed out on the
-%                figures (drawExclusionZone.m). Window edges are linearly
-%                interpolated between samples so the zone does not snap to
-%                whole % cycle.
-%                Visual only : the SPM1D statistics still run on the full
-%                cycle.
+% Description : Finds the part(s) of the movement cycle where the
+%               humerothoracic elevation exceeds a threshold (90 deg). Window
+%               edges are linearly interpolated between samples.
 % -------------------------------------------------------------------------
-% Parameters :   elevCurve — (1,101) elevation curve (deg, + = elevation)
-%                x         — cycle axis, 0:100
-%                threshold — elevation threshold (deg)
-% Outputs    :   zone — struct :
-%                  .threshold — threshold (deg)
-%                  .windows   — K x 2 matrix [start end] in % cycle (empty
-%                               0x2 if the curve never exceeds threshold)
+% Parameters  : elevCurve : (1,101) humerothoracic elevation (deg, + = elevation)
+%               x         : cycle axis, 0:100
+%               threshold : elevation threshold (deg)
+% Outputs     : zone : struct with .threshold (deg) and .windows, a K x 2
+%                      matrix [start end] in % of the cycle (0 x 2 if never
+%                      exceeded)
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 zone.threshold = threshold;

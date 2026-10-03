@@ -2,65 +2,27 @@ function plotCombinedJointsFigure(joints)
 % =========================================================================
 % plotCombinedJointsFigure.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   August 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : August 2026
 % -------------------------------------------------------------------------
-% Description :  "Final figure — all pairwise comparisons", combining
-%                MULTIPLE joints in a single figure (one row per joint) --
-%                built to stack the glenohumeral and scapulo-thoracic
-%                "Figure 1" from plotAllCompFigure.m (group mean ± SD band,
-%                group-level significant post-hoc bars only) so both joints
-%                can be read off the same figure, DOF by DOF. Significant
-%                pairs are recensed ONCE across ALL joints/DOF combined, so
-%                a given condition pair (e.g. "No FES vs Random") keeps the
-%                SAME colour wherever it turns out significant, in either
-%                row -- makes it easy to spot a pair that matters for both
-%                joints at a glance. Driven by generate_combined_all_comp_
-%                figure.m, which loads the per-joint .mat caches and calls
-%                this function -- no statistics are (re)computed here, and
-%                nothing here touches the per-joint extract_*/cache scripts.
-%                All figure-only cosmetics (DOF title text, legend wrapping)
-%                live in this one file so they never require rerunning the
-%                statistical pipeline. Uses subplot() + a screen-relative
-%                figure size (same as every other figure in this project),
-%                which is what guarantees it always fits the screen --
-%                manually-positioned axes at a fixed inch size was tried
-%                and dropped because it doesn't adapt to the actual screen.
+% Description : Group figure with one row per joint and one column per degree
+%               of freedom (article Figure 1, humerothoracic elevation). Group
+%               mean +/- SD per condition, significant pairs as coloured bars
+%               under the curves (one colour per pair, same colour in every
+%               panel), condition and pair legends at the bottom.
 % -------------------------------------------------------------------------
-% Parameters :   joints — cell array, one struct per row (drawn top to
-%                bottom in the given order), each with fields :
-%                  .patientMeans       — struct, patientMeans.(cond) = cell
-%                                        of (nDOF,101) matrices, one per patient
-%                  .CONDITIONS_ORDERED — cell array of condition names (7)
-%                  .COND_LABELS        — display labels
-%                  .COLORS             — Nx3 RGB, one row per CONDITIONS_ORDERED
-%                  .DOF_LABELS         — cell array of DOF titles for that joint
-%                  .rowLabel           — short row name, prefixed to the
-%                                        y-axis label of column 1 only (e.g.
-%                                        'Glenohumeral', 'Scapulothoracic')
-%                  .x                  — cycle axis, 0:100
-%                  .spmResults         — struct array (1 x nDOF) :
-%                                        spmResults(idof).posthoc.(pairFld).clusters/.sig
-%                  .ALL_PAIRS          — Nx2 cell array of condition pairs
-%                  .PATIENT_IDS        — cell array of patient ID strings
-%                  .panelTitles        — optional, cell of panel titles
-%                                        overriding dofTitle() (one per DOF)
-%                  .titleWeight        — optional, 'normal' or 'bold'
-%                                        (default : MATLAB default, bold)
-%                  .EXCL_ZONE          — optional, struct from
-%                                        computeExclusionZone.m (humerothoracic
-%                                        elevation > 90 deg), grey vertical
-%                                        band in every panel of that row ;
-%                                        missing/[] = no zone
-%                CONDITIONS_ORDERED / COND_LABELS / COLORS must be IDENTICAL
-%                across all rows (checked, errors otherwise) -- they share a
-%                single condition legend.
-% Outputs    :   1 figure : length(joints) rows x max(nDOF) columns.
+% Parameters  : joints : cell array, one struct per row, with fields
+%                        patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS,
+%                        DOF_LABELS, rowLabel, x, spmResults, ALL_PAIRS,
+%                        PATIENT_IDS and optional panelTitles, titleWeight,
+%                        EXCL_ZONE
+% Outputs     : 1 figure
 % -------------------------------------------------------------------------
-% Dependencies : drawExclusionZone.m (same plotting/ folder)
+% Dependencies: drawExclusionZone.m
 % =========================================================================
 
 nRows = length(joints);

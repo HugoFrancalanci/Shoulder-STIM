@@ -1,110 +1,34 @@
 % =========================================================================
 % extract_scapular_kinematics_all_comp.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   July 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : July 2026
 % -------------------------------------------------------------------------
-% Description:   Extracts and analyses scapular kinematics (3 DOF, YXZ
-%                sequence, ISB) from K-LAB .mat files for 10 healthy participants across
-%                7 FES conditions. Same pipeline as extract_scapular_kinematics_noSEF.m /
-%                _rehab.m, EXCEPT the post-hoc does not compare against a
-%                single reference condition (No FES or Rehab) : it compares
-%                ALL possible pairs of conditions (7 conditions -> 21 pairs),
-%                Holm-Bonferroni (FWER alpha = 0.05). Produces 7 output figures:
-%                (1) Per-patient : 3 DOF x 7 conditions, mean ± SD across blocks
-%                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks as
-%                    observations, balanced via last-block padding) + paired
-%                    t-tests for every pair of conditions (only drawn/logged
-%                    when significant), Holm-Bonferroni alpha=0.05
-%                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
-%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc on all 21
-%                    pairs, Holm-Bonferroni alpha=0.05, RFT correction (Pataky 2010)
-%                Also prints, for each significant cluster (individual and
-%                group), a recap table with the % cycle window, p-value,
-%                and the real angular value (°) of both compared conditions
-%                over that window, plus their difference.
-%                (5-7) "Figure finale — toutes comparaisons" (plotAllCompFigure.m,
-%                    3 figures) : group-level only (no individual patient
-%                    curves/bars mixed into the same panel as the group).
-%                    Each DOF panel spans the FULL figure height (1 row x 3
-%                    columns) ; significance bars are drawn INSIDE the curve
-%                    panel (not a separate subplot), one distinct colour per
-%                    significant pair (stable across panels), identified via
-%                    the legend rather than inline text — (5) group mean ± SD,
-%                    (6) group mean + every individual patient's own curve
-%                    (desaturated, no SD band), (7) same as (5) but with one
-%                    labelled "P#" row per individually-significant patient
-%                    stacked under each significant pair's group bar.
+% Description : Scapulothoracic kinematics (YXZ sequence, 3 degrees of
+%               freedom: lateral / medial rotation, protraction / retraction,
+%               posterior / anterior tilt), 10 participants, 7 conditions.
+%               SPM1D comparison of the conditions over the movement cycle, at
+%               the group level (N = 10) and per participant (3 trials).
+%               Statistics: non-parametric repeated-measures ANOVA across the
+%               7 conditions (10 000 permutations), then, if significant,
+%               paired t-tests on the 21 pairs of conditions with
+%               Holm-Bonferroni correction (alpha = 0.05).
+%               Results are saved in a cache; later runs only redraw the
+%               figures (FORCE_RECOMPUTE = true to recompute).
 % -------------------------------------------------------------------------
-% Parameters :   Joint index : RST=3 (right) / LST=8 (left), from
-%                DOMINANT_SIDE map in usercommands_conditions.m
-%                ALL_PAIRS (21 condition pairs), ALPHA_FWER=0.05 (Holm-
-%                Bonferroni step-down over the 21 pairs, helpers/
-%                holmAlphaSPM1D.m), EXCL_ELEV_THRESHOLD=90 deg (grey
-%                'not interpretable' zone where humerothoracic elevation
-%                exceeds 90 deg, helpers/computeExclusionZone.m — visual
-%                only, statistics still run on the full cycle)
-% Outputs    :   7 figures (see Description); console output per patient
-%                reporting ANOVA p-value per DOF and significant pairwise
-%                post-hoc clusters, plus recap tables (individual and group)
-%                with angular values per significant cluster;
-%                cache_scapulothoracic_all_comp.mat — on the FIRST full run, all
-%                data needed to redraw the final figure is cached here
-%                (patientMeans, spmResults, indivSigClusters, PATIENT_IDS,
-%                and the display parameters). On every subsequent run, if
-%                this cache file exists, the script skips the entire
-%                patient loop / SPM1D computation and just reloads the
-%                cache to redraw plotAllCompFigure.m in seconds (useful
-%                while iterating on the figure's appearance — indivSigClusters
-%                and PATIENT_IDS are cached too, ready for a future
-%                individual-level companion figure, even though the current
-%                plotAllCompFigure.m only uses the group-level data). Set
-%                FORCE_RECOMPUTE=true at the top of the script to bypass the
-%                cache and recompute everything from scratch. Article-ready
-%                summary tables (group/individual/combined) are generated
-%                separately from this cache by generate_article_table_kin*.m.
+% Parameters  : Joint index: RST = 3 / LST = 8 (from DOMINANT_SIDE)
+%               ALPHA_FWER = 0.05, EXCL_ELEV_THRESHOLD = 90 deg, FORCE_RECOMPUTE
+% Outputs     : Per-participant and group figures, console tables,
+%               cache_scapulothoracic_all_comp.mat (used by
+%               extract_scapulohumeral_rhythm_all_comp.m)
 % -------------------------------------------------------------------------
-% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
-%                plotAllCompFigure.m (plotting/ subfolder),
-%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
-%                — permutation-based, Monte Carlo with 10000 iterations
-%                (exact enumeration is infeasible : nPermTotal=factorial(70)
-%                since the permuter shuffles all patient*condition rows,
-%                not within-subject) — and the parametric
-%                spm1d.stats.ttest_paired for the Holm-Bonferroni-corrected
-%                post-hoc, unchanged)
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
-% =========================================================================
-% Cinématique scapulaire (3 DOF) par patient et par condition — SPM1D
-% Projet STIM_KC | K-LAB toolbox Protocol01 | Variante "toutes comparaisons"
-%
-% Donnees source : Trial.Joint(jscap).Euler.rcycle / lcycle
-%   Shape MATLAB : (3, 1, 101, N_cycles) — deja normalises en temps
-%   jscap = 3 (RST, cote droit) ou 8 (LST, cote gauche)
-%   Sequence YXZ :
-%     dim 1 = X : Rotation laterale (-) / mediale (+)
-%     dim 2 = Y : Protraction (+) / Retraction (-)
-%     dim 3 = Z : Bascule posterieure (+) / anterieure (-)
-%
-% Pipeline par trial :
-%   1. Extraction cycles  : squeeze(Euler.rcycle) → (3, 101, N)
-%   2. Moyenne cycles     : nanmean sur N → (3, 101) par trial
-%   3. Stockage par block : condData.(cond){end+1} = (3, 101)
-%
-% Difference cle vs _noSEF.m / _rehab.m : le post-hoc ne compare pas chaque
-% condition a UNE reference fixe, mais TOUTES les paires de conditions
-% (C(7,2) = 21 paires), correction Holm-Bonferroni sur 21 comparaisons
-% (seuil alpha/(m-k+1) pour la k-ieme plus petite p-valeur, Holm 1979).
+% Dependencies: usercommands_conditions.m, K-LAB .mat files, helpers/,
+%               plotting/plotAllCompFigure.m, spm1dmatlab-master/
+% References  : Pataky TC (2010), J Biomech 43:1976-1982
 % =========================================================================
 
 clear; clc; close all;
@@ -185,13 +109,13 @@ x = 0:100; % axe du cycle normalisé (101 pts)
 CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 % Labels d'affichage pour les legendes (underscore → espace)
 COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min PW','Rehab','Min force'};
-COLORS = [0.35 0.20 0.29;   % No FES       — aubergine
-          0.66 0.80 0.63;   % Min_fatigue  — vert sauge
-          0.30 0.47 0.46;   % Min_stress   — bleu-vert (teal) fonce
-          0.91 0.76 0.45;   % Random       — jaune dore
-          0.89 0.63 0.33;   % Min_pulse_width (Min PW) — orange
-          0.45 0.55 0.68;   % Rehab        — bleu-gris (assorti a la palette)
-          0.75 0.35 0.35];  % Min_force    — rouge saumon
+COLORS = [0.35 0.20 0.29;   % No FES      : aubergine
+          0.66 0.80 0.63;   % Min_fatigue : vert sauge
+          0.30 0.47 0.46;   % Min_stress  : bleu-vert (teal) fonce
+          0.91 0.76 0.45;   % Random      : jaune dore
+          0.89 0.63 0.33;   % Min_pulse_width (Min PW): orange
+          0.45 0.55 0.68;   % Rehab       : bleu-gris (assorti a la palette)
+          0.75 0.35 0.35];  % Min_force   : rouge saumon
 
 % Ordre de stockage dans .mat (ComputeKinematics.m, séquence YXZ) :
 %   dim 1 = X = Rotation latérale/ médiale        (Euler(:,2,:))
@@ -425,7 +349,7 @@ for ip = 1:length(PATIENT_IDS)
             y_max_pt = max(y_max_pt, max(mc+sc));
         end
 
-        % Construire matrices (n_blocks × 101) pour ANOVA RM — design balancé
+        % Construire matrices (n_blocks × 101) pour ANOVA RM: design balancé
         % Cible : 3 blocs par condition. Si une condition n'en a que 2,
         % on duplique le dernier bloc (avec avertissement console).
         N_TARGET = 3;
@@ -435,7 +359,7 @@ for ip = 1:length(PATIENT_IDS)
             fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
             n_blocs = length(condData_padded.(fld));
             if n_blocs > 0 && n_blocs < N_TARGET && idof == 1
-                fprintf('  [WARN] %s — %s : %d blocs seulement → duplication du dernier bloc\n', ...
+                fprintf('  [WARN] %s - %s : %d blocs seulement → duplication du dernier bloc\n', ...
                         patientID, CONDITIONS_ORDERED{ic}, n_blocs);
             end
             while length(condData_padded.(fld)) < N_TARGET && ~isempty(condData_padded.(fld))
@@ -472,16 +396,16 @@ for ip = 1:length(PATIENT_IDS)
                 anova_sig_pt = ~isempty(spmi_F_pt.clusters);
             catch ME_anova
                 warning('on', 'all');
-                fprintf('  DOF %d — ANOVA erreur : %s\n', idof, ME_anova.message);
+                fprintf('  DOF %d - ANOVA erreur : %s\n', idof, ME_anova.message);
             end
         end
 
         rowIdx_pt = 0;
         if anova_sig_pt && n_min < 3
-            fprintf('  DOF %d (%s) — ANOVA : SIGNIFICATIF mais post-hoc ignoré (ddl=%d, N=%d insuffisant pour RFT)\n', ...
+            fprintf('  DOF %d (%s) - ANOVA : SIGNIFICATIF mais post-hoc ignoré (ddl=%d, N=%d insuffisant pour RFT)\n', ...
                     idof, DOF_LABELS{idof}, n_min-1, n_min);
         elseif anova_sig_pt
-            fprintf('  DOF %d (%s) — ANOVA : SIGNIFICATIF → post-hoc (%d paires testees)\n', idof, DOF_LABELS{idof}, N_PAIRS);
+            fprintf('  DOF %d (%s) - ANOVA : SIGNIFICATIF → post-hoc (%d paires testees)\n', idof, DOF_LABELS{idof}, N_PAIRS);
             % Passe 1 : SPM{t} de chaque paire testee ; passe 2 : inference au
             % seuil Holm-Bonferroni propre a chaque paire (helpers/holmAlphaSPM1D.m)
             spmList_pt = cell(1, N_PAIRS);
@@ -505,7 +429,7 @@ for ip = 1:length(PATIENT_IDS)
                 try
                     spmList_pt{kp} = spm1d.stats.ttest_paired(data_B_mat, data_A_mat);
                 catch ME_ph
-                    fprintf('    %s vs %s : erreur — %s\n', condA, condB, ME_ph.message);
+                    fprintf('    %s vs %s : erreur - %s\n', condA, condB, ME_ph.message);
                 end
             end
             [alphaHolm_pt, pHolm_pt] = holmAlphaSPM1D(spmList_pt, ALPHA_FWER);
@@ -546,14 +470,14 @@ for ip = 1:length(PATIENT_IDS)
                         indivSigClusters{idof}.(pairFld){ip} = spmi_t_pt.clusters;
                     end
                 catch ME_ph
-                    fprintf('    %s vs %s : erreur — %s\n', condA, condB, ME_ph.message);
+                    fprintf('    %s vs %s : erreur - %s\n', condA, condB, ME_ph.message);
                 end
             end
             if rowIdx_pt == 0
-                fprintf('    (aucune paire significative — RFT + Holm-Bonferroni alpha=%.2f sur %d comparaisons)\n', ALPHA_FWER, N_PAIRS);
+                fprintf('    (aucune paire significative - RFT + Holm-Bonferroni alpha=%.2f sur %d comparaisons)\n', ALPHA_FWER, N_PAIRS);
             end
         else
-            fprintf('  DOF %d (%s) — ANOVA : non significatif\n', idof, DOF_LABELS{idof});
+            fprintf('  DOF %d (%s) - ANOVA : non significatif\n', idof, DOF_LABELS{idof});
         end
 
         bar_zone_pt = max(rowIdx_pt, 1) * (bar_h_pt + bar_gap_pt);
@@ -569,7 +493,7 @@ for ip = 1:length(PATIENT_IDS)
         grid on; box on; hold off;
     end
 
-    sgtitle(sprintf('%s  —  SPM1D individuel cinématique, toutes comparaisons (N=3 blocs)', patientID), ...
+    sgtitle(sprintf('%s  -  SPM1D individuel cinématique, toutes comparaisons (N=3 blocs)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
 
     % --- Tableau recapitulatif individuel : % cycle significatif <-> valeur angulaire ---
@@ -846,7 +770,7 @@ for idof = 1:3
     grid on; box on; hold off;
 end
 
-sgtitle('Comparaison des conditions de stimulation — toutes paires (Analyse SPM1D)', ...
+sgtitle('Comparaison des conditions de stimulation - toutes paires (Analyse SPM1D)', ...
         'FontSize', 12, 'FontWeight', 'bold');
 
 % -------------------------------------------------------------------------
@@ -854,7 +778,7 @@ sgtitle('Comparaison des conditions de stimulation — toutes paires (Analyse SP
 % -------------------------------------------------------------------------
 fprintf('\n');
 fprintf('=================================================================\n');
-fprintf(' TABLEAU RECAPITULATIF SPM1D — Cinematique scapulaire (toutes comparaisons)\n');
+fprintf(' TABLEAU RECAPITULATIF SPM1D - Cinematique scapulaire (toutes comparaisons)\n');
 fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Holm-Bonferroni alpha=%.2f (%d comparaisons)\n', ALPHA_FWER, N_PAIRS);
 fprintf('=================================================================\n');
 fprintf('%-20s  %-18s  %-28s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
@@ -872,11 +796,11 @@ for idof = 1:3
             x1c = (ep(1)-1);
             x2c = (ep(2)-1);
             fprintf('%-20s  %-18s  %-28s  %-10.1f  %-10.1f  %-9.4f  %-16s  %-16s  %s\n', ...
-                    DOF_SHORT{idof}, 'ANOVA (7 cond)', '—', x1c, x2c, pv, '—', '—', '—');
+                    DOF_SHORT{idof}, 'ANOVA (7 cond)', '-', x1c, x2c, pv, '-', '-', '-');
         end
     else
         fprintf('%-20s  %-18s  %-28s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
-                DOF_SHORT{idof}, 'ANOVA (7 cond)', '—', '—', '—', 'n.s.', '—', '—', '—');
+                DOF_SHORT{idof}, 'ANOVA (7 cond)', '-', '-', '-', 'n.s.', '-', '-', '-');
     end
 
     % --- Post-hoc : uniquement les paires significatives ---
@@ -903,7 +827,7 @@ for idof = 1:3
     end
     if res.anova_sig && ~anyPairSig
         fprintf('%-20s  %-18s  %-28s  %-10s  %-10s  %-9s  %-16s  %-16s  %s\n', ...
-                '', 't-test pairwise', sprintf('(aucune des %d paires sig.)', N_PAIRS), '—', '—', 'n.s.', '—', '—', '—');
+                '', 't-test pairwise', sprintf('(aucune des %d paires sig.)', N_PAIRS), '-', '-', 'n.s.', '-', '-', '-');
     end
     fprintf('%s\n', repmat('-', 1, 135));
 end
@@ -918,7 +842,7 @@ save(CACHE_FILE, 'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 
 fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
 
 % =========================================================================
-% FIGURE FINALE — TOUTES COMPARAISONS : moyennes de groupe uniquement (pas
+% FIGURE FINALE: TOUTES COMPARAISONS : moyennes de groupe uniquement (pas
 % de courbes ni barres individuelles), avec les post-hoc significatifs de
 % TOUTES les paires affiches en dessous de chaque graphe DOF (sous-graphe
 % dedie, pas superpose aux courbes), etiquetes "Cond A vs Cond B".

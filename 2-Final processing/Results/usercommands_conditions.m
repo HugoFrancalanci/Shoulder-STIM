@@ -1,39 +1,27 @@
 % =========================================================================
 % usercommands_conditions.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   July 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : July 2026
 % -------------------------------------------------------------------------
-% Description:   Central configuration script for the STIM_KC analysis
-%                pipeline (Project C01_STIM_KC | K-LAB toolbox Protocol01).
-%                Defines data paths, patient-specific condition-to-trial
-%                mappings, dominant side (R/L), exception handling
-%                (missing trials, index offsets), and shared constants.
-%                Must be called via run() at the start of each analysis
-%                script. Does not produce figures or outputs; only populates
-%                the MATLAB workspace with configuration variables.
+% Description : Central configuration of the analysis pipeline: path to the
+%               K-LAB participant files, dominant side of each participant,
+%               mapping between trials and stimulation conditions, and
+%               participant-specific exceptions (missing or skipped trials).
+%               Called with run() at the start of the pipeline scripts.
 % -------------------------------------------------------------------------
-% Parameters :   dataFolder — path to K-LAB .mat files
-%                DOMINANT_SIDE — Map(patientID → 'R'/'L')
-%                PATIENT_COND  — Map(patientID → struct with condition/block lists)
-%                PATIENT_EXCEPTIONS — struct with skipFirstN, skipPositions,
-%                                     missingCondPositions per patient
-% Outputs    :   Workspace variables (no figures, no files)
+% Parameters  : dataFolder         : folder of the K-LAB .mat files
+%               DOMINANT_SIDE      : Map, participant ID -> 'R' / 'L'
+%               PATIENT_COND       : condition order of each participant
+%               PATIENT_EXCEPTIONS : skipped / missing trials per participant
+%               HUMEROTHORACIC_JOINT_IDX : Map, side -> joint index (R = 1, L = 6)
+% Outputs     : Workspace variables only (no figure, no file)
 % -------------------------------------------------------------------------
-% Dependencies : none
-% References  :   .mat structure : CutCycles.m, MAIN_Protocol_01.m
-%                Clinical data   : Data_clean.xlsx
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
+% Dependencies: none
 % =========================================================================
 
 % -------------------------------------------------------------------------
@@ -74,13 +62,11 @@ GLENOHUMERAL_JOINT_IDX = containers.Map({'R','L'}, {2, 7});
 % Index du joint humerothoracique selon le côté (1-based)
 % Joint(1) = RHT, Joint(6) = LHT (humerus par rapport au thorax, seq XZY pour
 % ANALYTIC2). dim 1 = X = elevation (- = elevation). Utilise uniquement pour
-% la zone d'exclusion > 90° d'elevation (non interpretabilite GH / ST) —
+% la zone d'exclusion > 90° d'elevation (non interpretabilite GH / ST) -
 % voir helpers/extractHTElevation.m et helpers/computeExclusionZone.m
 HUMEROTHORACIC_JOINT_IDX = containers.Map({'R','L'}, {1, 6});
 
 % -------------------------------------------------------------------------
-% 8ÈME ANALYTIC2 TOUJOURS VIDE (tous patients)
-% Confirmé sur P1.mat : 8ème trial → Rcycle vide, Signal.cycle absent
 % Index 1-based dans la séquence ANALYTIC2 après application des skips patient
 % -------------------------------------------------------------------------
 EMPTY_ANALYTIC2_POS = 8; % 1-based
@@ -94,31 +80,30 @@ EMPTY_ANALYTIC2_POS = 8; % 1-based
 % -------------------------------------------------------------------------
 PATIENT_EXCEPTIONS = struct();
 
-% P004 — fichiers ANALYTIC2 numérotés 02→22 (21 fichiers, pas de fichier supplémentaire)
-%   → même ordre que 01→21, aucun skip nécessaire
+% P004: fichiers ANALYTIC2 numérotés 02→22 (21 fichiers, pas de fichier supplémentaire)
+%   → même ordre que 01→21
 PATIENT_EXCEPTIONS.P004.skipFirstN    = 0;
 PATIENT_EXCEPTIONS.P004.skipPositions = [];
-PATIENT_EXCEPTIONS.P004.note          = 'ANALYTIC2 numérotés 02→22 (21 fichiers) — ordre identique à 01→21';
+PATIENT_EXCEPTIONS.P004.note          = 'ANALYTIC2 numérotés 02→22 (21 fichiers), ordre identique à 01→21';
 
-% P006 — même situation que P004 (côté L)
+% P006: même situation que P004
 PATIENT_EXCEPTIONS.P006.skipFirstN    = 0;
 PATIENT_EXCEPTIONS.P006.skipPositions = [];
-PATIENT_EXCEPTIONS.P006.note          = 'ANALYTIC2 numérotés 02→22 (21 fichiers) — ordre identique à 01→21';
+PATIENT_EXCEPTIONS.P006.note          = 'ANALYTIC2 numérotés 02→22 (21 fichiers), ordre identique à 01→21';
 
-% P007 — 20 fichiers ANALYTIC2 (1→20), Elevation_coronal_01 absent
-%   → No FES block 1 (position condition 1) sans données
+% P007: 20 fichiers ANALYTIC2 (1→20),
 %   → les 20 trials disponibles mappent aux conditions 2→21
 PATIENT_EXCEPTIONS.P007.skipFirstN           = 0;
 PATIENT_EXCEPTIONS.P007.skipPositions        = [];
 PATIENT_EXCEPTIONS.P007.missingCondPositions = [1];
-PATIENT_EXCEPTIONS.P007.note                = '20 fichiers (1→20) — No FES block 1 absent, conditions 2→21 mappées aux trials 1→20';
+PATIENT_EXCEPTIONS.P007.note                = '20 fichiers (1→20), No FES block 1 absent, conditions 2→21 mappées aux trials 1→20';
 
-% P010 — numérotation C3D va jusqu'à 23, mais fichiers 04 et 18 absents du .mat
-%   → .mat contient 21 ANALYTIC2 directement, aucun skip nécessaire
+% P010: numérotation C3D va jusqu'à 23
+%   → .mat contient 21 ANALYTIC2 directement
 PATIENT_EXCEPTIONS.P010.skipFirstN           = 0;
 PATIENT_EXCEPTIONS.P010.skipPositions        = [];
 PATIENT_EXCEPTIONS.P010.missingCondPositions = [];
-PATIENT_EXCEPTIONS.P010.note                = 'Numérotation C3D 1→23 mais ANALYTIC2-04 et 18 absents du .mat — 21 trials directs, aucun skip';
+PATIENT_EXCEPTIONS.P010.note                = 'Numérotation C3D 1→23 mais ANALYTIC2-04 et 18 absents du .mat, 21 trials directs, aucun skip';
 
 % -------------------------------------------------------------------------
 % LISTE DES PATIENTS
@@ -129,8 +114,8 @@ PATIENT_IDS = {'P001','P002','P003','P004','P005','P006','P007','P008','P009','P
 % MAPPING CONDITIONS PAR PATIENT
 % Source : Data_clean.xlsx (encodé manuellement)
 %
-% PATIENT_COND.(PID).condition : cell 21×1 — nom de la condition
-% PATIENT_COND.(PID).block     : vecteur 21×1 — répétition (1, 2 ou 3)
+% PATIENT_COND.(PID).condition : cell 21×1: nom de la condition
+% PATIENT_COND.(PID).block     : vecteur 21×1: répétition (1, 2 ou 3)
 %
 % Ordre = ordre d'enregistrement dans le .mat (= ordre des lignes dans l'Excel)
 % -------------------------------------------------------------------------

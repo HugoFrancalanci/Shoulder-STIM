@@ -1,110 +1,41 @@
 % =========================================================================
 % extract_emg_cycles_all_comp.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   July 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : July 2026
 % -------------------------------------------------------------------------
-% Description:   Extracts and analyses surface EMG cycles (4 muscles) from
-%                K-LAB .mat files for 10 healthy participants across 7 FES
-%                conditions. Same pipeline as extract_emg_cycles_noSEF.m /
-%                _rehab.m (FES artefact removal, cycle segmentation, linear
-%                envelope, amplitude normalisation), EXCEPT the post-hoc
-%                does not compare against a single reference condition
-%                (No FES or Rehab) : it compares ALL possible pairs of
-%                conditions (7 conditions -> 21 pairs), Holm-Bonferroni
-%                (FWER alpha = 0.05) — kinematics counterpart of extract_scapular_
-%                kinematics_all_comp.m. Produces 7 output figures:
-%                (1) Per-patient : 4 muscles x 7 conditions, mean ± SD
-%                (2) Per-patient SPM1D : individual ANOVA RM (N=3 blocks,
-%                    balanced via last-block padding) + paired t-tests for
-%                    every pair of conditions (only drawn/logged when
-%                    significant), Holm-Bonferroni alpha=0.05
-%                (3) Global P1-P10 : inter-patient mean ± SD, all conditions
-%                (4) Grouped SPM1D (N=10) : ANOVA RM + post-hoc on all 21
-%                    pairs, Holm-Bonferroni alpha=0.05, RFT correction (Pataky 2010)
-%                (5-7) "Figure finale — toutes comparaisons" (plotAllCompFigureEMG.m,
-%                    3 figures) : group-level only (no individual patient
-%                    curves/bars mixed into the same panel as the group).
-%                    Each muscle panel spans the FULL figure height (1 row x
-%                    4 columns) ; significance bars are drawn INSIDE the
-%                    curve panel (not a separate subplot), one distinct
-%                    colour per significant pair (stable across panels),
-%                    identified via the legend rather than inline text —
-%                    (5) group mean ± SD, (6) group mean + every individual
-%                    patient's own curve (desaturated, no SD band), (7) same
-%                    as (5) but with one labelled "P#" row per individually-
-%                    significant patient stacked under each significant
-%                    pair's group bar.
+% Description : Surface EMG of the upper, middle and lower trapezius and the
+%               serratus anterior, 10 participants, 7 conditions. For each
+%               trial: removal of the stimulation artefact (FES conditions),
+%               segmentation of the movement cycles, linear envelope
+%               (full-wave rectification, 6 Hz low-pass filter) normalised to
+%               the pre-movement rest and to 101 points, mean over cycles.
+%               SPM1D comparison of the conditions at the group level (N = 10)
+%               and per participant (3 trials).
+%               Statistics: non-parametric repeated-measures ANOVA across the
+%               7 conditions (10 000 permutations), then, if significant,
+%               paired t-tests on the 21 pairs of conditions with
+%               Holm-Bonferroni correction (alpha = 0.05).
+%               Results are saved in a cache; later runs only redraw the
+%               figures (FORCE_RECOMPUTE = true to recompute).
 % -------------------------------------------------------------------------
-% Parameters :   LP_FREQ=6Hz, BLANK_MS=8, MAD_FACTOR=6,
-%                MIN_PERIOD_MS=15, MAX_BLANK_MS=20, FS_EMG=2200, FS_KIN=100
-%                ALL_PAIRS (21 condition pairs), ALPHA_FWER=0.05 (Holm-
-%                Bonferroni step-down over the 21 pairs, helpers/holmAlphaSPM1D.m)
-% Outputs    :   7 figures (see Description); console output per patient
-%                reporting ANOVA result per muscle and significant pairwise
-%                post-hoc clusters; cache_emg_all_comp.mat — on the FIRST
-%                full run, all data needed to redraw the final figure is
-%                cached here (patientMeans, patientBlocks — per-block
-%                curves used by extract_emg_discrete_all_comp.m —,
-%                spmResults, indivSigClusters, PATIENT_IDS, the display
-%                parameters and POSTHOC_CORRECTION ; a cache built with
-%                another correction or without patientBlocks is ignored). On every
-%                subsequent run, if this cache file exists, the script skips
-%                the entire patient loop / SPM1D computation and just
-%                reloads the cache to redraw plotAllCompFigureEMG.m in
-%                seconds. Set FORCE_RECOMPUTE=true at the top of the script
-%                to bypass the cache and recompute everything from scratch.
-%                Article-ready summary tables (group/individual/combined)
-%                are generated separately from this cache by
-%                generate_article_table_emg*.m.
+% Parameters  : FS_EMG = 2200 Hz, FS_KIN = 100 Hz, LP_FREQ = 6 Hz
+%               BLANK_MS = 8, MAD_FACTOR = 6, MIN_PERIOD_MS = 15, MAX_BLANK_MS = 20
+%               REPORT_MUSCLES : muscles shown in the figures
+%               ALPHA_FWER = 0.05, FORCE_RECOMPUTE
+% Outputs     : Per-participant and group figures, console tables,
+%               cache_emg_all_comp.mat (used by extract_emg_discrete_all_comp.m
+%               and extract_kinematics_emg_coupling_all_comp.m)
 % -------------------------------------------------------------------------
-% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
-%                plotAllCompFigureEMG.m (plotting/ subfolder),
-%                spm1dmatlab-master/ (Pataky 2010, spm1d.stats.nonparam.anova1rm
-%                — permutation-based, Monte Carlo with 10000 iterations
-%                (exact enumeration is infeasible : nPermTotal=factorial(70)
-%                since the permuter shuffles all patient*condition rows,
-%                not within-subject) — and the parametric
-%                spm1d.stats.ttest_paired for the Holm-Bonferroni-corrected
-%                post-hoc, unchanged)
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
-% =========================================================================
-% Cycles EMG traites par patient et par condition avec enveloppe + SPM1D
-% Projet STIM_KC | K-LAB toolbox Protocol01 | Variante "toutes comparaisons"
-%
-% Pipeline par trial :
-%   1. Retrait artefact FES  : sur sig_proc (Signal.full nettoye) —
-%                              detection pics MAD x6, blanking 8ms,
-%                              interpolation pchip (conditions FES uniquement)
-%   2. Segmentation cycles   : Trial.Rcycle(k).range ou Lcycle(k).range
-%                              (indices frames camera) convertis en indices
-%                              EMG via FS_EMG / FS_KIN (2200/100 = 22)
-%   3. Normalisation temps   : interpolation pchip a 101 points (0-100%)
-%   4. Enveloppe lineaire    : rectification onde entiere + Butterworth
-%                              passe-bas 2e ordre 6 Hz par cycle
-%                              (Winter DA, 2009 — Biomechanics and Motor
-%                               Control of Human Movement, 4e ed.)
-%   5. Normalisation ampl.   : enveloppe / (mean + 3*std) des 50 premieres
-%                              frames cinematiques × 100 → % baseline
-%                              (ref = repos pre-mouvement, pas % CMV)
-%   6. Moyenne cycles        : nanmean sur les N cycles valides du trial
-%
-% Canaux : TRAPS, TRAPM, TRAPI, SERRA (SYNCHRO exclu)
-%
-% Difference cle vs _noSEF.m / _rehab.m : le post-hoc ne compare pas chaque
-% condition a UNE reference fixe, mais TOUTES les paires de conditions
-% (C(7,2) = 21 paires), correction Holm-Bonferroni sur 21 comparaisons
-% (seuil alpha/(m-k+1) pour la k-ieme plus petite p-valeur, Holm 1979).
+% Dependencies: usercommands_conditions.m, K-LAB .mat files, helpers/,
+%               plotting/plotAllCompFigureEMG.m, spm1dmatlab-master/
+% References  : Pataky TC (2010), J Biomech 43:1976-1982
+%               Winter DA (2009), Biomechanics and Motor Control of Human
+%               Movement, 4th ed.
 % =========================================================================
 
 clear; clc; close all;
@@ -453,7 +384,7 @@ for ip = 1:length(PATIENT_IDS)
         grid on; box on; hold off;
     end
 
-    sgtitle(sprintf('%s  —  Cycles EMG moyens  (enveloppe lineaire, FES retire)', patientID), ...
+    sgtitle(sprintf('%s  -  Cycles EMG moyens  (enveloppe lineaire, FES retire)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
 
     % --- Figure patient SPM1D (N=3 blocs par condition) ---
@@ -495,7 +426,7 @@ for ip = 1:length(PATIENT_IDS)
             blocs = condData.(fld_p).(mLabel);
             if ~isempty(blocs) && length(blocs) < N_TARGET
                 if im == 1
-                    fprintf('  [WARN] %s — %s : %d blocs → duplication\n', ...
+                    fprintf('  [WARN] %s - %s : %d blocs → duplication\n', ...
                             patientID, CONDITIONS_ORDERED{ic_p}, length(blocs));
                 end
                 while length(condData_padded.(fld_p).(mLabel)) < N_TARGET
@@ -534,16 +465,16 @@ for ip = 1:length(PATIENT_IDS)
                 spmi_F_pt = spm_F_pt.inference(0.05, 'iterations', 10000, 'interp', true);
                 anova_sig_pt = ~isempty(spmi_F_pt.clusters);
             catch ME_anova
-                fprintf('  %s — ANOVA erreur : %s\n', mLabel, ME_anova.message);
+                fprintf('  %s - ANOVA erreur : %s\n', mLabel, ME_anova.message);
             end
         end
 
         rowIdx_pt = 0;
         if anova_sig_pt && n_min < 3
-            fprintf('  %s — ANOVA : SIGNIFICATIF mais post-hoc ignoré (ddl=%d, N=%d insuffisant pour RFT)\n', ...
+            fprintf('  %s - ANOVA : SIGNIFICATIF mais post-hoc ignoré (ddl=%d, N=%d insuffisant pour RFT)\n', ...
                     mLabel, n_min-1, n_min);
         elseif anova_sig_pt
-            fprintf('  %s — ANOVA : SIGNIFICATIF → post-hoc (%d paires testees)\n', mLabel, N_PAIRS);
+            fprintf('  %s - ANOVA : SIGNIFICATIF → post-hoc (%d paires testees)\n', mLabel, N_PAIRS);
             % Passe 1 : SPM{t} de chaque paire testee ; passe 2 : inference au
             % seuil Holm-Bonferroni propre a chaque paire (helpers/holmAlphaSPM1D.m)
             spmList_pt = cell(1, N_PAIRS);
@@ -555,7 +486,7 @@ for ip = 1:length(PATIENT_IDS)
                     spmList_pt{kp} = spm1d.stats.ttest_paired(cat(1, condData_padded.(fldB).(mLabel){:}), ...
                                                               cat(1, condData_padded.(fldA).(mLabel){:}));
                 catch ME_ph
-                    fprintf('    %s vs %s : erreur — %s\n', ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2}, ME_ph.message);
+                    fprintf('    %s vs %s : erreur - %s\n', ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2}, ME_ph.message);
                 end
             end
             [alphaHolm_pt, pHolm_pt] = holmAlphaSPM1D(spmList_pt, ALPHA_FWER);
@@ -585,14 +516,14 @@ for ip = 1:length(PATIENT_IDS)
                         indivSigClusters{im}.(pairFld){ip} = spmi_t_pt.clusters;
                     end
                 catch ME_ph
-                    fprintf('    %s vs %s : erreur — %s\n', condA, condB, ME_ph.message);
+                    fprintf('    %s vs %s : erreur - %s\n', condA, condB, ME_ph.message);
                 end
             end
             if rowIdx_pt == 0
-                fprintf('    (aucune paire significative — RFT + Holm-Bonferroni alpha=%.2f sur %d comparaisons)\n', ALPHA_FWER, N_PAIRS);
+                fprintf('    (aucune paire significative - RFT + Holm-Bonferroni alpha=%.2f sur %d comparaisons)\n', ALPHA_FWER, N_PAIRS);
             end
         else
-            fprintf('  %s — ANOVA : non significatif\n', mLabel);
+            fprintf('  %s - ANOVA : non significatif\n', mLabel);
         end
 
         bar_zone_pt = max(rowIdx_pt, 1) * (bar_h_pt + bar_gap_pt);
@@ -608,7 +539,7 @@ for ip = 1:length(PATIENT_IDS)
         grid on; box on; hold off;
     end
 
-    sgtitle(sprintf('%s  —  SPM1D individuel EMG, toutes comparaisons (N=3 blocs par condition)', patientID), ...
+    sgtitle(sprintf('%s  -  SPM1D individuel EMG, toutes comparaisons (N=3 blocs par condition)', patientID), ...
             'FontSize', 13, 'FontWeight', 'bold');
 
     % --- Tableau recapitulatif individuel ---
@@ -671,7 +602,7 @@ for im = 1:length(EMG_LABELS)
     legend(valid_h, 'Location','best', 'FontSize', 7);
     grid on; box on; hold off;
 end
-sgtitle('Comparaison des conditions de stimulation — Ensemble des patients (EMG)', ...
+sgtitle('Comparaison des conditions de stimulation - Ensemble des patients (EMG)', ...
         'FontSize', 13, 'FontWeight','bold');
 
 % =========================================================================
@@ -844,7 +775,7 @@ for im = 1:length(EMG_LABELS)
     grid on; box on; hold off;
 end
 
-sgtitle('Comparaison des conditions de stimulation — EMG, toutes paires (Analyse SPM1D)', ...
+sgtitle('Comparaison des conditions de stimulation - EMG, toutes paires (Analyse SPM1D)', ...
         'FontSize', 12, 'FontWeight','bold');
 
 % -------------------------------------------------------------------------
@@ -852,7 +783,7 @@ sgtitle('Comparaison des conditions de stimulation — EMG, toutes paires (Analy
 % -------------------------------------------------------------------------
 fprintf('\n');
 fprintf('=================================================================\n');
-fprintf(' TABLEAU RECAPITULATIF SPM1D — EMG (toutes comparaisons)\n');
+fprintf(' TABLEAU RECAPITULATIF SPM1D - EMG (toutes comparaisons)\n');
 fprintf(' ANOVA RM (N=10 patients) | Post-hoc apparies | Holm-Bonferroni alpha=%.2f (%d comparaisons)\n', ALPHA_FWER, N_PAIRS);
 fprintf('=================================================================\n');
 fprintf('%-10s  %-18s  %-28s  %-10s  %-10s  %s\n', ...
@@ -866,11 +797,11 @@ for im = 1:length(EMG_LABELS)
             ep = res.anova_clusters{cl}.endpoints;
             pv = res.anova_clusters{cl}.P;
             fprintf('%-10s  %-18s  %-28s  %-10.1f  %-10.1f  %.4f\n', ...
-                    EMG_LABELS{im}, 'ANOVA (7 cond)', '—', ep(1)-1, ep(2)-1, pv);
+                    EMG_LABELS{im}, 'ANOVA (7 cond)', '-', ep(1)-1, ep(2)-1, pv);
         end
     else
         fprintf('%-10s  %-18s  %-28s  %-10s  %-10s  %s\n', ...
-                EMG_LABELS{im}, 'ANOVA (7 cond)', '—', '—', '—', 'n.s.');
+                EMG_LABELS{im}, 'ANOVA (7 cond)', '-', '-', '-', 'n.s.');
     end
 
     anyPairSig = false;
@@ -892,7 +823,7 @@ for im = 1:length(EMG_LABELS)
     end
     if res.anova_sig && ~anyPairSig
         fprintf('%-10s  %-18s  %-28s  %-10s  %-10s  %s\n', ...
-                '', 't-test pairwise', sprintf('(aucune des %d paires sig.)', N_PAIRS), '—', '—', 'n.s.');
+                '', 't-test pairwise', sprintf('(aucune des %d paires sig.)', N_PAIRS), '-', '-', 'n.s.');
     end
     fprintf('%s\n', repmat('-', 1, 90));
 end
@@ -907,7 +838,7 @@ save(CACHE_FILE, 'patientMeans', 'patientBlocks', 'CONDITIONS_ORDERED', 'COND_LA
 fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
 
 % =========================================================================
-% FIGURE FINALE — TOUTES COMPARAISONS : moyennes de groupe uniquement (pas
+% FIGURE FINALE: TOUTES COMPARAISONS : moyennes de groupe uniquement (pas
 % de courbes ni barres individuelles), avec les post-hoc significatifs de
 % TOUTES les paires affiches en dessous de chaque graphe muscle
 % (sous-graphe dedie, pas superpose aux courbes), etiquetes "Cond A vs Cond B".

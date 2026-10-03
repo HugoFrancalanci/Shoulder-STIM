@@ -1,34 +1,23 @@
 % =========================================================================
 % compare_fes_nofes.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   July 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : July 2026
 % -------------------------------------------------------------------------
-% Description:   Exploratory script for visual characterisation of FES
-%                artefacts in raw EMG. Overlays No FES and one FES condition
-%                for a single patient to identify artefact shape, timing,
-%                and amplitude. Used to calibrate blanking parameters
-%                (BLANK_MS, MAD_FACTOR) before running the full pipeline.
-%                Produces 5 figures : full signal, burst zoom (5s),
-%                fine zoom (200ms), all-FES TRAPS overlay, single pulse (50ms).
+% Description : Visual characterisation of the stimulation artefact in the raw
+%               EMG: overlays No FES and one FES condition for one participant
+%               (full signal, zooms and single pulse). Used to set the
+%               artefact-removal parameters.
 % -------------------------------------------------------------------------
-% Parameters :   PATIENT_ID, FES_COND, BLOCK, FS
-%                ZOOM1_START / ZOOM1_DUR — burst zoom window (Fig 2)
-%                ZOOM2_START / ZOOM2_DUR — fine zoom window (Fig 3)
-% Outputs    :   5 figures (see Description above)
+% Parameters  : PATIENT_ID, FES_COND, BLOCK, FS
+%               ZOOM1_START / ZOOM1_DUR, ZOOM2_START / ZOOM2_DUR : zoom windows
+% Outputs     : 5 figures
 % -------------------------------------------------------------------------
-% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
+% Dependencies: usercommands_conditions.m, K-LAB .mat files
 % =========================================================================
 
 clear; clc; close all;

@@ -2,23 +2,22 @@ function d = dataDir()
 % =========================================================================
 % dataDir.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Single place defining where the PRIVATE derived data live :
-%                every cache_*.mat (all_comp caches, EMG ratio / discrete
-%                caches) and the reviewer workbooks (Kinematics_results.xlsx,
-%                Electromyography_results.xlsx). They are kept OUTSIDE the
-%                git repository (participant data). All pipeline/ and
-%                article_tables/ scripts read and write there through this
-%                function. To move the data, edit DATA_DIR below only.
+% Description : Returns the folder where the derived data (cache_*.mat files)
+%               are read and written. These files contain participant data and
+%               are kept outside the code repository. Edit DATA_DIR to move
+%               them.
 % -------------------------------------------------------------------------
-% Outputs    :   d — absolute path of the data folder (must exist)
+% Parameters  : none
+% Outputs     : d : absolute path of the data folder (error if missing)
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 DATA_DIR = 'C:\Users\franc\OneDrive - Université de Genève\PhD Hugo\04_Outputs\01_Publications\02_Collaborations\2026_Impact of electrical stimulation\Data';

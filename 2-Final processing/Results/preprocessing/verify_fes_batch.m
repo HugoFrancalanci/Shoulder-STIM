@@ -1,36 +1,23 @@
 % =========================================================================
 % verify_fes_batch.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   July 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : July 2026
 % -------------------------------------------------------------------------
-% Description:   Batch quality-control script for FES artefact removal
-%                across all patients. For each patient, produces two figures:
-%                (A) FES mapping : full TRAPS signal for all 6 FES conditions
-%                    overlaid (grey = No FES reference) — shows when FES is
-%                    active across the trial and confirms artefact presence;
-%                (B) Removal verification : 300ms zoom before/after artefact
-%                    removal on the most contaminated trial (Rehab b1 if
-%                    available, otherwise the first available FES condition).
-%                Removal parameters are identical to preprocess_fes_removal.m
-%                and extract_emg_cycles_noSEF.m (MAD×6, blanking 8ms, PCHIP).
+% Description : Check of the stimulation-artefact removal for all
+%               participants: upper-trapezius signal of every FES condition,
+%               and a 300 ms zoom before / after removal. Same removal
+%               parameters as the pipeline.
 % -------------------------------------------------------------------------
-% Parameters :   BLANK_MS=8, MAD_FACTOR=6, MIN_PERIOD_MS=15, MAX_BLANK_MS=20
-%                ZOOM_START=7.0s, ZOOM_DUR=0.3s
-% Outputs    :   2 figures per patient (10 patients = 20 figures)
+% Parameters  : BLANK_MS = 8, MAD_FACTOR = 6, MIN_PERIOD_MS = 15, MAX_BLANK_MS = 20
+%               ZOOM_START, ZOOM_DUR
+% Outputs     : 2 figures per participant
 % -------------------------------------------------------------------------
-% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat)
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
+% Dependencies: usercommands_conditions.m, K-LAB .mat files
 % =========================================================================
 
 clear; clc; close all;

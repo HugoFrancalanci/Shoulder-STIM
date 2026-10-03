@@ -2,41 +2,25 @@ function plotKinEmgCouplingFigure(K)
 % =========================================================================
 % plotKinEmgCouplingFigure.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description :  Kinematics x EMG figure (extract_kinematics_emg_coupling_
-%                all_comp.m), 2 x 2 panels, Times New Roman :
-%                top    — time courses over the cycle, group mean per
-%                         condition : (left) humerothoracic elevation, the
-%                         mean rise time of each condition marked on its
-%                         curve ; (right) muscle envelope normalised to each
-%                         trial's own peak (% of peak), dotted line = 50 %
-%                         threshold of the activity duration ;
-%                bottom — coupling, one dot per participant x condition
-%                         (condition colour, light) and condition mean ± SD
-%                         on both axes : kinematic parameter (x) vs EMG
-%                         peak timing (left) and activity duration (right),
-%                         dashed line = common within-subject slope of the
-%                         repeated-measures correlation (through the grand
-%                         mean), r_rm and p in the panel title.
-%                Bottom legend as in plotDiscreteEMGManuscript.m.
+% Description : Kinematics x EMG figure for one muscle, 2 x 2 panels:
+%               humerothoracic elevation (mean rise time marked on each curve),
+%               EMG envelope normalised to the peak of each trial, and
+%               humerothoracic rise time against EMG peak timing and activity
+%               duration with the within-participant slope.
 % -------------------------------------------------------------------------
-% Parameters :   K — struct :
-%                  x (1,101), COND_LABELS, COLORS (nCond,3)
-%                  htMean (nCond,101), emgMean / emgSD (nCond,101)
-%                  kin (nPat,nCond) — kinematic parameter (x of the scatters)
-%                  emg — cell {(nPat,nCond), (nPat,nCond)} : EMG parameters
-%                  emgTitles — cell of 2 panel titles (bottom row)
-%                  emgYLabels — cell of 2 y labels (bottom row)
-%                  rm — struct array (2) : r, p, slope (rmCorr.m)
-%                  muscleName, kinXLabel, actThreshold
-% Outputs    :   1 figure
+% Parameters  : K : struct with x, COND_LABELS, COLORS, htMean, emgMean,
+%                   emgSD, kin, emg, emgTitles, emgYLabels, rm, muscleName,
+%                   kinXLabel, actThreshold
+% Outputs     : 1 figure
 % -------------------------------------------------------------------------
-% Dependencies : none
+% Dependencies: none
 % =========================================================================
 
 FONT  = 'Times New Roman';

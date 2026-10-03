@@ -1,79 +1,37 @@
 % =========================================================================
 % extract_emg_discrete_all_comp.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description:   Discrete (0D) EMG parameters, all pairwise comparisons —
-%                complements the continuous SPM1D analysis of
-%                extract_emg_cycles_all_comp.m. Post-processes
-%                cache_emg_all_comp.mat only (no raw K-LAB data re-read, no
-%                FES removal / filtering redone). For every muscle x
-%                condition x patient, each BLOCK's mean linear envelope
-%                (101 pts, % baseline) gives :
-%                  - peak amplitude  : max of the envelope (% baseline)
-%                  - peak timing     : % cycle at which the max occurs
-%                  - activity duration : total % of the cycle during which
-%                    the envelope exceeds min + 50 % x (peak - min), i.e.
-%                    the full width at half maximum (FWHM — Cappellini et
-%                    al. 2006 ; Martino et al. 2014). Crossing points are
-%                    linearly interpolated. Threshold relative to each
-%                    curve's own peak/minimum -> independent of amplitude
-%                    normalisation.
-%                  - onset / offset of the main burst (the supra-threshold
-%                    window containing the peak) —
-%                    descriptive only.
-%                Block values are averaged per patient (N = 10 per
-%                condition). Statistics, same design as the SPM1D analysis :
-%                non-parametric RM-ANOVA (7 conditions, permutation, 10 000
-%                iterations, alpha = 0.05) then, if significant, paired
-%                t-tests on all 21 pairs, Holm-Bonferroni (FWER 0.05) per
-%                muscle x parameter (helpers/holmAdjust.m).
-%                Also prints a targeted check of the hypotheses suggested
-%                by the SPM1D curves (TARGET_CHECKS below).
+% Description : Discrete EMG parameters (article Figure 3), computed from the
+%               trial envelopes of cache_emg_all_comp.mat:
+%                 - peak timing: % of the cycle at the envelope maximum
+%                 - activity duration: % of the cycle above minimum + 50 % of
+%                   the range (full width at half maximum)
+%                 - peak amplitude, onset and offset (console only)
+%               Trial values are averaged per participant (N = 10).
+%               Statistics: non-parametric repeated-measures ANOVA across the
+%               7 conditions (10 000 permutations), then, if significant,
+%               paired t-tests on the 21 pairs of conditions with
+%               Holm-Bonferroni correction (alpha = 0.05).
 % -------------------------------------------------------------------------
-% Parameters :   ACT_THRESHOLD — % of (peak - min) defining "active"
-%                                 (50 = FWHM)
-%                ALPHA_ANOVA, ALPHA_FWER, N_ITER
-%                TARGET_CHECKS — muscle / conditions / parameters to
-%                                 highlight in the console
-%                MANUSCRIPT_MUSCLES / MANUSCRIPT_PARAMS — columns and rows
-%                                 of the manuscript figure (peak timing and
-%                                 activity duration ; peak amplitude only
-%                                 in the supplementary grid)
-% Outputs    :   console tables (descriptive, statistics, targeted checks),
-%                2 figures : supplementary grid (plotDiscreteEMGFigure.m)
-%                and manuscript figure (plotDiscreteEMGManuscript.m),
-%                both with Holm-significant pairs as brackets with stars,
-%                cache_emg_discrete_all_comp.mat
+% Parameters  : ACT_THRESHOLD = 50 (% of the range)
+%               REPORT_MUSCLES, MANUSCRIPT_MUSCLES, MANUSCRIPT_PARAMS
+%               ALPHA_ANOVA, ALPHA_FWER, N_ITER
+% Outputs     : Console tables, 2 figures (all parameters, article figure),
+%               cache_emg_discrete_all_comp.mat
 % -------------------------------------------------------------------------
-% Dependencies : cache_emg_all_comp.mat with patientBlocks (produced by
-%                extract_emg_cycles_all_comp.m — run that first),
-%                helpers/holmAdjust.m,
-%                plotting/plotDiscreteEMGFigure.m, plotting/plotDiscreteEMGManuscript.m,
-%                spm1dmatlab-master/ (spm1d.stats.nonparam.anova1rm and
-%                spm1d.stats.ttest_paired, 0D)
-% References :   Cappellini G, Ivanenko YP, Poppele RE, Lacquaniti F (2006),
-%                Motor patterns in human walking and running, J Neurophysiol
-%                95:3426-3437 (FWHM of EMG activation patterns)
-%                Martino G, Ivanenko YP et al. (2014), Locomotor patterns in
-%                cerebellar ataxia, J Neurophysiol 112(11) (EMG burst
-%                widening / FWHM), doi:10.1152/jn.00275.2014
-%                Hawkes DH et al. (2019), Patterns of muscle coordination
-%                during dynamic glenohumeral joint elevation: an EMG study,
-%                PLoS One 14:e0211800 (peak timing preferred to onset/offset
-%                for continuous shoulder elevation)
-% -------------------------------------------------------------------------
-% This work is licensed under the Creative Commons Attribution -
-% NonCommercial 4.0 International License. To view a copy of this license,
-% visit http://creativecommons.org/licenses/by-nc/4.0/
+% Dependencies: cache_emg_all_comp.mat (extract_emg_cycles_all_comp.m),
+%               helpers/holmAdjust.m, plotting/plotDiscreteEMGFigure.m,
+%               plotting/plotDiscreteEMGManuscript.m, spm1dmatlab-master/
+% References  : Cappellini G et al. (2006), J Neurophysiol 95:3426-3437
+%               Martino G et al. (2014), J Neurophysiol 112:2810-2821
+%               Hawkes DH et al. (2019), PLoS One 14:e0211800
 % =========================================================================
 
 clear; clc; close all;
@@ -218,7 +176,7 @@ else
                     st.anova_p = Fi.p;
                     st.anova_sig = Fi.p < ALPHA_ANOVA;
                 catch ME
-                    fprintf('  %s | %s : ANOVA erreur — %s\n', EMG_LABELS{im}, prm, ME.message);
+                    fprintf('  %s | %s : ANOVA erreur - %s\n', EMG_LABELS{im}, prm, ME.message);
                 end
                 for kp = 1:nPairs
                     a = pairIdx(kp,1); b = pairIdx(kp,2);
@@ -351,7 +309,7 @@ end
 
 function printStats(stats, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ALL_PAIRS, CONDITIONS_ORDERED, COND_LABELS, disc, pairIdx)
     fprintf('\n=================================================================\n');
-    fprintf(' STATISTIQUES — ANOVA RM (permutation) + post-hoc Holm-Bonferroni\n');
+    fprintf(' STATISTIQUES - ANOVA RM (permutation) + post-hoc Holm-Bonferroni\n');
     fprintf('=================================================================\n');
     for im = 1:numel(EMG_LABELS)
         for k = 1:numel(PARAMS)
@@ -394,7 +352,7 @@ function printTargetChecks(TC, stats, disc, PARAMS, PARAM_LABELS, EMG_LABELS, MU
                 kparam = find(strcmp(PARAMS, prm), 1);
                 if isempty(kparam), continue; end
                 st = stats(im).(prm);
-                fprintf('\n%s — %s — %s  (ANOVA p = %s)\n', MUSCLE_DISPLAY(TC(t).muscle), ...
+                fprintf('\n%s - %s - %s  (ANOVA p = %s)\n', MUSCLE_DISPLAY(TC(t).muscle), ...
                         condLabel(TC(t).conds{c}, CONDITIONS_ORDERED, COND_LABELS), PARAM_LABELS{kparam}, fmtP(st.anova_p));
                 v0 = disc.(prm)(:, ic, im);
                 fprintf('  %s : %.1f ± %.1f\n', condLabel(TC(t).conds{c}, CONDITIONS_ORDERED, COND_LABELS), mean(v0,'omitnan'), std(v0,'omitnan'));
@@ -417,7 +375,7 @@ end
 
 function s = fmtP(p)
     if isnan(p)
-        s = '—';
+        s = '-';
     elseif p < 0.001
         s = '<0.001';
     else

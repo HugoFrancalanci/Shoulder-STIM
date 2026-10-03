@@ -1,58 +1,33 @@
 % =========================================================================
 % extract_humerothoracic_elevation_all_comp.m
 % =========================================================================
-% Author     :   H. Francalanci
-%                Biomechanics and Translational Research in Surgery Group
-%                University of Geneva
-%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
-% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
-%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Source code:   To be defined
-% Reference  :   To be defined
-% Date       :   October 2026
+% Author      : H. Francalanci
+%               Biomechanics and Translational Research in Surgery Group
+%               University of Geneva
+% License     : Creative Commons Attribution-NonCommercial 4.0 International
+%               https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Date        : October 2026
 % -------------------------------------------------------------------------
-% Description:   Humerothoracic (HT) elevation — the global arm elevation,
-%                humerus relative to thorax — per patient and per condition,
-%                to test whether the stimulation pattern changes the TIME
-%                COURSE of the elevation (exploratory follow-up of the
-%                upper-trapezius / GH / ST findings : with the optimal
-%                stimulation commands "Min", the arm appeared less advanced
-%                in early-to-mid cycle). Same data selection as the
-%                kinematics _all_comp scripts (ANALYTIC2 trials, condition
-%                mapping and exceptions from usercommands_conditions.m) ;
-%                elevation from helpers/extractHTElevation.m (Joint RHT=1 /
-%                LHT=6, dim 1, + = elevation).
-%                Group level only (N = 10, mean of the 3 blocks per
-%                patient) :
-%                (1) SPM1D over the full cycle : non-parametric RM-ANOVA
-%                    (7 conditions, permutation, 10 000 iterations) then,
-%                    if significant, paired SPM{t} post-hoc on the 21 pairs,
-%                    Holm-Bonferroni (helpers/holmAlphaSPM1D.m) — same
-%                    design as the GH / ST analyses.
-%                (2) Discrete timing / amplitude parameters per block, then
-%                    averaged per patient : peak elevation (deg), peak
-%                    timing (% cycle) and rise time = % cycle at which the
-%                    elevation first exceeds min + 50 % x (peak - min)
-%                    (time to half-elevation). Non-parametric RM-ANOVA (0D)
-%                    + paired t-tests on the 21 pairs, Holm-Bonferroni
-%                    (helpers/holmAdjust.m), interpreted only if the ANOVA
-%                    is significant.
-%                (3) Console recap : mean ± SD per condition over the
-%                    WINDOW of interest (default 28-38 % : interpretable part
-%                    of the scapular rotation window), and the "Min"
-%                    commands vs {No FES, Random, Rehab} contrast per
-%                    patient (descriptive).
+% Description : Humerothoracic elevation (humerus relative to thorax) over the
+%               movement cycle, 10 participants, 7 conditions (article
+%               Figure 1).
+%                 - SPM1D comparison of the conditions over the cycle (N = 10)
+%                 - discrete parameters per trial, averaged per participant:
+%                   peak elevation, peak timing and rise time (% of the cycle at
+%                   which elevation first exceeds minimum + 50 % of its range)
+%               Statistics: non-parametric repeated-measures ANOVA across the
+%               7 conditions (10 000 permutations), then, if significant,
+%               paired t-tests on the 21 pairs of conditions with
+%               Holm-Bonferroni correction (alpha = 0.05).
 % -------------------------------------------------------------------------
-% Parameters :   WINDOW (% cycle), EXCL_ELEV_THRESHOLD (deg, zone stored in
-%                the cache for reference), RISE_FRACTION (0.5), N_ITER, ALPHA_FWER
-% Outputs    :   console tables ; 1 figure (plotCombinedJointsFigure.m, same
-%                style as the GH/ST article figure) ;
-%                cache_humerothoracic_all_comp.mat in dataDir()
+% Parameters  : RISE_FRACTION = 0.5, WINDOW (console summary, % cycle)
+%               EXCL_ELEV_THRESHOLD = 90 deg, N_ITER, ALPHA_FWER
+% Outputs     : Console tables, 1 figure (plotCombinedJointsFigure.m),
+%               cache_humerothoracic_all_comp.mat
 % -------------------------------------------------------------------------
-% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
-%                helpers/ (extractHTElevation, computeExclusionZone,
-%                holmAlphaSPM1D, holmAdjust, dataDir), plotting/
-%                (plotCombinedJointsFigure), spm1dmatlab-master/
+% Dependencies: usercommands_conditions.m, K-LAB .mat files, helpers/,
+%               plotting/plotCombinedJointsFigure.m, spm1dmatlab-master/
+% References  : Pataky TC (2010), J Biomech 43:1976-1982
 % =========================================================================
 
 clear; clc; close all;
@@ -340,7 +315,7 @@ end
 
 
 function s = fmtP(p)
-    if isnan(p), s = '—'; elseif p < 0.001, s = '<0.001'; else, s = sprintf('%.3f', p); end
+    if isnan(p), s = '-'; elseif p < 0.001, s = '<0.001'; else, s = sprintf('%.3f', p); end
 end
 
 
