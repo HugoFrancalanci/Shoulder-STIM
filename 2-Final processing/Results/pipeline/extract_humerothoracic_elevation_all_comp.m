@@ -1,0 +1,368 @@
+% =========================================================================
+% extract_humerothoracic_elevation_all_comp.m
+% =========================================================================
+% Author     :   H. Francalanci
+%                Biomechanics and Translational Research in Surgery Group
+%                University of Geneva
+%                https://www.unige.ch/medecine/chiru/en/research-groups/nicolas-holzer-et-florent-moissenet
+% License    :   Creative Commons Attribution-NonCommercial 4.0 International License
+%                https://creativecommons.org/licenses/by-nc/4.0/legalcode
+% Source code:   To be defined
+% Reference  :   To be defined
+% Date       :   October 2026
+% -------------------------------------------------------------------------
+% Description:   Humerothoracic (HT) elevation — the global arm elevation,
+%                humerus relative to thorax — per patient and per condition,
+%                to test whether the stimulation pattern changes the TIME
+%                COURSE of the elevation (exploratory follow-up of the
+%                upper-trapezius / GH / ST findings : with the optimal
+%                stimulation commands "Min", the arm appeared less advanced
+%                in early-to-mid cycle). Same data selection as the
+%                kinematics _all_comp scripts (ANALYTIC2 trials, condition
+%                mapping and exceptions from usercommands_conditions.m) ;
+%                elevation from helpers/extractHTElevation.m (Joint RHT=1 /
+%                LHT=6, dim 1, + = elevation).
+%                Group level only (N = 10, mean of the 3 blocks per
+%                patient) :
+%                (1) SPM1D over the full cycle : non-parametric RM-ANOVA
+%                    (7 conditions, permutation, 10 000 iterations) then,
+%                    if significant, paired SPM{t} post-hoc on the 21 pairs,
+%                    Holm-Bonferroni (helpers/holmAlphaSPM1D.m) — same
+%                    design as the GH / ST analyses.
+%                (2) Discrete timing / amplitude parameters per block, then
+%                    averaged per patient : peak elevation (deg), peak
+%                    timing (% cycle) and rise time = % cycle at which the
+%                    elevation first exceeds min + 50 % x (peak - min)
+%                    (time to half-elevation). Non-parametric RM-ANOVA (0D)
+%                    + paired t-tests on the 21 pairs, Holm-Bonferroni
+%                    (helpers/holmAdjust.m), interpreted only if the ANOVA
+%                    is significant.
+%                (3) Console recap : mean ± SD per condition over the
+%                    WINDOW of interest (default 28-38 % : interpretable part
+%                    of the scapular rotation window), and the "Min"
+%                    commands vs {No FES, Random, Rehab} contrast per
+%                    patient (descriptive).
+% -------------------------------------------------------------------------
+% Parameters :   WINDOW (% cycle), EXCL_ELEV_THRESHOLD (deg, zone stored in
+%                the cache for reference), RISE_FRACTION (0.5), N_ITER, ALPHA_FWER
+% Outputs    :   console tables ; 1 figure (plotCombinedJointsFigure.m, same
+%                style as the GH/ST article figure) ;
+%                cache_humerothoracic_all_comp.mat in dataDir()
+% -------------------------------------------------------------------------
+% Dependencies : usercommands_conditions.m, K-LAB .mat files (P[n].mat),
+%                helpers/ (extractHTElevation, computeExclusionZone,
+%                holmAlphaSPM1D, holmAdjust, dataDir), plotting/
+%                (plotCombinedJointsFigure), spm1dmatlab-master/
+% =========================================================================
+
+clear; clc; close all;
+disp('=========================================');
+disp(' extract_humerothoracic_elevation_all_comp.m');
+disp('=========================================');
+
+HERE = fileparts(fileparts(mfilename('fullpath')));
+SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
+if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
+addpath(fullfile(HERE, 'plotting'));
+addpath(fullfile(HERE, 'helpers'));
+
+% -------------------------------------------------------------------------
+% PARAMETRES
+% -------------------------------------------------------------------------
+WINDOW              = [28 38];   % % cycle, fenetre d'interet (recap descriptif)
+EXCL_ELEV_THRESHOLD = 90;        % deg, zone grisee sur les figures
+RISE_FRACTION       = 0.5;       % temps de montee : 1er passage a min + 50 % (pic - min)
+ALPHA_FWER          = 0.05;      % Holm-Bonferroni
+N_ITER              = 10000;     % permutations ANOVA RM non parametrique
+
+FORCE_RECOMPUTE = false;
+CACHE_FILE = fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat');
+
+x = 0:100;
+CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
+COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min PW','Rehab','Min force'};
+COLORS = [0.35 0.20 0.29; 0.66 0.80 0.63; 0.30 0.47 0.46; 0.91 0.76 0.45; ...
+          0.89 0.63 0.33; 0.45 0.55 0.68; 0.75 0.35 0.35];
+DOF_LABELS = {'Humerothoracic elevation (+)'};
+MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % commandes optimales
+DISC_PARAMS = {'peakElev', 'peakTime', 'riseTime'};
+DISC_LABELS = {'Peak elevation (deg)', 'Peak timing (% cycle)', ...
+               sprintf('Rise time to %g%% of range (%% cycle)', 100*RISE_FRACTION)};
+
+ALL_PAIRS = {};
+for a = 1:numel(CONDITIONS_ORDERED)-1
+    for b = a+1:numel(CONDITIONS_ORDERED)
+        ALL_PAIRS(end+1, :) = CONDITIONS_ORDERED([a b]); %#ok<SAGROW>
+    end
+end
+N_PAIRS = size(ALL_PAIRS, 1);
+
+if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
+    fprintf('Cache trouve : %s\n-> pas de recalcul (FORCE_RECOMPUTE=true pour tout refaire)\n\n', CACHE_FILE);
+    load(CACHE_FILE);
+else
+    run(fullfile(HERE, 'usercommands_conditions.m'));
+    rng(0);
+    warnings = {};
+
+    % ---------------------------------------------------------------------
+    % EXTRACTION : patientMeans.(cond){ip} = (1,101) ; patientBlocks idem par bloc
+    % ---------------------------------------------------------------------
+    patientMeans = struct(); patientBlocks = struct();
+    for ic = 1:numel(CONDITIONS_ORDERED)
+        fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+        patientMeans.(fld) = {}; patientBlocks.(fld) = {};
+    end
+    for ip = 1:numel(PATIENT_IDS)
+        patientID = PATIENT_IDS{ip};
+        side      = DOMINANT_SIDE(patientID);
+        jht       = HUMEROTHORACIC_JOINT_IDX(side);
+        cycleKey  = 'rcycle';
+        if strcmp(side, 'L'), cycleKey = 'lcycle'; end
+        matFile = fullfile(dataFolder, ['P' num2str(str2double(patientID(2:end))) '.mat']);
+        if ~isfile(matFile), error('Fichier introuvable : %s', matFile); end
+        fprintf('Traitement %s (cote %s)...\n', patientID, side);
+        load(matFile, 'Trial');
+
+        analyticTrials = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS);
+        nTrials  = numel(analyticTrials);
+        condList = PATIENT_COND.(patientID);
+        missingCondPos = [];
+        if isfield(PATIENT_EXCEPTIONS, patientID) && isfield(PATIENT_EXCEPTIONS.(patientID), 'missingCondPositions')
+            missingCondPos = PATIENT_EXCEPTIONS.(patientID).missingCondPositions;
+        end
+        blocks = struct();
+        for ic = 1:numel(CONDITIONS_ORDERED)
+            blocks.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic})) = zeros(0, 101);
+        end
+        trialIdx = 0;
+        for iseq = 1:numel(condList.condition)
+            cond = condList.condition{iseq};
+            if ismember(iseq, missingCondPos), continue; end
+            trialIdx = trialIdx + 1;
+            if trialIdx > nTrials, break; end
+            ht = extractHTElevation(Trial(analyticTrials(trialIdx)), jht, cycleKey);
+            if isempty(ht)
+                warnings{end+1} = sprintf('[WARNING] %s cond %d (%s) : elevation HT absente', patientID, iseq, cond); %#ok<SAGROW>
+                continue;
+            end
+            fld = matlab.lang.makeValidName(cond);
+            blocks.(fld)(end+1, :) = ht;
+        end
+        for ic = 1:numel(CONDITIONS_ORDERED)
+            fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+            patientBlocks.(fld){ip} = blocks.(fld);
+            if isempty(blocks.(fld))
+                patientMeans.(fld){ip} = NaN(1, 101);
+            else
+                patientMeans.(fld){ip} = mean(blocks.(fld), 1, 'omitnan');
+            end
+        end
+    end
+
+    % ---------------------------------------------------------------------
+    % (1) SPM1D : ANOVA RM non parametrique + post-hoc Holm (21 paires)
+    % ---------------------------------------------------------------------
+    Y = cell(1, numel(CONDITIONS_ORDERED));
+    for ic = 1:numel(CONDITIONS_ORDERED)
+        Y{ic} = cat(1, patientMeans.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic})){:});  % (N,101)
+    end
+    nPat = size(Y{1}, 1);
+    spmResults = struct('dof_label', DOF_LABELS{1}, 'anova_sig', false, 'anova_clusters', {{}}, 'posthoc', struct());
+    Fi = spm1d.stats.nonparam.anova1rm(cat(1, Y{:}), kron((1:numel(Y))', ones(nPat,1)), repmat((1:nPat)', numel(Y), 1)) ...
+           .inference(0.05, 'iterations', N_ITER, 'interp', true);
+    spmResults.anova_sig = ~isempty(Fi.clusters);
+    spmResults.anova_clusters = Fi.clusters;
+    if spmResults.anova_sig
+        spmList = cell(1, N_PAIRS);
+        for kp = 1:N_PAIRS
+            a = strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,1}); b = strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,2});
+            spmList{kp} = spm1d.stats.ttest_paired(Y{b}, Y{a});
+        end
+        [alphaHolm, pHolm] = holmAlphaSPM1D(spmList, ALPHA_FWER);
+        for kp = 1:N_PAIRS
+            fld = matlab.lang.makeValidName(sprintf('%s_vs_%s', ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2}));
+            spmi = spmList{kp}.inference(alphaHolm(kp), 'two_tailed', true, 'interp', true);
+            spmResults.posthoc.(fld) = struct('clusters', {spmi.clusters}, 'sig', ~isempty(spmi.clusters), ...
+                'condA', ALL_PAIRS{kp,1}, 'condB', ALL_PAIRS{kp,2}, 'p_holm', pHolm(kp), 'alpha_holm', alphaHolm(kp));
+        end
+    end
+
+    % ---------------------------------------------------------------------
+    % (2) PARAMETRES DISCRETS par bloc -> moyenne par patient + stats 0D
+    % ---------------------------------------------------------------------
+    disc = struct();
+    for k = 1:numel(DISC_PARAMS), disc.(DISC_PARAMS{k}) = NaN(nPat, numel(CONDITIONS_ORDERED)); end
+    for ic = 1:numel(CONDITIONS_ORDERED)
+        fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+        for ip = 1:nPat
+            B = patientBlocks.(fld){ip};
+            if isempty(B), continue; end
+            v = zeros(size(B,1), 3);
+            for kb = 1:size(B,1), v(kb,:) = htParams(B(kb,:), x, RISE_FRACTION); end
+            v = mean(v, 1, 'omitnan');
+            for k = 1:3, disc.(DISC_PARAMS{k})(ip, ic) = v(k); end
+        end
+    end
+    discStats = struct();
+    for k = 1:numel(DISC_PARAMS)
+        Yd = disc.(DISC_PARAMS{k});
+        keep = all(~isnan(Yd), 2); y = Yd(keep, :); n = size(y, 1);
+        st = struct('n', n, 'anova_p', NaN, 'anova_sig', false, 'p', NaN(N_PAIRS,1), 'pHolm', NaN(N_PAIRS,1), ...
+                    'sig', false(N_PAIRS,1), 'meanDiff', NaN(N_PAIRS,1), 'sdDiff', NaN(N_PAIRS,1));
+        Fd = spm1d.stats.nonparam.anova1rm(y(:), kron((1:size(y,2))', ones(n,1)), repmat((1:n)', size(y,2), 1)) ...
+               .inference(0.05, 'iterations', N_ITER);
+        st.anova_p = Fd.p; st.anova_sig = Fd.p < 0.05;
+        for kp = 1:N_PAIRS
+            a = find(strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,1})); b = find(strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,2}));
+            dd = y(:,b) - y(:,a); st.meanDiff(kp) = mean(dd); st.sdDiff(kp) = std(dd);
+            if std(dd) > 0
+                st.p(kp) = spm1d.stats.ttest_paired(y(:,b), y(:,a)).inference(0.05, 'two_tailed', true).p;
+            end
+        end
+        [st.pHolm, rej] = holmAdjust(st.p, ALPHA_FWER);
+        st.sig = rej(:) & st.anova_sig;
+        discStats.(DISC_PARAMS{k}) = st;
+    end
+
+    htGroupMean = mean(cat(1, Y{:}), 1, 'omitnan');
+    EXCL_ZONE   = computeExclusionZone(htGroupMean, x, EXCL_ELEV_THRESHOLD);
+    save(CACHE_FILE, 'patientMeans', 'patientBlocks', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'DOF_LABELS', ...
+         'x', 'spmResults', 'ALL_PAIRS', 'PATIENT_IDS', 'disc', 'discStats', 'EXCL_ZONE', 'htGroupMean', ...
+         'RISE_FRACTION', 'N_ITER', 'ALPHA_FWER');
+    fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
+    for i = 1:numel(warnings), disp(warnings{i}); end
+end
+
+% =========================================================================
+% CONSOLE
+% =========================================================================
+nCond = numel(CONDITIONS_ORDERED);
+w = (x >= WINDOW(1)) & (x <= WINDOW(2));
+fprintf('\n=== Elevation humerothoracique (+ = elevation), N = %d ===\n', numel(PATIENT_IDS));
+fprintf('%-12s  %-20s  %-18s  %-18s  %-18s\n', 'Condition', sprintf('Fenetre %d-%d %% (deg)', WINDOW), ...
+        DISC_PARAMS{1}, DISC_PARAMS{2}, DISC_PARAMS{3});
+winVals = NaN(numel(PATIENT_IDS), nCond);
+for ic = 1:nCond
+    fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
+    M = cat(1, patientMeans.(fld){:});
+    winVals(:, ic) = mean(M(:, w), 2);
+    fprintf('%-12s  %-20s', COND_LABELS{ic}, msd(winVals(:, ic)));
+    for k = 1:numel(DISC_PARAMS), fprintf('  %-18s', msd(disc.(DISC_PARAMS{k})(:, ic))); end
+    fprintf('\n');
+end
+
+isMin = ismember(CONDITIONS_ORDERED, MIN_CONDS);
+dMin = mean(winVals(:, isMin), 2) - mean(winVals(:, ~isMin), 2);
+fprintf('\nContraste par patient, fenetre %d-%d %% : commandes Min - {No FES, Random, Rehab}\n', WINDOW);
+fprintf('  %+.1f ± %.1f deg ; %d/%d patients avec moins d''elevation en Min (descriptif)\n', ...
+        mean(dMin), std(dMin), sum(dMin < 0), numel(dMin));
+for k = 1:numel(DISC_PARAMS)
+    dk = mean(disc.(DISC_PARAMS{k})(:, isMin), 2) - mean(disc.(DISC_PARAMS{k})(:, ~isMin), 2);
+    fprintf('  %-12s : %+.1f ± %.1f\n', DISC_PARAMS{k}, mean(dk), std(dk));
+end
+
+fprintf('\n=== SPM1D (cycle complet) : ANOVA RM non parametrique + post-hoc Holm ===\n');
+if ~spmResults.anova_sig
+    fprintf('  ANOVA : n.s.\n');
+else
+    for c = 1:numel(spmResults.anova_clusters)
+        ep = spmResults.anova_clusters{c}.endpoints;   % 0-based = % cycle
+        fprintf('  ANOVA : %.1f-%.1f %% du cycle, p = %s\n', max(ep(1),0), min(ep(2),100), fmtP(spmResults.anova_clusters{c}.P));
+    end
+    anySig = false;
+    for kp = 1:N_PAIRS
+        fld = matlab.lang.makeValidName(sprintf('%s_vs_%s', ALL_PAIRS{kp,1}, ALL_PAIRS{kp,2}));
+        ph = spmResults.posthoc.(fld);
+        if ~ph.sig, continue; end
+        anySig = true;
+        for c = 1:numel(ph.clusters)
+            ep = ph.clusters{c}.endpoints;   % 0-based = % cycle
+            fprintf('  %-12s vs %-12s : %.1f-%.1f %% du cycle, p = %s\n', COND_LABELS{strcmp(CONDITIONS_ORDERED, ph.condA)}, ...
+                    COND_LABELS{strcmp(CONDITIONS_ORDERED, ph.condB)}, max(ep(1),0), min(ep(2),100), fmtP(ph.clusters{c}.P));
+        end
+    end
+    if ~anySig, fprintf('  (aucune paire significative apres Holm)\n'); end
+end
+
+fprintf('\n=== Parametres discrets : ANOVA RM (permutation) + post-hoc Holm ===\n');
+for k = 1:numel(DISC_PARAMS)
+    st = discStats.(DISC_PARAMS{k});
+    fprintf('%-40s ANOVA p = %s', DISC_LABELS{k}, fmtP(st.anova_p));
+    if ~st.anova_sig, fprintf('  -> n.s.\n'); continue; end
+    if ~any(st.sig), fprintf('  -> aucune paire sig. apres Holm\n'); continue; end
+    fprintf('\n');
+    for kp = find(st.sig)'
+        fprintf('    %-12s vs %-12s : diff B-A = %+.1f ± %.1f ; p Holm = %s\n', ...
+                COND_LABELS{strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,1})}, COND_LABELS{strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,2})}, ...
+                st.meanDiff(kp), st.sdDiff(kp), fmtP(st.pHolm(kp)));
+    end
+end
+
+% =========================================================================
+% FIGURES (meme mise en page que les autres articulations). Pas de zone
+% grisee ici : c'est cette courbe qui la definit pour GH / ST, l'elevation
+% humerothoracique elle-meme reste interpretable au-dela de 90 deg.
+% =========================================================================
+J = struct('patientMeans', patientMeans, 'CONDITIONS_ORDERED', {CONDITIONS_ORDERED}, 'COND_LABELS', {COND_LABELS}, ...
+           'COLORS', COLORS, 'DOF_LABELS', {DOF_LABELS}, 'rowLabel', 'Humerothoracic', 'x', x, ...
+           'spmResults', spmResults, 'ALL_PAIRS', {ALL_PAIRS}, 'PATIENT_IDS', {PATIENT_IDS}, ...
+           'panelTitles', {{'Elevation (+)'}}, 'titleWeight', 'normal');
+plotCombinedJointsFigure({J});
+
+disp(' '); disp('Termine.');
+
+
+% =========================================================================
+% FONCTIONS LOCALES
+% =========================================================================
+
+function v = htParams(c, x, frac)
+    % [pic (deg), instant du pic (% cycle), temps de montee a min + frac (pic - min)]
+    v = NaN(1, 3);
+    if all(isnan(c)), return; end
+    [pk, ipk] = max(c); mn = min(c(1:ipk));
+    v(1) = pk; v(2) = x(ipk);
+    thr = mn + frac * (pk - mn);
+    k = find(c(1:ipk) >= thr, 1);
+    if isempty(k), return; end
+    if k == 1
+        v(3) = x(1);
+    else
+        v(3) = x(k-1) + (thr - c(k-1)) / (c(k) - c(k-1)) * (x(k) - x(k-1));  % interpolation lineaire
+    end
+end
+
+
+function s = msd(v)
+    s = sprintf('%.1f ± %.1f', mean(v, 'omitnan'), std(v, 'omitnan'));
+end
+
+
+function s = fmtP(p)
+    if isnan(p), s = '—'; elseif p < 0.001, s = '<0.001'; else, s = sprintf('%.3f', p); end
+end
+
+
+function analyticIdx = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS)
+    isAnalytic = false(1, length(Trial));
+    for i = 1:length(Trial)
+        if isfield(Trial(i), 'task') && strcmp(Trial(i).task, 'ANALYTIC2')
+            isAnalytic(i) = true;
+        end
+    end
+    allIdx = find(isAnalytic);
+    skipFirst = 0; skipPos = [];
+    if isfield(PATIENT_EXCEPTIONS, patientID)
+        exc = PATIENT_EXCEPTIONS.(patientID);
+        if isfield(exc, 'skipFirstN'),    skipFirst = exc.skipFirstN;    end
+        if isfield(exc, 'skipPositions'), skipPos   = exc.skipPositions; end
+    end
+    allIdx = allIdx(skipFirst+1:end);
+    if ~isempty(skipPos)
+        keep = true(1, length(allIdx));
+        keep(skipPos(skipPos <= length(allIdx))) = false;
+        allIdx = allIdx(keep);
+    end
+    analyticIdx = allIdx;
+end

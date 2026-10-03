@@ -45,7 +45,9 @@
 %                TARGET_CHECKS — muscle / conditions / parameters to
 %                                 highlight in the console
 %                MANUSCRIPT_MUSCLES / MANUSCRIPT_PARAMS — columns and rows
-%                                 of the manuscript figure
+%                                 of the manuscript figure (peak timing and
+%                                 activity duration ; peak amplitude only
+%                                 in the supplementary grid)
 % Outputs    :   console tables (descriptive, statistics, targeted checks),
 %                2 figures : supplementary grid (plotDiscreteEMGFigure.m)
 %                and manuscript figure (plotDiscreteEMGManuscript.m),
@@ -96,16 +98,23 @@ N_ITER         = 10000;    % permutations ANOVA RM non parametrique
 MUSCLE_DISPLAY = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...
     {'Upper trapezius', 'Middle trapezius', 'Lower trapezius', 'Serratus anterior'});
 
+% Muscles rapportes (figures) : les 4 muscles. Filtre d'AFFICHAGE
+% uniquement (familles Holm par muscle -> retirer un muscle ne change pas
+% les resultats des autres, sans recalcul ni nouveau tirage des permutations).
+REPORT_MUSCLES = {'TRAPS', 'TRAPM', 'TRAPI', 'SERRA'};
+
 % Hypotheses issues des courbes SPM1D, mises en evidence dans la console
 TARGET_CHECKS = struct( ...
-    'muscle', {'TRAPS', 'TRAPI'}, ...
-    'conds',  {{'Random', 'Rehab'}, {'No FES'}}, ...
-    'params', {{'dur50', 'peakTime'}, {'peakAmp', 'peakTime'}});
+    'muscle', {'TRAPI'}, ...
+    'conds',  {{'No FES'}}, ...
+    'params', {{'peakAmp', 'peakTime'}});
 
-% Figure manuscrit : les 4 muscles x les 3 metriques de la methode (pic,
-% instant du pic, duree d'activite).
-MANUSCRIPT_MUSCLES = {'TRAPS', 'TRAPM', 'TRAPI', 'SERRA'};
-MANUSCRIPT_PARAMS  = {'peakAmp', 'peakTime', 'dur50'};
+% Figure manuscrit : muscles rapportes x instant du pic et duree d'activite.
+% L'amplitude du pic n'est pas montree dans l'article (biais possible du
+% retrait d'artefact FES sur l'amplitude dans les conditions stimulees) ;
+% elle reste calculee et visible dans la figure supplementaire.
+MANUSCRIPT_MUSCLES = REPORT_MUSCLES;
+MANUSCRIPT_PARAMS  = {'peakTime', 'dur50'};
 
 % -------------------------------------------------------------------------
 % CACHE : regeneration rapide (tableaux + figure) sans refaire les
@@ -242,20 +251,28 @@ PARAM_LABELS = {'Peak amplitude (Normalised EMG (%))', 'Peak timing (Cycle (%))'
                 sprintf('Activity duration > %d%% (Cycle (%%))', ACT_THRESHOLD)};
 
 % -------------------------------------------------------------------------
+% RESTRICTION AUX MUSCLES RAPPORTES (affichage uniquement)
+% -------------------------------------------------------------------------
+keepM  = ismember(EMG_LABELS, REPORT_MUSCLES);
+discR  = structfun(@(a) a(:, :, keepM), disc, 'UniformOutput', false);
+statsR = stats(keepM);
+LABR   = EMG_LABELS(keepM);
+
+% -------------------------------------------------------------------------
 % TABLEAUX CONSOLE
 % -------------------------------------------------------------------------
 printMethods(ACT_THRESHOLD, ALPHA_ANOVA, ALPHA_FWER, N_ITER);
-printDescriptive(disc, PARAMS, DESCR_ONLY, EMG_LABELS, MUSCLE_DISPLAY, COND_LABELS);
-printStats(stats, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ALL_PAIRS, CONDITIONS_ORDERED, COND_LABELS, disc, pairIdx);
-printTargetChecks(TARGET_CHECKS, stats, disc, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ALL_PAIRS, CONDITIONS_ORDERED, COND_LABELS, pairIdx);
+printDescriptive(discR, PARAMS, DESCR_ONLY, LABR, MUSCLE_DISPLAY, COND_LABELS);
+printStats(statsR, PARAMS, PARAM_LABELS, LABR, MUSCLE_DISPLAY, ALL_PAIRS, CONDITIONS_ORDERED, COND_LABELS, discR, pairIdx);
+printTargetChecks(TARGET_CHECKS, statsR, discR, PARAMS, PARAM_LABELS, LABR, MUSCLE_DISPLAY, ALL_PAIRS, CONDITIONS_ORDERED, COND_LABELS, pairIdx);
 
 % -------------------------------------------------------------------------
-% FIGURES : grille supplementaire (4 muscles x 3 parametres) + figure
+% FIGURES : grille supplementaire (muscles rapportes x 3 parametres) + figure
 % manuscrit (MANUSCRIPT_MUSCLES / MANUSCRIPT_PARAMS)
 % -------------------------------------------------------------------------
-plotDiscreteEMGFigure(disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ...
+plotDiscreteEMGFigure(discR, statsR, PARAMS, PARAM_LABELS, LABR, MUSCLE_DISPLAY, ...
                       COND_LABELS, COLORS, pairIdx);
-plotDiscreteEMGManuscript(disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS, MUSCLE_DISPLAY, ...
+plotDiscreteEMGManuscript(discR, statsR, PARAMS, PARAM_LABELS, LABR, MUSCLE_DISPLAY, ...
                           COND_LABELS, COLORS, pairIdx, MANUSCRIPT_MUSCLES, MANUSCRIPT_PARAMS);
 
 disp(' '); disp('Termine.');

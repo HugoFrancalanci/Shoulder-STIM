@@ -63,7 +63,7 @@ nMusc  = length(EMG_LABELS);
 nPairs = size(ALL_PAIRS, 1);
 MUSCLE_LABELS = containers.Map( ...
     {'TRAPS', 'TRAPM', 'TRAPI', 'SERRA'}, ...
-    {'Upper trapezius', 'Middle Trapezius', 'Lower trapezius', 'Serratus anterior'});
+    {'Upper trapezius', 'Middle trapezius', 'Lower trapezius', 'Serratus anterior'});
 
 set(groot, 'defaultAxesFontName', 'Times New Roman');
 set(groot, 'defaultTextFontName', 'Times New Roman');
@@ -193,6 +193,8 @@ end
             end
             xlabel('Cycle (%)', 'FontSize', 14);
             set(gca, 'FontSize', 9);
+            % pas de facteur "x10^4" (masque par le titre) : valeurs en clair
+            ax = gca; ax.YAxis.Exponent = 0; ytickformat(ax, '%g');
             grid on; box on; hold off;
         end
 

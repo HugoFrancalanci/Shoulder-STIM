@@ -128,6 +128,11 @@ addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'helpers'));
 % lent). Met FORCE_RECOMPUTE a true pour ignorer le cache et tout refaire.
 % -------------------------------------------------------------------------
 FORCE_RECOMPUTE = false;
+
+% Muscles rapportes (figures) : les 4 muscles. Filtre d'AFFICHAGE
+% uniquement (familles Holm par muscle -> retirer un muscle ne change pas
+% les resultats des autres, sans recalcul ni nouveau tirage des permutations).
+REPORT_MUSCLES = {'TRAPS', 'TRAPM', 'TRAPI', 'SERRA'};
 CACHE_FILE = fullfile(dataDir(), 'cache_emg_all_comp.mat');
 
 % Methode de correction post-hoc : sauvegardee dans le cache, un cache
@@ -159,8 +164,9 @@ if cacheValid
     fprintf('  (mettre FORCE_RECOMPUTE=true dans le script pour tout recalculer)\n\n');
     load(CACHE_FILE, 'patientMeans', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'EMG_LABELS', 'X_CYCLE', 'spmResults', 'ALL_PAIRS', 'indivSigClusters', 'PATIENT_IDS');
 
-    plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
-                         spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS);
+    keepM = ismember(EMG_LABELS, REPORT_MUSCLES);
+    plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS(keepM), X_CYCLE, ...
+                         spmResults(keepM), ALL_PAIRS, indivSigClusters(keepM), PATIENT_IDS);
     return;
 elseif isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
     fprintf('Cache trouve mais obsolete (correction "%s" -> "%s", courbes par bloc presentes : %d) : recalcul complet.\n\n', ...
@@ -906,8 +912,9 @@ fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
 % TOUTES les paires affiches en dessous de chaque graphe muscle
 % (sous-graphe dedie, pas superpose aux courbes), etiquetes "Cond A vs Cond B".
 % =========================================================================
-plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS, X_CYCLE, ...
-                     spmResults, ALL_PAIRS, indivSigClusters, PATIENT_IDS);
+keepM = ismember(EMG_LABELS, REPORT_MUSCLES);   % trapeze superieur retire de la figure
+plotAllCompFigureEMG(patientMeans, CONDITIONS_ORDERED, COND_LABELS, COLORS, EMG_LABELS(keepM), X_CYCLE, ...
+                     spmResults(keepM), ALL_PAIRS, indivSigClusters(keepM), PATIENT_IDS);
 
 % -------------------------------------------------------------------------
 % WARNINGS

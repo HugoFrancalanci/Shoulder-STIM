@@ -23,12 +23,13 @@ function plotDiscreteEMGManuscript(disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS
 %                Holm-Bonferroni (paired t-test, significant RM-ANOVA) are
 %                marked by brackets with stars (* p<0.05, ** p<0.01,
 %                *** p<0.001, Holm-adjusted), packed on as few levels as
-%                possible (non-overlapping brackets share a level). RM-ANOVA
-%                p-value in each panel title. Metric name and unit are
+%                possible (non-overlapping brackets share a level). Muscle
+%                names on top (ANOVA p-values are not shown in the figure).
+%                Metric name and unit are
 %                written at a fixed position left of each row (aligned).
 %                Bottom legend as in plotCombinedJointsFigure.m : one
-%                colour entry per condition + individual participants, and
-%                a second line explaining the stars.
+%                colour entry per condition + individual participants (star
+%                thresholds go in the figure caption).
 % -------------------------------------------------------------------------
 % Parameters :   disc, stats, PARAMS, PARAM_LABELS, EMG_LABELS,
 %                MUSCLE_DISPLAY, COND_LABELS, COLORS, pairIdx — see
@@ -48,11 +49,11 @@ nCols = numel(muscles);
 figure('Name', 'Manuscript figure -- EMG discrete parameters', ...
        'units', 'normalized', 'outerposition', [0 0 1 1], 'Color', 'white');
 
-TOP_MARGIN    = 0.06;
-BOTTOM_MARGIN = 0.17;   % graduations inclinees + legende (2 lignes)
-ROW_GAP       = 0.07;
-LEFT_MARGIN   = 0.105;
-RIGHT_MARGIN  = 0.02;
+TOP_MARGIN    = 0.05;
+BOTTOM_MARGIN = 0.13;   % graduations inclinees + legende (1 ligne)
+ROW_GAP       = 0.04;
+LEFT_MARGIN   = 0.08;    % unite (Cycle (%)) rapprochee des axes
+RIGHT_MARGIN  = 0.07;    % espace libre a droite de la derniere colonne
 COL_GAP       = 0.045;
 row_h = (1 - TOP_MARGIN - BOTTOM_MARGIN - (nRows-1)*ROW_GAP) / nRows;
 col_w = (1 - LEFT_MARGIN - RIGHT_MARGIN - (nCols-1)*COL_GAP) / nCols;
@@ -100,11 +101,10 @@ for r = 1:nRows
         ax.YTick = yt(yt <= yl(2) + 0.02*rngY);
         ytickformat(ax, '%g');
 
+        % p de l'ANOVA non affiche (dans le texte / la legende) : nom du
+        % muscle seulement, au-dessus de la premiere ligne
         if r == 1
-            title({MUSCLE_DISPLAY(muscles{c}), sprintf('ANOVA p %s', pStr(st.anova_p))}, ...
-                  'FontName', FONT, 'FontSize', 13, 'FontWeight', 'normal');
-        else
-            title(sprintf('ANOVA p %s', pStr(st.anova_p)), 'FontName', FONT, 'FontSize', 11, 'FontWeight', 'normal');
+            title(MUSCLE_DISPLAY(muscles{c}), 'FontName', FONT, 'FontSize', 14, 'FontWeight', 'normal');
         end
         set(ax, 'XTick', 1:nCond, 'FontName', FONT, 'FontSize', 10);
         if r == nRows
@@ -123,10 +123,10 @@ labelAx = axes('Position', [0 0 1 1], 'Visible', 'off');
 hold(labelAx, 'on');
 for r = 1:nRows
     row_bottom = 1 - TOP_MARGIN - r*row_h - (r-1)*ROW_GAP;
-    text(labelAx, 0.025, row_bottom + row_h/2, rowNames{r}, ...
+    text(labelAx, 0.022, row_bottom + row_h/2, rowNames{r}, ...
          'Rotation', 90, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
          'FontSize', 14, 'FontName', FONT, 'FontWeight', 'bold');
-    text(labelAx, 0.052, row_bottom + row_h/2, rowUnits{r}, ...
+    text(labelAx, 0.046, row_bottom + row_h/2, rowUnits{r}, ...
          'Rotation', 90, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
          'FontSize', 12, 'FontName', FONT);
 end
@@ -149,10 +149,10 @@ end
 
 
 function drawLegend(COND_LABELS, COLORS, FONT)
-    % Ligne 1 : couleurs des conditions + participants individuels ;
-    % ligne 2 : moyenne +- ET et signification des etoiles
-    % (meme principe que drawLegend de plotCombinedJointsFigure.m)
-    legAx = axes('Position', [0.03, 0.035, 0.95, 0.03], 'Visible', 'off');
+    % Une ligne : couleurs des conditions + participants individuels (meme
+    % principe que drawLegend de plotCombinedJointsFigure.m) ; seuils des
+    % etoiles donnes dans la legende de la figure (article)
+    legAx = axes('Position', [0.03, 0.015, 0.95, 0.03], 'Visible', 'off');
     hold(legAx, 'on');
     h = gobjects(1, numel(COND_LABELS) + 1);
     for ic = 1:numel(COND_LABELS)
@@ -166,17 +166,8 @@ function drawLegend(COND_LABELS, COLORS, FONT)
     drawnow;
     lgd.Units = 'normalized';
     lgd.Position(1) = 0.5 - lgd.Position(3)/2;
-    lgd.Position(2) = 0.035;
+    lgd.Position(2) = 0.015;
     hold(legAx, 'off');
-    annotation('textbox', [0 0.003 1 0.03], 'String', ...
-               '* p < 0.05,  ** p < 0.01,  *** p < 0.001', ...
-               'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'EdgeColor', 'none', ...
-               'FontName', FONT, 'FontSize', 11);
-end
-
-
-function s = pStr(p)
-    if isnan(p), s = '= n/a'; elseif p < 0.001, s = '< 0.001'; else, s = sprintf('= %.3f', p); end
 end
 
 

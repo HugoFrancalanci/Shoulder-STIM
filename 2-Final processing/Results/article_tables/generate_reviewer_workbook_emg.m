@@ -71,7 +71,9 @@ out = struct('curves', {{}}, 'anova', {{}}, 'posthoc', {{}}, 'indiv', {{}}, ...
 out.conditions = S.COND_LABELS;
 out.correction = S.POSTHOC_CORRECTION;
 out.threshold = D.ACT_THRESHOLD;
-for im = 1:numel(S.EMG_LABELS)
+% Muscles rapportes dans l'article (les 4)
+REPORT_MUSCLES = {'TRAPS', 'TRAPM', 'TRAPI', 'SERRA'};
+for im = find(ismember(S.EMG_LABELS, REPORT_MUSCLES))
     m = S.EMG_LABELS{im}; mn = MUS(m);
     % courbes individuelles
     for ic = 1:numel(S.CONDITIONS_ORDERED)

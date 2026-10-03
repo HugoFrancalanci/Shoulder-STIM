@@ -46,6 +46,10 @@ function plotCombinedJointsFigure(joints)
 %                                        spmResults(idof).posthoc.(pairFld).clusters/.sig
 %                  .ALL_PAIRS          — Nx2 cell array of condition pairs
 %                  .PATIENT_IDS        — cell array of patient ID strings
+%                  .panelTitles        — optional, cell of panel titles
+%                                        overriding dofTitle() (one per DOF)
+%                  .titleWeight        — optional, 'normal' or 'bold'
+%                                        (default : MATLAB default, bold)
 %                  .EXCL_ZONE          — optional, struct from
 %                                        computeExclusionZone.m (humerothoracic
 %                                        elevation > 90 deg), grey vertical
@@ -184,7 +188,10 @@ for r = 1:nRows
         y_bottom = y_bar_top - max(rowIdx,1) * (bar_h + row_gap_b);
         ylim([y_bottom, y_max + data_range*0.08]);
         xlim([0 100]);
-        title(dofTitle(J.DOF_LABELS{idof}), 'FontSize', 15, 'FontName', 'Times New Roman');
+        ttl = dofTitle(J.DOF_LABELS{idof});
+        if isfield(J, 'panelTitles') && numel(J.panelTitles) >= idof, ttl = J.panelTitles{idof}; end
+        hT = title(ttl, 'FontSize', 15, 'FontName', 'Times New Roman');
+        if isfield(J, 'titleWeight'), hT.FontWeight = J.titleWeight; end
         if idof == 1
             ylabel('Angle (°)', 'FontSize', 14, 'FontName', 'Times New Roman');
         end
@@ -254,7 +261,12 @@ function drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN, e
     lgd1.Position(2) = h2 + LEG_GAP;
     hold(legAx1, 'off');
 
-nRow1   = ceil(nSigPairs / 2);
+% une seule ligne si les paires tiennent (<= 4), sinon reparties sur 2 lignes
+if nSigPairs <= 4
+    nRow1 = nSigPairs;
+else
+    nRow1 = ceil(nSigPairs / 2);
+end
 idxRow1 = 1:nRow1;
 idxRow2 = (nRow1+1):nSigPairs;
 rowH    = h2 / 2;   
