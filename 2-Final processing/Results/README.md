@@ -8,7 +8,7 @@ Analysis code for the article on the effect of seven deltoid stimulation conditi
 Results/
 ├── usercommands_conditions.m   shared configuration (participants, conditions, paths), loaded with run()
 ├── README.md
-├── pipeline/                   entry-point scripts (7): run these
+├── pipeline/                   entry-point scripts (8): run these
 ├── plotting/                   figure functions (9), called by pipeline/
 ├── helpers/                    utility functions (6), called by pipeline/
 ├── preprocessing/              checks of the stimulation-artefact removal (4)
@@ -46,6 +46,7 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 | 5 | `extract_emg_cycles_all_comp.m` | K-LAB files | EMG cache |
 | 6 | `extract_emg_discrete_all_comp.m` | step 5 | Figure 3 |
 | 7 | `extract_kinematics_emg_coupling_all_comp.m` | steps 1, 5, 6 | Figure 4 |
+| 8 | `export_source_data.m` | steps 1 to 7 | `Source_data_Figures1-4.xlsx`: data and statistics of the 4 figures |
 
 ## Article figures
 
