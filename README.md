@@ -13,8 +13,7 @@ Ten participants performed repeated arm elevations in the scapular plane under s
 
 - **Humerothoracic elevation** over the movement cycle (time course of the arm elevation)
 - **Scapulothoracic kinematics** as a function of humerothoracic elevation (scapulohumeral rhythm)
-- **Surface EMG** of the upper, middle and lower trapezius and the serratus anterior: stimulation-artefact removal, linear envelope, peak timing and activity duration
-- **Coupling** between the timing of arm elevation and the timing of muscle activity
+- **Surface EMG** of the upper, middle and lower trapezius and the serratus anterior: stimulation-artefact removal, linear envelope normalised to its peak, as a function of humerothoracic elevation
 - **Statistics**: one-dimensional Statistical Parametric Mapping (SPM1D) and discrete-parameter tests across the seven conditions, with Holm-Bonferroni correction
 
 ## Repository structure

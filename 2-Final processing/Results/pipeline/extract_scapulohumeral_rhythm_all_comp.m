@@ -10,12 +10,12 @@
 % -------------------------------------------------------------------------
 % Description : Scapulothoracic and glenohumeral angles as a function of
 %               humerothoracic elevation during the ascending phase (article
-%               Figure 2). For each elevation between 20 and 90 deg (1 deg
-%               steps), the angles are read at the first instant the arm
-%               reaches that elevation. Curves starting less than 2.5 deg above
-%               20 deg are extended with their first value; participants whose
-%               elevation does not cover the range are excluded (N = 9).
-%               SPM1D comparison of the conditions with humerothoracic
+%               Figure 2, first row, drawn by
+%               extract_emg_elevation_all_comp.m). For each elevation
+%               between 20 and 90 deg (1 deg steps), the angles are read at
+%               the first instant the arm reaches that elevation. Curves
+%               starting less than 2.5 deg above 20 deg are extended with
+%               their first value. SPM1D comparison of the conditions with humerothoracic
 %               elevation as the domain.
 %               Statistics: non-parametric repeated-measures ANOVA across the
 %               7 conditions (10 000 permutations), then, if significant,
@@ -23,15 +23,13 @@
 %               Holm-Bonferroni correction (alpha = 0.05).
 % -------------------------------------------------------------------------
 % Parameters  : ELEV_GRID = 20:1:90 deg, MAX_EXTRAP_DEG = 2.5 deg
-%               FIGURE_JOINTS : joints shown in the figure
 %               N_ITER, ALPHA_FWER
-% Outputs     : Console tables, 1 figure (plotRhythmFigure.m),
-%               cache_scapulohumeral_rhythm_all_comp.mat
+% Outputs     : Console tables, cache_scapulohumeral_rhythm_all_comp.mat
 % -------------------------------------------------------------------------
 % Dependencies: cache_glenohumeral_all_comp.mat,
 %               cache_scapulothoracic_all_comp.mat,
-%               cache_humerothoracic_all_comp.mat, helpers/,
-%               plotting/plotRhythmFigure.m, spm1dmatlab-master/
+%               cache_humerothoracic_all_comp.mat, helpers/ (crossingTimes.m),
+%               spm1dmatlab-master/
 % References  : Pataky TC (2010), J Biomech 43:1976-1982
 % =========================================================================
 
@@ -43,7 +41,6 @@ disp('=========================================');
 HERE = fileparts(fileparts(mfilename('fullpath')));
 SPM1D_PATH = fullfile(HERE, 'spm1dmatlab-master');
 if exist(SPM1D_PATH, 'dir'), addpath(genpath(SPM1D_PATH)); end
-addpath(fullfile(HERE, 'plotting'));
 addpath(fullfile(HERE, 'helpers'));
 
 % -------------------------------------------------------------------------
@@ -51,7 +48,6 @@ addpath(fullfile(HERE, 'helpers'));
 % -------------------------------------------------------------------------
 ELEV_GRID      = 20:1:90;   % deg d'elevation humerothoracique (consigne article, <= 90)
 MAX_EXTRAP_DEG = 2.5;       % prolongation constante max sous le debut de montee (deg)
-FIGURE_JOINTS  = {'Scapulothoracic'};   % articulation(s) tracee(s) (ST seul pour l'article)
 N_ITER     = 10000;
 ALPHA_FWER = 0.05;
 MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % commandes optimales
@@ -96,8 +92,8 @@ else
                 J.rhythmMeans.(fld){ip} = R;
             end
         end
-        % patients sans courbe complete sur la plage (une condition suffit) :
-        % exclus de TOUT (stats, contraste, figure) -> meme N partout
+        % courbes completes sur la plage dans toutes les conditions :
+        % meme N pour les stats, le contraste et la figure
         keepPat = true(1, nPat);
         for ic = 1:nCond
             Rs = J.rhythmMeans.(matlab.lang.makeValidName(S.CONDITIONS_ORDERED{ic}));
@@ -164,9 +160,7 @@ for j = 1:numel(joints)
     J = joints{j};
     fprintf('\n=== %s : angles en fonction de l''elevation humerothoracique (%d-%d deg, montee) ===\n', ...
             J.name, ELEV_GRID(1), ELEV_GRID(end));
-    exclStr = 'aucun';
-    if ~isempty(J.excluded), exclStr = strjoin(J.excluded, ', '); end
-    fprintf('    N = %d ; exclus (plage non couverte) : %s\n', numel(PATIENT_IDS) - numel(J.excluded), exclStr);
+    fprintf('    N = %d\n', numel(PATIENT_IDS) - numel(J.excluded));
     for id = 1:numel(J.DOF_LABELS)
         res = J.spmResults(id);
         % contraste descriptif Min - autres, moyenne sur la grille, par patient
@@ -209,42 +203,12 @@ for j = 1:numel(joints)
     end
 end
 
-% =========================================================================
-% FIGURE
-% =========================================================================
-figJoints = joints(cellfun(@(J) ismember(J.name, FIGURE_JOINTS), joints));
-plotRhythmFigure(figJoints, ELEV_GRID, CONDITIONS_ORDERED, COND_LABELS, COLORS, ALL_PAIRS);
-
 disp(' '); disp('Termine.');
 
 
 % =========================================================================
 % FONCTIONS LOCALES
 % =========================================================================
-
-function tE = crossingTimes(ht, x, grid, maxExtrap)
-    % Instant (% cycle) du 1er passage de l'elevation HT a chaque valeur de
-    % grid, sur la phase de montee (debut -> pic). Sous le debut de montee :
-    % instant du minimum (valeur prolongee constante) si l'ecart est
-    % <= maxExtrap deg, NaN sinon. NaN aussi si l'elevation n'est jamais atteinte.
-    ht = ht(:)'; tE = NaN(size(grid));
-    [~, ipk] = max(ht);
-    [htMin, iMin] = min(ht(1:ipk));
-    for g = 1:numel(grid)
-        if grid(g) < htMin
-            if htMin - grid(g) <= maxExtrap, tE(g) = x(iMin); end
-            continue;
-        end
-        k = find(ht(1:ipk) >= grid(g), 1);
-        if isempty(k), continue; end
-        if k == 1
-            tE(g) = x(1);
-        else
-            tE(g) = x(k-1) + (grid(g) - ht(k-1)) / (ht(k) - ht(k-1)) * (x(k) - x(k-1));
-        end
-    end
-end
-
 
 function s = fmtP(p)
     if isnan(p), s = '-'; elseif p < 0.001, s = '<0.001'; else, s = sprintf('%.3f', p); end

@@ -8,8 +8,8 @@ Analysis code for the article on the effect of seven deltoid stimulation conditi
 Results/
 ├── usercommands_conditions.m   shared configuration (participants, conditions, paths), loaded with run()
 ├── README.md
-├── pipeline/                   entry-point scripts (8): run these
-├── plotting/                   figure functions (9), called by pipeline/
+├── pipeline/                   entry-point scripts (7): run these
+├── plotting/                   figure functions (5), called by pipeline/
 ├── helpers/                    utility functions (6), called by pipeline/
 ├── preprocessing/              checks of the stimulation-artefact removal (4)
 └── spm1dmatlab-master/         SPM1D toolbox (Pataky 2010)
@@ -42,27 +42,24 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 | 1 | `extract_humerothoracic_elevation_all_comp.m` | K-LAB files | Figure 1 |
 | 2 | `extract_scapular_kinematics_all_comp.m` | K-LAB files | scapulothoracic cache |
 | 3 | `extract_glenohumeral_kinematics_all_comp.m` | K-LAB files | glenohumeral cache |
-| 4 | `extract_scapulohumeral_rhythm_all_comp.m` | steps 1 to 3 | Figure 2 |
+| 4 | `extract_scapulohumeral_rhythm_all_comp.m` | steps 1 to 3 | scapulohumeral rhythm cache |
 | 5 | `extract_emg_cycles_all_comp.m` | K-LAB files | EMG cache |
-| 6 | `extract_emg_discrete_all_comp.m` | step 5 | Figure 3 |
-| 7 | `extract_kinematics_emg_coupling_all_comp.m` | steps 1, 5, 6 | Figure 4 |
-| 8 | `export_source_data.m` | steps 1 to 7 | `Source_data_Figures1-4.xlsx`: data and statistics of the 4 figures |
+| 6 | `extract_emg_elevation_all_comp.m` | steps 1, 4, 5 | Figure 2 |
+| 7 | `export_source_data.m` | steps 1 to 6 | `Source_data_Figures1-2.xlsx`: data and statistics of the 2 figures |
 
 ## Article figures
 
-**Figure 1. Humerothoracic elevation.** Elevation of the humerus relative to the thorax over the movement cycle, compared between conditions with SPM1D. Discrete parameters per trial: peak elevation, peak timing and rise time (time to reach half of the elevation range).
+**Figure 1. Humerothoracic elevation.** Elevation of the humerus relative to the thorax over the movement cycle, compared between conditions with SPM1D. Discrete parameters per trial: peak elevation, peak timing and rise time (time to reach half of the elevation range), also compared across the 6 FES conditions only.
 
-**Figure 2. Scapulothoracic kinematics as a function of humerothoracic elevation.** During the ascending phase, scapulothoracic angles are read at each elevation between 20 and 90 deg (1 deg steps) and compared between conditions with SPM1D, using elevation as the domain (N = 9, one participant not covering the range).
-
-**Figure 3. Discrete EMG parameters.** Upper, middle and lower trapezius and serratus anterior. After removal of the stimulation artefact, each cycle gives a linear envelope (rectification and 6 Hz low-pass filter) normalised to 101 points. On each trial's mean envelope: peak timing and activity duration (time above minimum + 50 % of the range, i.e. full width at half maximum). Trial values are averaged per participant.
-
-**Figure 4. Coupling between arm elevation and muscle activity.** EMG envelopes normalised to the peak of each trial, compared between conditions with SPM1D, and repeated-measures correlations between the humerothoracic rise time and the EMG peak timing and activity duration.
+**Figure 2. Scapulothoracic kinematics and scapular muscle activity as a function of humerothoracic elevation.** Both rows use the ascending phase, from 20 to 90 deg of elevation (1 deg steps). Curves are compared between conditions with SPM1D, using elevation as the domain.
+- First row: scapulothoracic angles read at each elevation.
+- Second row: EMG of the upper, middle and lower trapezius and serratus anterior. After removal of the stimulation artefact, each cycle gives a linear envelope (rectification and 6 Hz low-pass filter) normalised to 101 points. Each trial's envelope is expressed as a percentage of its own peak, the trials are averaged per participant, and the envelopes are read at each elevation as for the angles.
 
 ## Statistics
 
 - Non-parametric repeated-measures ANOVA across the 7 conditions (10 000 permutations), on curves (SPM1D) or discrete values.
 - If significant: paired t-tests on the 21 pairs of conditions, Holm-Bonferroni correction (alpha = 0.05), with `helpers/holmAlphaSPM1D.m` for curves and `helpers/holmAdjust.m` for discrete values.
-- Repeated-measures correlation with `helpers/rmCorr.m` (Bakdash & Marusich 2017).
+- Discrete humerothoracic parameters: the same ANOVA is also run across the 6 FES conditions only.
 
 ## Key parameters
 
@@ -74,13 +71,12 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 | Time normalisation | 101 points (0 to 100 %) | all |
 | Family-wise alpha | 0.05 (Holm-Bonferroni) | all |
 | Permutations | 10 000 | all |
-| Activity threshold | 50 % of the envelope range | EMG discrete |
 | Rise-time threshold | 50 % of the elevation range | humerothoracic |
-| Elevation range | 20 to 90 deg, 1 deg steps | scapulohumeral rhythm |
+| Elevation range | 20 to 90 deg, 1 deg steps | scapulohumeral rhythm, EMG elevation |
+| EMG normalisation | % of the peak of each trial | EMG elevation |
 
 ## References
 
-- Bakdash JZ, Marusich LR (2017). Repeated measures correlation. Front Psychol 8:456.
 - Burden A (2010). How should we normalize electromyograms obtained from healthy participants? J Electromyogr Kinesiol 20:1023-1035.
 - Holm S (1979). A simple sequentially rejective multiple test procedure. Scand J Stat 6:65-70.
 - Pataky TC (2010). Generalized n-dimensional biomechanical field analysis using statistical parametric mapping. J Biomech 43:1976-1982.

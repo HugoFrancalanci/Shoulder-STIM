@@ -11,8 +11,8 @@ function plotCombinedJointsFigure(joints)
 % -------------------------------------------------------------------------
 % Description : Group figure with one row per joint and one column per degree
 %               of freedom (article Figure 1, humerothoracic elevation). Group
-%               mean +/- SD per condition, significant pairs as coloured bars
-%               under the curves (one colour per pair, same colour in every
+%               mean +/- SD per condition, significant pairs as grey bars
+%               under the curves (one grey level per pair, same level in every
 %               panel), condition and pair legends at the bottom.
 % -------------------------------------------------------------------------
 % Parameters  : joints : cell array, one struct per row, with fields
@@ -42,17 +42,10 @@ for r = 2:nRows
     end
 end
 
-QUAL_PALETTE = [ ...
-    0.121 0.466 0.705;
-    1.000 0.498 0.055;
-    0.172 0.627 0.172;
-    0.839 0.153 0.157;
-    0.580 0.404 0.741;
-    0.549 0.337 0.294;
-    0.890 0.467 0.761;
-    0.498 0.498 0.498;
-    0.737 0.741 0.133;
-    0.090 0.745 0.812];
+% Tailles de police (figure d'article)
+FS_TICK = 13; FS_LABEL = 17; FS_TITLE = 17; FS_LEGEND = 14;
+% Ordre des conditions dans la legende
+LEGEND_ORDER = {'No FES', 'Rehab', 'Random', 'Min PW', 'Min force', 'Min stress', 'Min fatigue'};
 
 sigPairFlds  = {};
 sigPairLabel = {};
@@ -79,12 +72,13 @@ if nSigPairs > 0
 else
     pairColorIdx = containers.Map();
 end
+PAIR_GREYS = pairGreys(nSigPairs);   % un niveau de gris par paire significative
 
 figure('Name', 'Final figure', ...
        'units','normalized','outerposition',[0 0 1 1], 'Color','white');
 
 TOP_MARGIN    = 0.03;   
-BOTTOM_MARGIN = 0.14;  
+BOTTOM_MARGIN = 0.18;   % libelle x + 2 lignes de legende
 ROW_GAP       = 0.07;  
 row_h = (1 - TOP_MARGIN - BOTTOM_MARGIN - (nRows-1)*ROW_GAP) / nRows;
 
@@ -138,12 +132,12 @@ for r = 1:nRows
 
             rowIdx = rowIdx + 1;
             y_row  = y_bar_top - (rowIdx-1) * (bar_h + row_gap_b);
-            col    = QUAL_PALETTE(mod(pairColorIdx(fld)-1, size(QUAL_PALETTE,1)) + 1, :);
+            col    = PAIR_GREYS(pairColorIdx(fld), :);
 
             for cl = 1:length(ph.clusters)
                 ep = ph.clusters{cl}.endpoints;
                 rectangle('Position', [ep(1)-1, y_row, ep(2)-ep(1), bar_h], ...
-                          'FaceColor', col, 'EdgeColor', 'k', 'LineWidth', 0.5, 'FaceAlpha', 0.9);
+                          'FaceColor', col, 'EdgeColor', 'k', 'LineWidth', 0.5);
             end
         end
 
@@ -152,13 +146,13 @@ for r = 1:nRows
         xlim([0 100]);
         ttl = dofTitle(J.DOF_LABELS{idof});
         if isfield(J, 'panelTitles') && numel(J.panelTitles) >= idof, ttl = J.panelTitles{idof}; end
-        hT = title(ttl, 'FontSize', 15, 'FontName', 'Times New Roman');
+        set(gca, 'FontSize', FS_TICK, 'FontName', 'Times New Roman');
+        hT = title(ttl, 'FontSize', FS_TITLE, 'FontName', 'Times New Roman');
         if isfield(J, 'titleWeight'), hT.FontWeight = J.titleWeight; end
         if idof == 1
-            ylabel('Angle (°)', 'FontSize', 14, 'FontName', 'Times New Roman');
+            ylabel('Angle (°)', 'FontSize', FS_LABEL, 'FontName', 'Times New Roman');
         end
-        if r == nRows, xlabel('Cycle (%)', 'FontSize', 14, 'FontName', 'Times New Roman'); end
-        set(gca, 'FontSize', 9, 'FontName', 'Times New Roman');
+        if r == nRows, xlabel('Cycle (%)', 'FontSize', FS_LABEL, 'FontName', 'Times New Roman'); end
         grid on; box on; hold off;
     end
 end
@@ -169,10 +163,8 @@ for r = 1:nRows
     row_bottom = 1 - TOP_MARGIN - r*row_h - (r-1)*ROW_GAP;
     text(rowLabelAx, 0.03, row_bottom + row_h/2, joints{r}.rowLabel, ...
          'Rotation', 90, 'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
-         'FontSize', 13, 'FontName', 'Times New Roman', 'FontWeight', 'bold');
+         'FontSize', FS_TITLE, 'FontName', 'Times New Roman', 'FontWeight', 'bold');
 end
-
-% sgtitle('Differences in glenohumeral and scapulothoracic kinematics between the seven conditions', 'FontSize', 15, 'FontWeight', 'bold', 'FontName', 'Times New Roman');
 
 exclZoneLeg = [];
 for r = 1:nRows
@@ -181,8 +173,19 @@ for r = 1:nRows
         break;
     end
 end
-drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN, exclZoneLeg);
+legOrder = cellfun(@(l) find(strcmp(ref.COND_LABELS, l), 1), LEGEND_ORDER);
+drawLegend(ref, legOrder, sigPairLabel, nSigPairs, PAIR_GREYS, BOTTOM_MARGIN, exclZoneLeg, FS_LEGEND);
 
+end
+
+
+function G = pairGreys(n)
+    % n niveaux de gris du plus fonce au plus clair (bien distincts, bords noirs)
+    if n <= 1
+        G = repmat(0.5, max(n, 1), 3);
+    else
+        G = repmat(linspace(0.15, 0.85, n)', 1, 3);
+    end
 end
 
 
@@ -202,20 +205,21 @@ function s = dofTitle(label)
 end
 
 
-function drawLegend(ref, sigPairLabel, nSigPairs, QUAL_PALETTE, BOTTOM_MARGIN, exclZone)
+function drawLegend(ref, legOrder, sigPairLabel, nSigPairs, PAIR_GREYS, BOTTOM_MARGIN, exclZone, FS_LEGEND)
 
     LEG_GAP = 0.012;
     h1 = 0.63 * BOTTOM_MARGIN;
     h2 = BOTTOM_MARGIN - h1 - LEG_GAP;
     legAx1 = axes('Position', [0.03, h2 + LEG_GAP, 0.95, h1], 'Visible', 'off');
     hold(legAx1, 'on');
-    legHandles1 = gobjects(1, length(ref.CONDITIONS_ORDERED));
-    for ic = 1:length(ref.CONDITIONS_ORDERED)
-        legHandles1(ic) = plot(legAx1, NaN, NaN, 'Color', ref.COLORS(ic,:), 'LineWidth', 2.5, ...
-                                'DisplayName', ref.COND_LABELS{ic});
+    legHandles1 = gobjects(1, numel(legOrder));
+    for k = 1:numel(legOrder)
+        ic = legOrder(k);
+        legHandles1(k) = plot(legAx1, NaN, NaN, 'Color', ref.COLORS(ic,:), 'LineWidth', 2.5, ...
+                               'DisplayName', ref.COND_LABELS{ic});
     end
     legHandles1 = [legHandles1, drawExclusionZone(legAx1, exclZone, 'legend')];
-    lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', 9, ...
+    lgd1 = legend(legAx1, legHandles1, 'Orientation','horizontal', 'Box','off', 'FontSize', FS_LEGEND, ...
                    'NumColumns', length(legHandles1), 'FontName', 'Times New Roman');
     drawnow;
     lgd1.Units = 'normalized';
@@ -237,14 +241,12 @@ hold(legAx2a, 'on');
 legHandles2a = gobjects(1, length(idxRow1));
 for kk = 1:length(idxRow1)
     k = idxRow1(kk);
-    col = QUAL_PALETTE(mod(k-1, size(QUAL_PALETTE,1)) + 1, :);
-    legHandles2a(kk) = plot(legAx2a, NaN, NaN, 's', 'MarkerFaceColor', col, ...
-        'MarkerEdgeColor', 'none', 'MarkerSize', 9, 'DisplayName', sigPairLabel{k});
+    legHandles2a(kk) = plot(legAx2a, NaN, NaN, 's', 'MarkerFaceColor', PAIR_GREYS(k,:), ...
+        'MarkerEdgeColor', 'k', 'MarkerSize', 11, 'DisplayName', sigPairLabel{k});
 end
 
-
 lgd2a = legend(legAx2a, legHandles2a, 'Orientation','horizontal', 'Box','off', ...
-               'FontSize', 9, 'FontName', 'Times New Roman', 'NumColumns', length(idxRow1));
+               'FontSize', FS_LEGEND, 'FontName', 'Times New Roman', 'NumColumns', length(idxRow1));
 drawnow;
 lgd2a.Units = 'normalized';
 lgd2a.Position(1) = 0.5 - lgd2a.Position(3)/2;
@@ -257,16 +259,15 @@ if ~isempty(idxRow2)
     legHandles2b = gobjects(1, length(idxRow2));
     for kk = 1:length(idxRow2)
         k = idxRow2(kk);
-        col = QUAL_PALETTE(mod(k-1, size(QUAL_PALETTE,1)) + 1, :);
-        legHandles2b(kk) = plot(legAx2b, NaN, NaN, 's', 'MarkerFaceColor', col, ...
-            'MarkerEdgeColor', 'none', 'MarkerSize', 9, 'DisplayName', sigPairLabel{k});
+        legHandles2b(kk) = plot(legAx2b, NaN, NaN, 's', 'MarkerFaceColor', PAIR_GREYS(k,:), ...
+            'MarkerEdgeColor', 'k', 'MarkerSize', 11, 'DisplayName', sigPairLabel{k});
     end
     lgd2b = legend(legAx2b, legHandles2b, 'Orientation','horizontal', 'Box','off', ...
-                   'FontSize', 9, 'FontName', 'Times New Roman', 'NumColumns', length(idxRow2));
+                   'FontSize', FS_LEGEND, 'FontName', 'Times New Roman', 'NumColumns', length(idxRow2));
     drawnow;
     lgd2b.Units = 'normalized';
     lgd2b.Position(1) = 0.5 - lgd2b.Position(3)/2;
-    lgd2b.Position(2) = -0.002;
+    lgd2b.Position(2) = 0.005;
     hold(legAx2b, 'off');
 end
 

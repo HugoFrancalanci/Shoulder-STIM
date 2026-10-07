@@ -18,7 +18,9 @@
 %               Statistics: non-parametric repeated-measures ANOVA across the
 %               7 conditions (10 000 permutations), then, if significant,
 %               paired t-tests on the 21 pairs of conditions with
-%               Holm-Bonferroni correction (alpha = 0.05).
+%               Holm-Bonferroni correction (alpha = 0.05). The discrete
+%               parameters are also compared across the 6 FES conditions only
+%               (same ANOVA), as for the perceptual ratings.
 % -------------------------------------------------------------------------
 % Parameters  : RISE_FRACTION = 0.5, WINDOW (console summary, % cycle)
 %               EXCL_ELEV_THRESHOLD = 90 deg, N_ITER, ALPHA_FWER
@@ -209,6 +211,26 @@ else
     for i = 1:numel(warnings), disp(warnings{i}); end
 end
 
+% -------------------------------------------------------------------------
+% Parametres discrets : ANOVA sur les 6 conditions FES seules (meme methode).
+% Calculee a part (graine propre par parametre) pour ne pas modifier les
+% permutations des tests precedents ; ajoutee au cache si absente.
+% -------------------------------------------------------------------------
+if ~isfield(discStats.(DISC_PARAMS{1}), 'anova_p_fes')
+    iFES = ~strcmp(CONDITIONS_ORDERED, 'No FES');
+    for k = 1:numel(DISC_PARAMS)
+        Yd = disc.(DISC_PARAMS{k})(:, iFES);
+        y = Yd(all(~isnan(Yd), 2), :); n = size(y, 1);
+        rng(0);
+        Fd = spm1d.stats.nonparam.anova1rm(y(:), kron((1:size(y,2))', ones(n,1)), repmat((1:n)', size(y,2), 1)) ...
+               .inference(0.05, 'iterations', N_ITER);
+        discStats.(DISC_PARAMS{k}).anova_p_fes = Fd.p;
+        discStats.(DISC_PARAMS{k}).anova_sig_fes = Fd.p < 0.05;
+    end
+    save(CACHE_FILE, 'discStats', '-append');
+    fprintf('ANOVA FES seules ajoutee au cache : %s\n', CACHE_FILE);
+end
+
 % =========================================================================
 % CONSOLE
 % =========================================================================
@@ -263,7 +285,7 @@ end
 fprintf('\n=== Parametres discrets : ANOVA RM (permutation) + post-hoc Holm ===\n');
 for k = 1:numel(DISC_PARAMS)
     st = discStats.(DISC_PARAMS{k});
-    fprintf('%-40s ANOVA p = %s', DISC_LABELS{k}, fmtP(st.anova_p));
+    fprintf('%-40s ANOVA p = %s ; FES seules p = %s', DISC_LABELS{k}, fmtP(st.anova_p), fmtP(st.anova_p_fes));
     if ~st.anova_sig, fprintf('  -> n.s.\n'); continue; end
     if ~any(st.sig), fprintf('  -> aucune paire sig. apres Holm\n'); continue; end
     fprintf('\n');
@@ -282,7 +304,7 @@ end
 J = struct('patientMeans', patientMeans, 'CONDITIONS_ORDERED', {CONDITIONS_ORDERED}, 'COND_LABELS', {COND_LABELS}, ...
            'COLORS', COLORS, 'DOF_LABELS', {DOF_LABELS}, 'rowLabel', 'Humerothoracic', 'x', x, ...
            'spmResults', spmResults, 'ALL_PAIRS', {ALL_PAIRS}, 'PATIENT_IDS', {PATIENT_IDS}, ...
-           'panelTitles', {{'Elevation (+)'}}, 'titleWeight', 'normal');
+           'panelTitles', {{'Elevation'}}, 'titleWeight', 'normal');
 plotCombinedJointsFigure({J});
 
 disp(' '); disp('Termine.');

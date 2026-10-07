@@ -28,8 +28,7 @@
 %               REPORT_MUSCLES : muscles shown in the figures
 %               ALPHA_FWER = 0.05, FORCE_RECOMPUTE
 % Outputs     : Per-participant and group figures, console tables,
-%               cache_emg_all_comp.mat (used by extract_emg_discrete_all_comp.m
-%               and extract_kinematics_emg_coupling_all_comp.m)
+%               cache_emg_all_comp.mat (used by extract_emg_elevation_all_comp.m)
 % -------------------------------------------------------------------------
 % Dependencies: usercommands_conditions.m, K-LAB .mat files, helpers/,
 %               plotting/plotAllCompFigureEMG.m, spm1dmatlab-master/
@@ -176,8 +175,8 @@ for ic = 1:length(CONDITIONS_ORDERED)
     end
 end
 
-% Courbes PAR BLOC (une ligne par bloc valide), pour l'analyse discrete
-% (pic, timing, duree d'activite : extract_emg_discrete_all_comp.m) :
+% Courbes PAR BLOC (une ligne par bloc valide), pour la normalisation au pic
+% de chaque essai (extract_emg_elevation_all_comp.m) :
 % patientBlocks.(condName).(muscle){ip} = (n_blocs, 101)
 patientBlocks = struct();
 for ic = 1:length(CONDITIONS_ORDERED)
