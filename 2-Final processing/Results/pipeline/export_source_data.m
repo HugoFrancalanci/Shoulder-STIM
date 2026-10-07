@@ -73,19 +73,24 @@ T = table();
 for ic = 1:nCond
     for ip = 1:nPat
         T = [T; {PID{ip}, COND{ic}, round(H.disc.peakElev(ip, ic), 1), round(H.disc.peakTime(ip, ic), 1), ...
-                 round(H.disc.riseTime(ip, ic), 1)}]; %#ok<AGROW>
+                 round(H.disc.riseTime(ip, ic), 1), round(H.disc.planeAtPeak(ip, ic), 1), ...
+                 round(H.disc.planeMean2090(ip, ic), 1)}]; %#ok<AGROW>
     end
 end
-T.Properties.VariableNames = {'Participant', 'Condition', 'Peak elevation (deg)', 'Peak timing (% cycle)', 'Rise time (% cycle)'};
+T.Properties.VariableNames = {'Participant', 'Condition', 'Peak elevation (deg)', 'Peak timing (% cycle)', 'Rise time (% cycle)', ...
+    'Plane of elevation at peak (deg)', 'Mean plane of elevation 20-90 deg (deg)'};
 writeSheet(T, OUT_FILE, 'Fig1_parameters');
-sheets(end+1, :) = {'Fig1_parameters', 'Figure 1. Peak elevation, peak timing and rise time (time to reach half of the elevation range) of each participant and condition.'};
+sheets(end+1, :) = {'Fig1_parameters', ['Figure 1. Peak elevation, peak timing, rise time (time to reach half of the elevation range), ' ...
+    'plane of elevation at peak elevation, and mean plane of elevation between 20 and 90 deg of elevation (ascending phase) ' ...
+    'of each participant and condition. Plane of elevation: 0 deg = frontal plane, + = anterior.']};
 
 T = spmTable(H.spmResults, curves, x, CRAW, COND, @(ep) ep, 'Start (% cycle)', 'End (% cycle)', 'Elevation (deg)');
 writeSheet(T, OUT_FILE, 'Fig1_SPM');
 sheets(end+1, :) = {'Fig1_SPM', 'Figure 1. SPM1D results: parts of the cycle where the ANOVA is significant, and pairs of conditions that differ after Holm-Bonferroni correction, with the mean elevation of each condition over the window.'};
 
 T = table();
-pnames = {'peakElev', 'Peak elevation (deg)'; 'peakTime', 'Peak timing (% cycle)'; 'riseTime', 'Rise time (% cycle)'};
+pnames = {'peakElev', 'Peak elevation (deg)'; 'peakTime', 'Peak timing (% cycle)'; 'riseTime', 'Rise time (% cycle)'; ...
+          'planeAtPeak', 'Plane of elevation at peak (deg)'; 'planeMean2090', 'Mean plane of elevation 20-90 deg (deg)'};
 for k = 1:size(pnames, 1)
     T = [T; discreteStats(H.disc.(pnames{k,1}), H.discStats.(pnames{k,1}), pnames{k,2}, '', pairA, pairB, COND)]; %#ok<AGROW>
 end

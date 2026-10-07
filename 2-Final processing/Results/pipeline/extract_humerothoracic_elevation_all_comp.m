@@ -13,8 +13,11 @@
 %               Figure 1).
 %                 - SPM1D comparison of the conditions over the cycle (N = 10)
 %                 - discrete parameters per trial, averaged per participant:
-%                   peak elevation, peak timing and rise time (% of the cycle at
-%                   which elevation first exceeds minimum + 50 % of its range)
+%                   peak elevation, peak timing, rise time (% of the cycle at
+%                   which elevation first exceeds minimum + 50 % of its range),
+%                   plane of elevation at peak elevation, and mean plane of
+%                   elevation between 20 and 90 deg of elevation (ascending
+%                   phase, same rules as the scapulothoracic angles)
 %               Statistics: non-parametric repeated-measures ANOVA across the
 %               7 conditions (10 000 permutations), then, if significant,
 %               paired t-tests on the 21 pairs of conditions with
@@ -62,9 +65,16 @@ COLORS = [0.35 0.20 0.29; 0.66 0.80 0.63; 0.30 0.47 0.46; 0.91 0.76 0.45; ...
           0.89 0.63 0.33; 0.45 0.55 0.68; 0.75 0.35 0.35];
 DOF_LABELS = {'Humerothoracic elevation (+)'};
 MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % commandes optimales
-DISC_PARAMS = {'peakElev', 'peakTime', 'riseTime'};
+% Nouveau parametre : toujours en dernier (ordre des permutations inchange
+% pour les parametres precedents)
+DISC_PARAMS = {'peakElev', 'peakTime', 'riseTime', 'planeAtPeak', 'planeMean2090'};
 DISC_LABELS = {'Peak elevation (deg)', 'Peak timing (% cycle)', ...
-               sprintf('Rise time to %g%% of range (%% cycle)', 100*RISE_FRACTION)};
+               sprintf('Rise time to %g%% of range (%% cycle)', 100*RISE_FRACTION), ...
+               'Plane of elevation at peak (deg)', 'Mean plane of elevation 20-90 deg (deg)'};
+% Plan d'elevation moyen sur la montee : meme grille et memes regles que
+% extract_scapulohumeral_rhythm_all_comp.m
+PLANE_GRID     = 20:1:90;   % deg d'elevation humerothoracique
+MAX_EXTRAP_DEG = 2.5;       % prolongation constante max sous le debut de montee (deg)
 
 ALL_PAIRS = {};
 for a = 1:numel(CONDITIONS_ORDERED)-1
@@ -74,7 +84,13 @@ for a = 1:numel(CONDITIONS_ORDERED)-1
 end
 N_PAIRS = size(ALL_PAIRS, 1);
 
+cacheValid = false;
 if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
+    S_check = load(CACHE_FILE, 'disc');   % cache sans le dernier parametre -> recalcul
+    cacheValid = isfield(S_check, 'disc') && isfield(S_check.disc, DISC_PARAMS{end});
+    clear S_check
+end
+if cacheValid
     fprintf('Cache trouve : %s\n-> pas de recalcul (FORCE_RECOMPUTE=true pour tout refaire)\n\n', CACHE_FILE);
     load(CACHE_FILE);
 else
@@ -85,10 +101,11 @@ else
     % ---------------------------------------------------------------------
     % EXTRACTION : patientMeans.(cond){ip} = (1,101) ; patientBlocks idem par bloc
     % ---------------------------------------------------------------------
-    patientMeans = struct(); patientBlocks = struct();
+    % planeBlocks : plan d'elevation (1,101) de chaque bloc, memes lignes que patientBlocks
+    patientMeans = struct(); patientBlocks = struct(); planeBlocks = struct();
     for ic = 1:numel(CONDITIONS_ORDERED)
         fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
-        patientMeans.(fld) = {}; patientBlocks.(fld) = {};
+        patientMeans.(fld) = {}; patientBlocks.(fld) = {}; planeBlocks.(fld) = {};
     end
     for ip = 1:numel(PATIENT_IDS)
         patientID = PATIENT_IDS{ip};
@@ -108,9 +125,10 @@ else
         if isfield(PATIENT_EXCEPTIONS, patientID) && isfield(PATIENT_EXCEPTIONS.(patientID), 'missingCondPositions')
             missingCondPos = PATIENT_EXCEPTIONS.(patientID).missingCondPositions;
         end
-        blocks = struct();
+        blocks = struct(); pblocks = struct();
         for ic = 1:numel(CONDITIONS_ORDERED)
             blocks.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic})) = zeros(0, 101);
+            pblocks.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic})) = zeros(0, 101);
         end
         trialIdx = 0;
         for iseq = 1:numel(condList.condition)
@@ -125,10 +143,17 @@ else
             end
             fld = matlab.lang.makeValidName(cond);
             blocks.(fld)(end+1, :) = ht;
+            pl = extractHTPlane(Trial(analyticTrials(trialIdx)), jht, cycleKey);
+            if isempty(pl)
+                warnings{end+1} = sprintf('[WARNING] %s cond %d (%s) : plan d''elevation absent', patientID, iseq, cond); %#ok<SAGROW>
+                pl = NaN(1, 101);
+            end
+            pblocks.(fld)(end+1, :) = pl;
         end
         for ic = 1:numel(CONDITIONS_ORDERED)
             fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
             patientBlocks.(fld){ip} = blocks.(fld);
+            planeBlocks.(fld){ip}   = pblocks.(fld);
             if isempty(blocks.(fld))
                 patientMeans.(fld){ip} = NaN(1, 101);
             else
@@ -173,14 +198,24 @@ else
     for ic = 1:numel(CONDITIONS_ORDERED)
         fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
         for ip = 1:nPat
-            B = patientBlocks.(fld){ip};
+            B = patientBlocks.(fld){ip}; P = planeBlocks.(fld){ip};
             if isempty(B), continue; end
-            v = zeros(size(B,1), 3);
-            for kb = 1:size(B,1), v(kb,:) = htParams(B(kb,:), x, RISE_FRACTION); end
+            v = NaN(size(B,1), 4);
+            for kb = 1:size(B,1)
+                v(kb, 1:3) = htParams(B(kb,:), x, RISE_FRACTION);
+                [~, ipk] = max(B(kb,:));
+                v(kb, 4) = P(kb, ipk);              % plan d'elevation au pic d'elevation
+            end
             v = mean(v, 1, 'omitnan');
-            for k = 1:3, disc.(DISC_PARAMS{k})(ip, ic) = v(k); end
+            for k = 1:4, disc.(DISC_PARAMS{k})(ip, ic) = v(k); end
+            % plan moyen 20-90 deg : courbes moyennes du patient (elevation et
+            % plan), lues a chaque degre d'elevation pendant la montee
+            tE = crossingTimes(patientMeans.(fld){ip}, x, PLANE_GRID, MAX_EXTRAP_DEG);
+            disc.planeMean2090(ip, ic) = mean(interp1(x, mean(P, 1, 'omitnan'), tE, 'linear'));   % NaN si plage incomplete
         end
     end
+    % courbes completes dans toutes les conditions (memes regles que la figure 2)
+    disc.planeMean2090(any(isnan(disc.planeMean2090), 2), :) = NaN;
     discStats = struct();
     for k = 1:numel(DISC_PARAMS)
         Yd = disc.(DISC_PARAMS{k});
@@ -204,7 +239,7 @@ else
 
     htGroupMean = mean(cat(1, Y{:}), 1, 'omitnan');
     EXCL_ZONE   = computeExclusionZone(htGroupMean, x, EXCL_ELEV_THRESHOLD);
-    save(CACHE_FILE, 'patientMeans', 'patientBlocks', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'DOF_LABELS', ...
+    save(CACHE_FILE, 'patientMeans', 'patientBlocks', 'planeBlocks', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'DOF_LABELS', ...
          'x', 'spmResults', 'ALL_PAIRS', 'PATIENT_IDS', 'disc', 'discStats', 'EXCL_ZONE', 'htGroupMean', ...
          'RISE_FRACTION', 'N_ITER', 'ALPHA_FWER');
     fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
@@ -237,8 +272,8 @@ end
 nCond = numel(CONDITIONS_ORDERED);
 w = (x >= WINDOW(1)) & (x <= WINDOW(2));
 fprintf('\n=== Elevation humerothoracique (+ = elevation), N = %d ===\n', numel(PATIENT_IDS));
-fprintf('%-12s  %-20s  %-18s  %-18s  %-18s\n', 'Condition', sprintf('Fenetre %d-%d %% (deg)', WINDOW), ...
-        DISC_PARAMS{1}, DISC_PARAMS{2}, DISC_PARAMS{3});
+fprintf('%-12s  %-20s', 'Condition', sprintf('Fenetre %d-%d %% (deg)', WINDOW));
+fprintf('  %-18s', DISC_PARAMS{:}); fprintf('\n');
 winVals = NaN(numel(PATIENT_IDS), nCond);
 for ic = 1:nCond
     fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
@@ -256,7 +291,7 @@ fprintf('  %+.1f ± %.1f deg ; %d/%d patients avec moins d''elevation en Min (de
         mean(dMin), std(dMin), sum(dMin < 0), numel(dMin));
 for k = 1:numel(DISC_PARAMS)
     dk = mean(disc.(DISC_PARAMS{k})(:, isMin), 2) - mean(disc.(DISC_PARAMS{k})(:, ~isMin), 2);
-    fprintf('  %-12s : %+.1f ± %.1f\n', DISC_PARAMS{k}, mean(dk), std(dk));
+    fprintf('  %-12s : %+.1f ± %.1f\n', DISC_PARAMS{k}, mean(dk, 'omitnan'), std(dk, 'omitnan'));
 end
 
 fprintf('\n=== SPM1D (cycle complet) : ANOVA RM non parametrique + post-hoc Holm ===\n');

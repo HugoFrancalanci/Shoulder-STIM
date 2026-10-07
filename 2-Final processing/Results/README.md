@@ -49,7 +49,7 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 
 ## Article figures
 
-**Figure 1. Humerothoracic elevation.** Elevation of the humerus relative to the thorax over the movement cycle, compared between conditions with SPM1D. Discrete parameters per trial: peak elevation, peak timing and rise time (time to reach half of the elevation range), also compared across the 6 FES conditions only.
+**Figure 1. Humerothoracic elevation.** Elevation of the humerus relative to the thorax over the movement cycle, compared between conditions with SPM1D. Discrete parameters per trial: peak elevation, peak timing, rise time (time to reach half of the elevation range), and plane of elevation (orientation of the humerus in the transverse plane of the thorax, 0 deg = frontal plane) at peak elevation and averaged between 20 and 90 deg of elevation during the ascending phase. These parameters are also compared across the 6 FES conditions only.
 
 **Figure 2. Scapulothoracic kinematics and scapular muscle activity as a function of humerothoracic elevation.** Both rows use the ascending phase, from 20 to 90 deg of elevation (1 deg steps). Curves are compared between conditions with SPM1D, using elevation as the domain.
 - First row: scapulothoracic angles read at each elevation.
