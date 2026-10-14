@@ -10,7 +10,7 @@ Results/
 ├── README.md
 ├── pipeline/                   entry-point scripts (7): run these
 ├── plotting/                   figure functions (5), called by pipeline/
-├── helpers/                    utility functions (6), called by pipeline/
+├── helpers/                    utility functions (10), called by pipeline/ and plotting/
 ├── preprocessing/              checks of the stimulation-artefact removal (4)
 └── spm1dmatlab-master/         SPM1D toolbox (Pataky 2010)
 ```
@@ -20,6 +20,7 @@ Each script finds the shared folders from its own location, so it can be run fro
 **Data.** Participant data are not stored in this repository.
 - The K-LAB participant files (`P1.mat` to `P10.mat`, produced by `0-Preprocessing/` and `1-Processing/`) are read from the folder set in `usercommands_conditions.m`.
 - The derived data (`cache_*.mat`) are read and written in the folder returned by `helpers/dataDir.m`.
+- The article figures are exported at high resolution (TIFF 600 dpi and vector PDF, fixed size) in the `Figures` subfolder of the same folder (`helpers/exportFigure.m`, `EXPORT_FIGURE = true` at the top of steps 1 and 6).
 
 ## Conditions
 
@@ -54,6 +55,10 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 **Figure 2. Scapulothoracic kinematics and scapular muscle activity as a function of humerothoracic elevation.** Both rows use the ascending phase, from 20 to 90 deg of elevation (1 deg steps). Curves are compared between conditions with SPM1D, using elevation as the domain.
 - First row: scapulothoracic angles read at each elevation.
 - Second row: EMG of the upper, middle and lower trapezius and serratus anterior. After removal of the stimulation artefact, each cycle gives a linear envelope (rectification and 6 Hz low-pass filter) normalised to 101 points. Each trial's envelope is expressed as a percentage of its own peak, the trials are averaged per participant, and the envelopes are read at each elevation as for the angles.
+
+**Figure layout.** Both figures share the same conventions:
+- Colours by group of conditions (`helpers/conditionColors.m`): No FES in dark grey, non-optimised patterns (Rehab, Random) in red and orange, optimised patterns in blues and greens. The legend follows the order No FES, Rehab, Random, Min PW, Min force, Min stress, Min fatigue.
+- Each significant pair of conditions is shown as a bicoloured bar under the curves: upper half in the colour of the first condition, lower half in the colour of the second. Bars are ordered by type of comparison (`helpers/pairTypeRank.m`): no stimulation vs non-optimised, no stimulation vs optimised, then non-optimised vs optimised.
 
 ## Statistics
 

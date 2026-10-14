@@ -25,8 +25,10 @@
 % -------------------------------------------------------------------------
 % Parameters  : ELEV_GRID = 20:1:90 deg, MAX_EXTRAP_DEG = 2.5 deg
 %               ALPHA_ANOVA, ALPHA_FWER, N_ITER, FORCE_RECOMPUTE
+%               EXPORT_FIGURE : high-resolution export (TIFF 600 dpi + PDF)
 % Outputs     : Console tables, cache_emg_elevation_all_comp.mat,
-%               1 figure (plotRhythmEmgFigure.m)
+%               1 figure (plotRhythmEmgFigure.m),
+%               Figures/Figure_6_scapulothoracic_EMG.tif/.pdf
 % -------------------------------------------------------------------------
 % Dependencies: cache_humerothoracic_all_comp.mat, cache_emg_all_comp.mat,
 %               cache_scapulohumeral_rhythm_all_comp.mat,
@@ -58,6 +60,7 @@ ALPHA_ANOVA = 0.05;
 ALPHA_FWER  = 0.05;
 N_ITER      = 10000;
 FORCE_RECOMPUTE = false;
+EXPORT_FIGURE   = true;    % export haute resolution (helpers/exportFigure.m)
 CACHE_FILE = fullfile(dataDir(), 'cache_emg_elevation_all_comp.mat');
 
 MUSCLE_DISPLAY = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...
@@ -168,7 +171,8 @@ if ~isequal(RH.ELEV_GRID, ELEV_GRID) || ~isequal(RH.CONDITIONS_ORDERED, CONDITIO
     error('Grille d''elevation ou conditions differentes entre les caches rythme et EMG.');
 end
 JST = RH.joints{cellfun(@(j) strcmp(j.name, 'Scapulothoracic'), RH.joints)};
-plotRhythmEmgFigure(JST, ELEV_GRID, CONDITIONS_ORDERED, COND_LABELS, H.COLORS, RH.ALL_PAIRS, K);
+plotRhythmEmgFigure(JST, ELEV_GRID, CONDITIONS_ORDERED, COND_LABELS, conditionColors(CONDITIONS_ORDERED), RH.ALL_PAIRS, K);
+if EXPORT_FIGURE, exportFigure(gcf, 'Figure_6_scapulothoracic_EMG'); end
 
 disp(' '); disp('Termine.');
 

@@ -27,8 +27,10 @@
 % -------------------------------------------------------------------------
 % Parameters  : RISE_FRACTION = 0.5, WINDOW (console summary, % cycle)
 %               EXCL_ELEV_THRESHOLD = 90 deg, N_ITER, ALPHA_FWER
+%               EXPORT_FIGURE : high-resolution export (TIFF 600 dpi + PDF)
 % Outputs     : Console tables, 1 figure (plotCombinedJointsFigure.m),
-%               cache_humerothoracic_all_comp.mat
+%               cache_humerothoracic_all_comp.mat,
+%               Figures/Figure_5_humerothoracic_elevation.tif/.pdf
 % -------------------------------------------------------------------------
 % Dependencies: usercommands_conditions.m, K-LAB .mat files, helpers/,
 %               plotting/plotCombinedJointsFigure.m, spm1dmatlab-master/
@@ -56,13 +58,13 @@ ALPHA_FWER          = 0.05;      % Holm-Bonferroni
 N_ITER              = 10000;     % permutations ANOVA RM non parametrique
 
 FORCE_RECOMPUTE = false;
+EXPORT_FIGURE   = true;    % export haute resolution (helpers/exportFigure.m)
 CACHE_FILE = fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat');
 
 x = 0:100;
 CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min PW','Rehab','Min force'};
-COLORS = [0.35 0.20 0.29; 0.66 0.80 0.63; 0.30 0.47 0.46; 0.91 0.76 0.45; ...
-          0.89 0.63 0.33; 0.45 0.55 0.68; 0.75 0.35 0.35];
+COLORS = conditionColors(CONDITIONS_ORDERED);   % couleurs par groupe (helpers/conditionColors.m)
 DOF_LABELS = {'Humerothoracic elevation (+)'};
 MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % commandes optimales
 % Nouveau parametre : toujours en dernier (ordre des permutations inchange
@@ -336,11 +338,13 @@ end
 % grisee ici : c'est cette courbe qui la definit pour GH / ST, l'elevation
 % humerothoracique elle-meme reste interpretable au-dela de 90 deg.
 % =========================================================================
+COLORS = conditionColors(CONDITIONS_ORDERED);   % palette actuelle, meme si le cache en contient une ancienne
 J = struct('patientMeans', patientMeans, 'CONDITIONS_ORDERED', {CONDITIONS_ORDERED}, 'COND_LABELS', {COND_LABELS}, ...
-           'COLORS', COLORS, 'DOF_LABELS', {DOF_LABELS}, 'rowLabel', 'Humerothoracic', 'x', x, ...
+           'COLORS', COLORS, 'DOF_LABELS', {DOF_LABELS}, 'rowLabel', '', 'x', x, ...
            'spmResults', spmResults, 'ALL_PAIRS', {ALL_PAIRS}, 'PATIENT_IDS', {PATIENT_IDS}, ...
-           'panelTitles', {{'Elevation'}}, 'titleWeight', 'normal');
+           'panelTitles', {{'Humerothoracic elevation'}}, 'titleWeight', 'bold');   % titre en haut, pas de label de rangee
 plotCombinedJointsFigure({J});
+if EXPORT_FIGURE, exportFigure(gcf, 'Figure_5_humerothoracic_elevation'); end
 
 disp(' '); disp('Termine.');
 
