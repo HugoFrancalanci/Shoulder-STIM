@@ -40,8 +40,10 @@ nMus  = numel(K.muscleNames);
 step  = ELEV_GRID(2) - ELEV_GRID(1);
 colOf = @(cond) COLORS(strcmp(CONDITIONS_ORDERED, cond), :);
 
-figure('Name', 'Manuscript figure -- scapulothoracic kinematics and EMG vs humerothoracic elevation', ...
-       'units', 'normalized', 'outerposition', [0 0 1 1], 'Color', 'white');
+% taille fixe et theme clair : rendu independant de l'ecran et du theme de MATLAB
+fig = figure('Name', 'Manuscript figure -- scapulothoracic kinematics and EMG vs humerothoracic elevation', ...
+             'Units', 'pixels', 'Position', [0 0 1800 900], 'Color', 'white');
+if isprop(fig, 'Theme'), fig.Theme = 'light'; end
 TOP = 0.045; BOTTOM = 0.13; ROWGAP = 0.10; LEFT = 0.075; RIGHT = 0.015;   % ROWGAP : air entre les graduations x de la rangee 1 et les titres des muscles
 COLGAP_ST = 0.04;    % rangee 1 : chaque panneau a sa propre echelle
 COLGAP_EMG = 0.04;   % rangee 2 : echelle commune, graduations y sur le 1er panneau seulement ;
@@ -118,7 +120,7 @@ for r = 1:2
     text(lab, 0.012, rowBottom(r) + row_h/2, rowNames{r}, 'Rotation', 90, 'HorizontalAlignment', 'center', ...
          'VerticalAlignment', 'middle', 'FontName', FONT, 'FontSize', FS_TITLE, 'FontWeight', 'bold');
 end
-text(lab, LEFT + (1 - LEFT - RIGHT)/2, BOTTOM - 0.055, 'Humerothoracic elevation (°)', ...
+text(lab, LEFT + (1 - LEFT - RIGHT)/2, BOTTOM - 0.055, 'Thoracohumeral elevation (°)', ...
      'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'FontName', FONT, 'FontSize', FS_LABEL);
 
 % Legende des conditions (ordre LEGEND_ORDER)
@@ -129,8 +131,9 @@ for k = 1:nCond
     ic = legOrder(k);
     h(k) = plot(legAx, NaN, NaN, 'Color', COLORS(ic,:), 'LineWidth', 3.5, 'DisplayName', COND_LABELS{ic});
 end
-lgd = legend(legAx, h, 'Orientation', 'horizontal', 'Box', 'off', 'FontName', FONT, 'FontSize', FS_LEGEND, 'NumColumns', nCond);
-drawnow; lgd.Units = 'normalized'; lgd.Position(1) = 0.5 - lgd.Position(3)/2; lgd.Position(2) = 0.005;
+% centree par MATLAB (Location) : reste centree quelle que soit la taille de rendu
+legend(legAx, h, 'Orientation', 'horizontal', 'Box', 'off', 'FontName', FONT, 'FontSize', FS_LEGEND, ...
+       'NumColumns', nCond, 'Location', 'north');
 end
 
 

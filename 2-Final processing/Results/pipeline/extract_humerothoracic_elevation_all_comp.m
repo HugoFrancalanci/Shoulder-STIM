@@ -27,10 +27,10 @@
 % -------------------------------------------------------------------------
 % Parameters  : RISE_FRACTION = 0.5, WINDOW (console summary, % cycle)
 %               EXCL_ELEV_THRESHOLD = 90 deg, N_ITER, ALPHA_FWER
-%               EXPORT_FIGURE : high-resolution export (TIFF 600 dpi + PDF)
+%               EXPORT_FIGURE : high-resolution export (PNG 600 dpi + PDF)
 % Outputs     : Console tables, 1 figure (plotCombinedJointsFigure.m),
 %               cache_humerothoracic_all_comp.mat,
-%               Figures/Figure_5_humerothoracic_elevation.tif/.pdf
+%               Figures/Figure_5_humerothoracic_elevation.png/.pdf
 % -------------------------------------------------------------------------
 % Dependencies: usercommands_conditions.m, K-LAB .mat files, helpers/,
 %               plotting/plotCombinedJointsFigure.m, spm1dmatlab-master/
@@ -342,7 +342,7 @@ COLORS = conditionColors(CONDITIONS_ORDERED);   % palette actuelle, meme si le c
 J = struct('patientMeans', patientMeans, 'CONDITIONS_ORDERED', {CONDITIONS_ORDERED}, 'COND_LABELS', {COND_LABELS}, ...
            'COLORS', COLORS, 'DOF_LABELS', {DOF_LABELS}, 'rowLabel', '', 'x', x, ...
            'spmResults', spmResults, 'ALL_PAIRS', {ALL_PAIRS}, 'PATIENT_IDS', {PATIENT_IDS}, ...
-           'panelTitles', {{'Humerothoracic elevation'}}, 'titleWeight', 'bold');   % titre en haut, pas de label de rangee
+           'panelTitles', {{'Thoracohumeral elevation'}}, 'titleWeight', 'bold');   % titre en haut, pas de label de rangee
 plotCombinedJointsFigure({J});
 if EXPORT_FIGURE, exportFigure(gcf, 'Figure_5_humerothoracic_elevation'); end
 

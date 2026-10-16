@@ -42,7 +42,9 @@ for r = 2:nRows
     end
 end
 
-figure('Name', 'Final figure', 'units', 'normalized', 'outerposition', [0 0 1 1], 'Color', 'white');
+% taille fixe et theme clair : rendu independant de l'ecran et du theme de MATLAB
+fig = figure('Name', 'Final figure', 'Units', 'pixels', 'Position', [0 0 1800 900], 'Color', 'white');
+if isprop(fig, 'Theme'), fig.Theme = 'light'; end
 hasRowLabels  = any(cellfun(@(j) ~isempty(j.rowLabel), joints));
 TOP_MARGIN    = 0.05;
 BOTTOM_MARGIN = 0.13;   % libelle x + legende des conditions
@@ -135,9 +137,9 @@ for k = 1:numel(legOrder)
     h(k) = plot(legAx, NaN, NaN, 'Color', ref.COLORS(ic,:), 'LineWidth', 3.5, 'DisplayName', ref.COND_LABELS{ic});
 end
 h = [h, drawExclusionZone(legAx, exclZone, 'legend')];
-lgd = legend(legAx, h, 'Orientation', 'horizontal', 'Box', 'off', 'FontSize', FS_LEGEND, ...
-             'NumColumns', numel(h), 'FontName', FONT);
-drawnow; lgd.Units = 'normalized'; lgd.Position(1) = 0.5 - lgd.Position(3)/2; lgd.Position(2) = 0.005;
+% centree par MATLAB (Location) : reste centree quelle que soit la taille de rendu
+legend(legAx, h, 'Orientation', 'horizontal', 'Box', 'off', 'FontSize', FS_LEGEND, ...
+       'NumColumns', numel(h), 'FontName', FONT, 'Location', 'north');
 end
 
 

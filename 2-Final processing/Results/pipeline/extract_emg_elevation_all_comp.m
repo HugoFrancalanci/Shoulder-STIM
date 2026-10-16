@@ -25,10 +25,10 @@
 % -------------------------------------------------------------------------
 % Parameters  : ELEV_GRID = 20:1:90 deg, MAX_EXTRAP_DEG = 2.5 deg
 %               ALPHA_ANOVA, ALPHA_FWER, N_ITER, FORCE_RECOMPUTE
-%               EXPORT_FIGURE : high-resolution export (TIFF 600 dpi + PDF)
+%               EXPORT_FIGURE : high-resolution export (PNG 600 dpi + PDF)
 % Outputs     : Console tables, cache_emg_elevation_all_comp.mat,
 %               1 figure (plotRhythmEmgFigure.m),
-%               Figures/Figure_6_scapulothoracic_EMG.tif/.pdf
+%               Figures/Figure_6_scapulothoracic_EMG.png/.pdf
 % -------------------------------------------------------------------------
 % Dependencies: cache_humerothoracic_all_comp.mat, cache_emg_all_comp.mat,
 %               cache_scapulohumeral_rhythm_all_comp.mat,

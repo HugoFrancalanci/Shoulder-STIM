@@ -20,7 +20,7 @@ Each script finds the shared folders from its own location, so it can be run fro
 **Data.** Participant data are not stored in this repository.
 - The K-LAB participant files (`P1.mat` to `P10.mat`, produced by `0-Preprocessing/` and `1-Processing/`) are read from the folder set in `usercommands_conditions.m`.
 - The derived data (`cache_*.mat`) are read and written in the folder returned by `helpers/dataDir.m`.
-- The article figures are exported at high resolution (TIFF 600 dpi and vector PDF, fixed size) in the `Figures` subfolder of the same folder (`helpers/exportFigure.m`, `EXPORT_FIGURE = true` at the top of steps 1 and 6).
+- The article figures are exported at high resolution (PNG 600 dpi and vector PDF, fixed paper size, light theme) in the `Figures` subfolder of the same folder (`helpers/exportFigure.m`, `EXPORT_FIGURE = true` at the top of steps 1 and 6).
 
 ## Conditions
 
@@ -50,9 +50,9 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 
 ## Article figures
 
-**Figure 1. Humerothoracic elevation.** Elevation of the humerus relative to the thorax over the movement cycle, compared between conditions with SPM1D. Discrete parameters per trial: peak elevation, peak timing, rise time (time to reach half of the elevation range), and plane of elevation (orientation of the humerus in the transverse plane of the thorax, 0 deg = frontal plane) at peak elevation and averaged between 20 and 90 deg of elevation during the ascending phase. These parameters are also compared across the 6 FES conditions only.
+**Figure 1. Thoracohumeral elevation.** Elevation of the humerus relative to the thorax over the movement cycle, compared between conditions with SPM1D. Discrete parameters per trial: peak elevation, peak timing, rise time (time to reach half of the elevation range), and plane of elevation (orientation of the humerus in the transverse plane of the thorax, 0 deg = frontal plane) at peak elevation and averaged between 20 and 90 deg of elevation during the ascending phase. These parameters are also compared across the 6 FES conditions only.
 
-**Figure 2. Scapulothoracic kinematics and scapular muscle activity as a function of humerothoracic elevation.** Both rows use the ascending phase, from 20 to 90 deg of elevation (1 deg steps). Curves are compared between conditions with SPM1D, using elevation as the domain.
+**Figure 2. Scapulothoracic kinematics and scapular muscle activity as a function of thoracohumeral elevation.** Both rows use the ascending phase, from 20 to 90 deg of elevation (1 deg steps). Curves are compared between conditions with SPM1D, using elevation as the domain.
 - First row: scapulothoracic angles read at each elevation.
 - Second row: EMG of the upper, middle and lower trapezius and serratus anterior. After removal of the stimulation artefact, each cycle gives a linear envelope (rectification and 6 Hz low-pass filter) normalised to 101 points. Each trial's envelope is expressed as a percentage of its own peak, the trials are averaged per participant, and the envelopes are read at each elevation as for the angles.
 
@@ -64,7 +64,7 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 
 - Non-parametric repeated-measures ANOVA across the 7 conditions (10 000 permutations), on curves (SPM1D) or discrete values.
 - If significant: paired t-tests on the 21 pairs of conditions, Holm-Bonferroni correction (alpha = 0.05), with `helpers/holmAlphaSPM1D.m` for curves and `helpers/holmAdjust.m` for discrete values.
-- Discrete humerothoracic parameters: the same ANOVA is also run across the 6 FES conditions only.
+- Discrete thoracohumeral parameters: the same ANOVA is also run across the 6 FES conditions only.
 
 ## Key parameters
 
@@ -76,7 +76,7 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 | Time normalisation | 101 points (0 to 100 %) | all |
 | Family-wise alpha | 0.05 (Holm-Bonferroni) | all |
 | Permutations | 10 000 | all |
-| Rise-time threshold | 50 % of the elevation range | humerothoracic |
+| Rise-time threshold | 50 % of the elevation range | thoracohumeral |
 | Elevation range | 20 to 90 deg, 1 deg steps | scapulohumeral rhythm, EMG elevation |
 | EMG normalisation | % of the peak of each trial | EMG elevation |
 
