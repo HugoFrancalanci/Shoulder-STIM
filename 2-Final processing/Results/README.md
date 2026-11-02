@@ -59,6 +59,7 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 
 **Figure layout.** Both figures share the same conventions:
 - Colours by group of conditions (`helpers/conditionColors.m`): No FES in dark grey, non-optimised patterns (Rehab, Random) in red and orange, optimised patterns in blues and greens. The legend follows the order No FES, Rehab, Random, Min PW, Min force, Min stress, Min fatigue.
+- Lines show the mean of each condition. Shaded bands show the mean +/- SD across participants for 3 groups of conditions: No FES, non-optimised patterns and optimised patterns.
 - Each significant pair of conditions is shown as a bicoloured bar under the curves: upper half in the colour of the first condition, lower half in the colour of the second. Bars are ordered by type of comparison (`helpers/pairTypeRank.m`): no stimulation vs non-optimised, no stimulation vs optimised, then non-optimised vs optimised.
 
 ## Statistics

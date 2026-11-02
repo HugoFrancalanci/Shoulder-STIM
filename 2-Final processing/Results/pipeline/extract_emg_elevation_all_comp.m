@@ -164,7 +164,7 @@ end
 % Figure 2 de l'article : angles scapulothoraciques (rangee 1, cache du
 % rythme scapulohumeral) et EMG (rangee 2)
 K = struct('x', ELEV_GRID, 'muscleNames', {cellfun(@(m) MUSCLE_DISPLAY(m), MUS, 'UniformOutput', false)}, ...
-           'emgMean', {emgMean}, 'emgSD', {emgSD}, 'spm', spmPeak, 'ALL_PAIRS', ALL_PAIRS);
+           'emgMean', {emgMean}, 'elevProf', {elevProf}, 'spm', spmPeak, 'ALL_PAIRS', ALL_PAIRS);
 RH = load(fullfile(dataDir(), 'cache_scapulohumeral_rhythm_all_comp.mat'), 'joints', 'ELEV_GRID', ...
           'CONDITIONS_ORDERED', 'ALL_PAIRS');
 if ~isequal(RH.ELEV_GRID, ELEV_GRID) || ~isequal(RH.CONDITIONS_ORDERED, CONDITIONS_ORDERED)

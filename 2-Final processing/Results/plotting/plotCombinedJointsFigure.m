@@ -11,8 +11,9 @@ function plotCombinedJointsFigure(joints)
 % -------------------------------------------------------------------------
 % Description : Group figure with one row per joint and one column per degree
 %               of freedom (article Figure 1, humerothoracic elevation). Group
-%               mean +/- SD per condition. Each significant pair is shown as
-%               a bicoloured bar under the curves (upper half: colour of the
+%               mean per condition, with mean +/- SD bands for 3 groups of
+%               conditions (No FES, non-optimised, optimised). Each significant
+%               pair is shown as a bicoloured bar under the curves (upper half: colour of the
 %               first condition, lower half: colour of the second), ordered
 %               by type of comparison (helpers/pairTypeRank.m). Condition
 %               legend at the bottom.
@@ -28,8 +29,11 @@ function plotCombinedJointsFigure(joints)
 % =========================================================================
 
 FONT = 'Times New Roman';
-FS_TICK = 16; FS_LABEL = 20; FS_TITLE = 20; FS_LEGEND = 20;   % tailles de police
+FS_TICK = 22; FS_LABEL = 26; FS_TITLE = 26; FS_LEGEND = 26;   % tailles de police
 LEGEND_ORDER = {'No FES', 'Rehab', 'Random', 'Min PW', 'Min force', 'Min stress', 'Min fatigue'};
+% Groupes des bandes moyenne +/- ET (couleur de la 1re condition de chaque groupe)
+GROUPS = {{'No FES'}, {'Rehab','Random'}, {'Min_stress','Min_pulse_width','Min_force','Min_fatigue'}};
+BAND_ALPHA = [0.13 0.13 0.18];
 
 nRows = numel(joints);
 nCols = max(cellfun(@(j) numel(j.DOF_LABELS), joints));
@@ -47,10 +51,10 @@ fig = figure('Name', 'Final figure', 'Units', 'pixels', 'Position', [0 0 1800 90
 if isprop(fig, 'Theme'), fig.Theme = 'light'; end
 hasRowLabels  = any(cellfun(@(j) ~isempty(j.rowLabel), joints));
 TOP_MARGIN    = 0.05;
-BOTTOM_MARGIN = 0.13;   % libelle x + legende des conditions
+BOTTOM_MARGIN = 0.17;   % libelle x + legende des conditions
 ROW_GAP       = 0.07;
-LEFT_MARGIN   = 0.07 + 0.02 * hasRowLabels;
-RIGHT_MARGIN  = 0.09;
+LEFT_MARGIN   = 0.075 + 0.02 * hasRowLabels;
+RIGHT_MARGIN  = 0.02;
 COL_GAP       = 0.04;
 row_h = (1 - TOP_MARGIN - BOTTOM_MARGIN - (nRows-1)*ROW_GAP) / nRows;
 col_w = (1 - LEFT_MARGIN - RIGHT_MARGIN - (nCols-1)*COL_GAP) / nCols;
@@ -64,14 +68,24 @@ for r = 1:nRows
         if isfield(J, 'EXCL_ZONE'), drawExclusionZone(ax, J.EXCL_ZONE); end
 
         y_min = Inf; y_max = -Inf;
+        for g = 1:numel(GROUPS)   % bandes par groupe de conditions, sous les courbes
+            stacks = cell(1, numel(GROUPS{g}));
+            for q = 1:numel(GROUPS{g})
+                A = getStack(J.patientMeans, GROUPS{g}{q});
+                stacks{q} = permute(A(idof,:,:), [3 2 1]);   % (N,101)
+            end
+            [mg, sg] = groupBand(stacks);
+            col = J.COLORS(strcmp(J.CONDITIONS_ORDERED, GROUPS{g}{1}), :);
+            fill([J.x fliplr(J.x)], [mg+sg fliplr(mg-sg)], col, 'FaceAlpha', BAND_ALPHA(g), ...
+                 'EdgeColor', 'none', 'HandleVisibility', 'off');
+            y_min = min(y_min, min(mg - sg)); y_max = max(y_max, max(mg + sg));
+        end
         for ic = 1:numel(J.CONDITIONS_ORDERED)
             stack = getStack(J.patientMeans, J.CONDITIONS_ORDERED{ic});
             if isempty(stack), continue; end
-            mu = mean(stack(idof,:,:), 3, 'omitnan'); sd = std(stack(idof,:,:), 0, 3, 'omitnan');
-            fill([J.x fliplr(J.x)], [mu+sd fliplr(mu-sd)], J.COLORS(ic,:), 'FaceAlpha', 0.10, ...
-                 'EdgeColor', 'none', 'HandleVisibility', 'off');
-            plot(J.x, mu, 'Color', J.COLORS(ic,:), 'LineWidth', 2.2);
-            y_min = min(y_min, min(mu - sd)); y_max = max(y_max, max(mu + sd));
+            mu = mean(stack(idof,:,:), 3, 'omitnan');
+            plot(J.x, mu, 'Color', J.COLORS(ic,:), 'LineWidth', 2.8);
+            y_min = min(y_min, min(mu)); y_max = max(y_max, max(mu));
         end
         if ~isfinite(y_min), y_min = 0; y_max = 1; end
         rngY = max(y_max - y_min, 0.01);
@@ -94,8 +108,8 @@ for r = 1:nRows
             colA = J.COLORS(strcmp(J.CONDITIONS_ORDERED, sig{k,1}), :);
             colB = J.COLORS(strcmp(J.CONDITIONS_ORDERED, sig{k,2}), :);
             for cl = 1:numel(sig{k,3})
-                ep = sig{k,3}{cl}.endpoints;   % 1 % d'avance accepte (convention de la toolbox d'origine)
-                xb = ep(1) - 1; wb = ep(2) - ep(1);
+                ep = sig{k,3}{cl}.endpoints;   % 0-based = % cycle
+                xb = ep(1); wb = ep(2) - ep(1);
                 rectangle('Position', [xb, y_row + bar_h/2, wb, bar_h/2], 'FaceColor', colA, 'EdgeColor', 'none');
                 rectangle('Position', [xb, y_row, wb, bar_h/2], 'FaceColor', colB, 'EdgeColor', 'none');
                 rectangle('Position', [xb, y_row, wb, bar_h], 'FaceColor', 'none', 'EdgeColor', 'k', 'LineWidth', 0.5);
@@ -130,7 +144,7 @@ for r = 1:nRows
     if isfield(joints{r}, 'EXCL_ZONE') && ~isempty(joints{r}.EXCL_ZONE), exclZone = joints{r}.EXCL_ZONE; break; end
 end
 legOrder = cellfun(@(l) find(strcmp(ref.COND_LABELS, l), 1), LEGEND_ORDER);
-legAx = axes('Position', [0.03 0.005 0.95 0.04], 'Visible', 'off'); hold(legAx, 'on');
+legAx = axes('Position', [0.03 0.005 0.95 0.05], 'Visible', 'off'); hold(legAx, 'on');
 h = gobjects(1, numel(legOrder));
 for k = 1:numel(legOrder)
     ic = legOrder(k);
@@ -150,12 +164,20 @@ function s = dofTitle(label)
     elseif strcmpi(lbl, 'Elevation')
         s = {'Flexion (-) / extension (+)'};
     elseif strcmpi(lbl, 'Protraction (+) / retraction (-)')
-        s = {'External (-) / internal (+) rotation'};
+        s = {'Retraction (-) / protraction (+)'};
     elseif strcmpi(lbl, 'Posterior (+) / anterior (-) tilt')
         s = {'Anterior (-) / Posterior (+) tilt'};
     else
         s = label;
     end
+end
+
+
+function [mu, sd] = groupBand(stacks)
+    % Moyenne +/- ET entre participants d'un groupe de conditions. stacks : une
+    % matrice (N, nPts) par condition, moyennees d'abord pour chaque participant
+    M = mean(cat(3, stacks{:}), 3);
+    mu = mean(M, 1, 'omitnan'); sd = std(M, 0, 1, 'omitnan');
 end
 
 
