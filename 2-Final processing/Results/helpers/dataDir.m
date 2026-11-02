@@ -20,7 +20,7 @@ function d = dataDir()
 % Dependencies: none
 % =========================================================================
 
-DATA_DIR = 'C:\Users\franc\OneDrive - Université de Genève\PhD Hugo\04_Outputs\01_Publications\02_Collaborations\2026_Impact of electrical stimulation\Data';
+DATA_DIR = 'C:\Users\franc\OneDrive - Université de Genève\PhD Hugo\04_Outputs\01_Publications\02_Collaborations\2026_Impact of optimised functional electrical stimulation\Data';
 
 if ~isfolder(DATA_DIR)
     error('dataDir:missing', ['Dossier des donnees privees introuvable :\n  %s\n' ...

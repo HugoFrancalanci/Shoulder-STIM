@@ -8,7 +8,7 @@ Analysis code for the article on the effect of seven deltoid stimulation conditi
 Results/
 ├── usercommands_conditions.m   shared configuration (participants, conditions, paths), loaded with run()
 ├── README.md
-├── pipeline/                   entry-point scripts (7): run these
+├── pipeline/                   entry-point scripts (8): run these
 ├── plotting/                   figure functions (5), called by pipeline/
 ├── helpers/                    utility functions (10), called by pipeline/ and plotting/
 ├── preprocessing/              checks of the stimulation-artefact removal (4)
@@ -47,6 +47,7 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 | 5 | `extract_emg_cycles_all_comp.m` | K-LAB files | EMG cache |
 | 6 | `extract_emg_elevation_all_comp.m` | steps 1, 4, 5 | Figure 2 |
 | 7 | `export_source_data.m` | steps 1 to 6 | `Source_data_Figures1-2.xlsx`: data and statistics of the 2 figures |
+| 8 | `compare_ocp_vs_nonocp.m` | steps 1, 4, 6, perceptual ratings | optimised patterns vs Rehab and Random, then vs Rehab alone: console tables, `cache_ocp_vs_nonocp.mat` |
 
 ## Article figures
 
@@ -65,6 +66,7 @@ Run the scripts of `pipeline/` in this order. Each script saves its results in a
 - Non-parametric repeated-measures ANOVA across the 7 conditions (10 000 permutations), on curves (SPM1D) or discrete values.
 - If significant: paired t-tests on the 21 pairs of conditions, Holm-Bonferroni correction (alpha = 0.05), with `helpers/holmAlphaSPM1D.m` for curves and `helpers/holmAdjust.m` for discrete values.
 - Discrete thoracohumeral parameters: the same ANOVA is also run across the 6 FES conditions only.
+- Optimised patterns vs Rehab and Random, then vs Rehab alone: each participant gives the mean of the conditions of each group, then paired tests with all sign permutations (Wilcoxon signed-rank for ratings, permutation t-test for discrete values, SPM1D for curves), Holm-Bonferroni within each family of outcomes.
 
 ## Key parameters
 
