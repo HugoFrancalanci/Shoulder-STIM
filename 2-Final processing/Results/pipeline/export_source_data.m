@@ -6,18 +6,22 @@
 %               University of Geneva
 % License     : Creative Commons Attribution-NonCommercial 4.0 International
 %               https://creativecommons.org/licenses/by-nc/4.0/legalcode
-% Date        : October 2026
+% Date        : November 2026
 % -------------------------------------------------------------------------
-% Description : Exports the data and the statistical results of the two
-%               article figures to one Excel file (one sheet per table).
-%               Reads the caches of the pipeline scripts; nothing is
-%               recomputed. Participants are recoded P01 to P10.
+% Description : Exports the data and the statistical results of the article
+%               to one Excel file (one sheet per table): the biomechanical
+%               figure (scapulothoracic angles, EMG and their deviation from
+%               No FES) and the thoracohumeral results reported in the text.
+%               Conditions: No FES, Rehab and the four optimised patterns.
+%               Reads the caches of the pipeline scripts; the statistics come
+%               from nested_comparison.m and are not recomputed. Participants
+%               are recoded P01 to P10.
 % -------------------------------------------------------------------------
 % Parameters  : OUT_FILE : output Excel file (in the data folder)
-% Outputs     : Source_data_Figures1-2.xlsx
+% Outputs     : Source_data_Figure5.xlsx
 % -------------------------------------------------------------------------
-% Dependencies: the caches of the pipeline (run the pipeline first),
-%               helpers/dataDir.m, spm1dmatlab-master/
+% Dependencies: the caches of the pipeline (run steps 1 to 7 first),
+%               helpers/dataDir.m
 % =========================================================================
 
 clear; clc; close all;
@@ -26,171 +30,179 @@ disp(' export_source_data.m');
 disp('=========================================');
 
 HERE = fileparts(fileparts(mfilename('fullpath')));
-addpath(genpath(fullfile(HERE, 'spm1dmatlab-master')));   % needed to read the SPM results
 addpath(fullfile(HERE, 'helpers'));
 
-OUT_FILE = fullfile(dataDir(), 'Source_data_Figures1-2.xlsx');
+OUT_FILE = fullfile(dataDir(), 'Source_data_Figure5.xlsx');
 if isfile(OUT_FILE), delete(OUT_FILE); end
 
 % -------------------------------------------------------------------------
 % Caches
 % -------------------------------------------------------------------------
-H  = load(fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat'), 'patientMeans', 'disc', 'discStats', ...
-          'spmResults', 'x', 'PATIENT_IDS', 'CONDITIONS_ORDERED', 'COND_LABELS', 'ALL_PAIRS');
-RH = load(fullfile(dataDir(), 'cache_scapulohumeral_rhythm_all_comp.mat'), 'joints', 'ELEV_GRID', 'ALL_PAIRS');
-EL = load(fullfile(dataDir(), 'cache_emg_elevation_all_comp.mat'), 'spmPeak', 'elevProf', 'excluded', ...
-          'ELEV_GRID', 'ALL_PAIRS', 'EMG_LABELS');
+H  = load(fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat'), 'patientMeans', 'disc', 'x', ...
+          'PATIENT_IDS', 'CONDITIONS_ORDERED', 'COND_LABELS');
+RH = load(fullfile(dataDir(), 'cache_scapulohumeral_rhythm_all_comp.mat'), 'joints', 'ELEV_GRID');
+EL = load(fullfile(dataDir(), 'cache_emg_elevation_all_comp.mat'), 'elevProf', 'ELEV_GRID', 'EMG_LABELS');
+NC = load(fullfile(dataDir(), 'cache_nested_comparison.mat'), 'h4', 'emgDev', 'htCurve', 'htDisc', ...
+          'OCP_CONDS', 'REF_COND', 'NOFES_COND');
 
-COND  = H.COND_LABELS;
-CRAW  = H.CONDITIONS_ORDERED;
-nCond = numel(COND);
-nPat  = numel(H.PATIENT_IDS);
-PID   = arrayfun(@(k) sprintf('P%02d', str2double(H.PATIENT_IDS{k}(2:end))), 1:nPat, 'UniformOutput', false);
+CRAW = H.CONDITIONS_ORDERED;
+SHOW = [{NC.NOFES_COND, NC.REF_COND}, NC.OCP_CONDS];            % conditions de l'article (ordre de la legende)
+iShow = cellfun(@(c) find(strcmp(CRAW, c)), SHOW);
+LAB  = H.COND_LABELS(iShow);
+iNo  = strcmp(CRAW, NC.NOFES_COND); iRef = strcmp(CRAW, NC.REF_COND); isOCP = ismember(CRAW, NC.OCP_CONDS);
+nPat = numel(H.PATIENT_IDS);
+PID  = arrayfun(@(k) sprintf('P%02d', str2double(H.PATIENT_IDS{k}(2:end))), 1:nPat, 'UniformOutput', false);
 MUSCLE = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...
     {'Upper trapezius', 'Middle trapezius', 'Lower trapezius', 'Serratus anterior'});
-MUS   = EL.EMG_LABELS;
-pairA = cellfun(@(c) find(strcmp(CRAW, c)), H.ALL_PAIRS(:,1));
-pairB = cellfun(@(c) find(strcmp(CRAW, c)), H.ALL_PAIRS(:,2));
+MUS  = EL.EMG_LABELS;
+OCP_LABEL = 'Optimised (mean)';
 sheets = {};   % {name, description} for the README
 
 % -------------------------------------------------------------------------
-% Figure 1: humerothoracic elevation
+% Figure 5, rows 1 and 2: scapulothoracic angles and deviation from No FES
 % -------------------------------------------------------------------------
-x = H.x(:);
-curves = cell(nCond, 1);              % curves{ic} = (nPat, 101)
-rows = {};
-for ic = 1:nCond
-    curves{ic} = cat(1, H.patientMeans.(matlab.lang.makeValidName(CRAW{ic})){:});
-    for ip = 1:nPat
-        rows(end+1, :) = {PID{ip}, COND{ic}, x, round(curves{ic}(ip, :)', 2)}; %#ok<SAGROW>
-    end
-end
-T = longTable(rows, {'Participant', 'Condition', 'Cycle (%)', 'Elevation (deg)'});
-writeSheet(T, OUT_FILE, 'Fig1_curves');
-sheets(end+1, :) = {'Fig1_curves', 'Figure 1. Humerothoracic elevation of each participant and condition over the movement cycle (mean of the 3 trials).'};
-
-T = table();
-for ic = 1:nCond
-    for ip = 1:nPat
-        T = [T; {PID{ip}, COND{ic}, round(H.disc.peakElev(ip, ic), 1), round(H.disc.peakTime(ip, ic), 1), ...
-                 round(H.disc.riseTime(ip, ic), 1), round(H.disc.planeAtPeak(ip, ic), 1), ...
-                 round(H.disc.planeMean2090(ip, ic), 1)}]; %#ok<AGROW>
-    end
-end
-T.Properties.VariableNames = {'Participant', 'Condition', 'Peak elevation (deg)', 'Peak timing (% cycle)', 'Rise time (% cycle)', ...
-    'Plane of elevation at peak (deg)', 'Mean plane of elevation 20-90 deg (deg)'};
-writeSheet(T, OUT_FILE, 'Fig1_parameters');
-sheets(end+1, :) = {'Fig1_parameters', ['Figure 1. Peak elevation, peak timing, rise time (time to reach half of the elevation range), ' ...
-    'plane of elevation at peak elevation, and mean plane of elevation between 20 and 90 deg of elevation (ascending phase) ' ...
-    'of each participant and condition. Plane of elevation: 0 deg = frontal plane, + = anterior.']};
-
-T = spmTable(H.spmResults, curves, x, CRAW, COND, @(ep) ep, 'Start (% cycle)', 'End (% cycle)', 'Elevation (deg)');
-writeSheet(T, OUT_FILE, 'Fig1_SPM');
-sheets(end+1, :) = {'Fig1_SPM', 'Figure 1. SPM1D results: parts of the cycle where the ANOVA is significant, and pairs of conditions that differ after Holm-Bonferroni correction, with the mean elevation of each condition over the window.'};
-
-T = table();
-pnames = {'peakElev', 'Peak elevation (deg)'; 'peakTime', 'Peak timing (% cycle)'; 'riseTime', 'Rise time (% cycle)'; ...
-          'planeAtPeak', 'Plane of elevation at peak (deg)'; 'planeMean2090', 'Mean plane of elevation 20-90 deg (deg)'};
-for k = 1:size(pnames, 1)
-    T = [T; discreteStats(H.disc.(pnames{k,1}), H.discStats.(pnames{k,1}), pnames{k,2}, '', pairA, pairB, COND)]; %#ok<AGROW>
-end
-writeSheet(T, OUT_FILE, 'Fig1_parameters_stats');
-sheets(end+1, :) = {'Fig1_parameters_stats', 'Figure 1. Comparison of the parameters between conditions: ANOVA p-value across the 7 conditions and across the 6 FES conditions only, then the 21 pairs of conditions (p-value before and after Holm-Bonferroni correction).'};
-
-% -------------------------------------------------------------------------
-% Figure 2, first row: scapulothoracic angles as a function of
-% humerothoracic elevation
-% -------------------------------------------------------------------------
-J = RH.joints{cellfun(@(j) contains(lower(j.name), 'scap'), RH.joints)};
+J = RH.joints{cellfun(@(j) strcmp(j.name, 'Scapulothoracic'), RH.joints)};
 grid = RH.ELEV_GRID(:);
-keepP = ~ismember(H.PATIENT_IDS, J.excluded);
-dofNames = strcat(J.DOF_LABELS, ' (deg)');
-rows = {};
-st = cell(nCond, numel(J.DOF_LABELS));       % st{ic,id} = (nPat, nGrid)
-for ic = 1:nCond
+nDof = numel(J.DOF_LABELS);
+st = cell(numel(CRAW), nDof);                 % st{ic,id} = (nPat, nGrid)
+for ic = 1:numel(CRAW)
     R = J.rhythmMeans.(matlab.lang.makeValidName(CRAW{ic}));
-    for id = 1:numel(J.DOF_LABELS)
+    for id = 1:nDof
         st{ic, id} = cell2mat(cellfun(@(r) r(id, :), R(:), 'UniformOutput', false));
     end
-    for ip = find(keepP)
-        rows(end+1, :) = [{PID{ip}, COND{ic}, grid}, arrayfun(@(id) round(R{ip}(id, :)', 2), ...
-                          1:numel(J.DOF_LABELS), 'UniformOutput', false)]; %#ok<SAGROW>
+end
+keepP = true(nPat, 1);   % courbes completes dans toutes les conditions de l'article
+for q = 1:numel(st(iShow, :))
+    S = st(iShow, :); keepP = keepP & all(~isnan(S{q}), 2);
+end
+dofNames = strcat(J.DOF_LABELS, ' (deg)');
+
+rows = {};
+for k = 1:numel(iShow)
+    for ip = find(keepP)'
+        rows(end+1, :) = [{PID{ip}, LAB{k}, grid}, arrayfun(@(id) round(st{iShow(k), id}(ip, :)', 2), ...
+                          1:nDof, 'UniformOutput', false)]; %#ok<SAGROW>
     end
 end
-T = longTable(rows, [{'Participant', 'Condition', 'Humerothoracic elevation (deg)'}, dofNames]);
-writeSheet(T, OUT_FILE, 'Fig2_ST_curves');
-sheets(end+1, :) = {'Fig2_ST_curves', sprintf(['Figure 2, first row. Scapulothoracic angles of each participant and condition at each humerothoracic ' ...
-    'elevation from 20 to 90 deg (ascending phase).'])};
+writeSheet(longTable(rows, [{'Participant', 'Condition', 'Thoracohumeral elevation (deg)'}, dofNames]), OUT_FILE, 'Fig5_ST_angles');
+sheets(end+1, :) = {'Fig5_ST_angles', ['Figure 5, first row. Scapulothoracic angles of each participant and condition at each ' ...
+    'thoracohumeral elevation from 20 to 90 deg (ascending phase).']};
 
-T = table();
-for id = 1:numel(J.DOF_LABELS)
-    Td = spmTable(J.spmResults(id), st(:, id), grid, CRAW, COND, @(ep) grid(1) + ep * (grid(2) - grid(1)), ...
-                  'Start (deg elevation)', 'End (deg elevation)', 'Angle (deg)', keepP);
-    Td = addvars(Td, repmat(J.DOF_LABELS(id), height(Td), 1), 'Before', 1, 'NewVariableNames', 'Angle');
-    T = [T; Td]; %#ok<AGROW>
+rows = {};
+for ip = find(keepP)'
+    devR = arrayfun(@(id) round(abs(st{iRef, id}(ip, :) - st{iNo, id}(ip, :))', 2), 1:nDof, 'UniformOutput', false);
+    devO = arrayfun(@(id) round(ocpDeviation(st(isOCP, id), st{iNo, id}, ip), 2), 1:nDof, 'UniformOutput', false);
+    rows(end+1, :) = [{PID{ip}, NC.REF_COND, grid}, devR]; %#ok<SAGROW>
+    rows(end+1, :) = [{PID{ip}, OCP_LABEL, grid}, devO]; %#ok<SAGROW>
 end
-writeSheet(T, OUT_FILE, 'Fig2_ST_SPM');
-sheets(end+1, :) = {'Fig2_ST_SPM', 'Figure 2, first row. SPM1D results for each angle: elevation ranges where the ANOVA is significant, and pairs of conditions that differ after Holm-Bonferroni correction, with the mean angle of each condition over the range.'};
+writeSheet(longTable(rows, [{'Participant', 'Pattern', 'Thoracohumeral elevation (deg)'}, dofNames]), OUT_FILE, 'Fig5_ST_deviation');
+sheets(end+1, :) = {'Fig5_ST_deviation', ['Figure 5, second row. Absolute deviation of each scapulothoracic angle from No FES, ' ...
+    'for Rehab and for the mean of the four optimised patterns (deviation of each pattern, then mean).']};
+
+writeSheet(curveStats(NC.h4, 'Deviation from No FES (deg)'), OUT_FILE, 'Fig5_ST_stats');
+sheets(end+1, :) = {'Fig5_ST_stats', ['Figure 5, second row. Hypothesis test for each angle: deviation from No FES of Rehab vs ' ...
+    'mean of the optimised patterns. p-value of the curve, p-value after Holm-Bonferroni correction across the 3 angles, ' ...
+    'elevation ranges that differ, and mean values over each range. Signed difference with No FES: + = more than No FES.']};
 
 % -------------------------------------------------------------------------
-% Figure 2, second row: EMG as a function of humerothoracic elevation
+% Figure 5, rows 3 and 4: EMG and deviation from No FES
 % -------------------------------------------------------------------------
 gridE = EL.ELEV_GRID(:);
-keepE = ~ismember(H.PATIENT_IDS, EL.excluded);
+keepE = all(cell2mat(cellfun(@(P) all(~isnan(cat(2, P{iShow})), 2), EL.elevProf, 'UniformOutput', false)), 2);
 rows = {};
 for im = 1:numel(MUS)
-    for ic = 1:nCond
-        for ip = find(keepE)
-            rows(end+1, :) = {PID{ip}, COND{ic}, MUSCLE(MUS{im}), gridE, round(EL.elevProf{im}{ic}(ip, :)', 2)}; %#ok<SAGROW>
+    for k = 1:numel(iShow)
+        for ip = find(keepE)'
+            rows(end+1, :) = {PID{ip}, LAB{k}, MUSCLE(MUS{im}), gridE, round(EL.elevProf{im}{iShow(k)}(ip, :)', 2)}; %#ok<SAGROW>
         end
     end
 end
-T = longTable(rows, {'Participant', 'Condition', 'Muscle', 'Humerothoracic elevation (deg)', 'EMG (% of peak)'});
-writeSheet(T, OUT_FILE, 'Fig2_EMG_curves');
-sheets(end+1, :) = {'Fig2_EMG_curves', sprintf(['Figure 2, second row. EMG envelope of each participant, condition and muscle, expressed as a ' ...
-    'percentage of the peak of each trial (mean of the 3 trials), at each humerothoracic elevation from 20 to 90 deg ' ...
-    '(ascending phase).'])};
+writeSheet(longTable(rows, {'Participant', 'Condition', 'Muscle', 'Thoracohumeral elevation (deg)', 'EMG (% of peak)'}), ...
+           OUT_FILE, 'Fig5_EMG');
+sheets(end+1, :) = {'Fig5_EMG', ['Figure 5, third row. EMG envelope of each participant, condition and muscle, expressed as a ' ...
+    'percentage of the peak of each trial (mean of the 3 trials), at each thoracohumeral elevation from 20 to 90 deg ' ...
+    '(ascending phase).']};
+
+rows = {};
+for im = 1:numel(MUS)
+    P = EL.elevProf{im};
+    for ip = find(keepE)'
+        rows(end+1, :) = {PID{ip}, NC.REF_COND, MUSCLE(MUS{im}), gridE, round(abs(P{iRef}(ip, :) - P{iNo}(ip, :))', 2)}; %#ok<SAGROW>
+        rows(end+1, :) = {PID{ip}, OCP_LABEL, MUSCLE(MUS{im}), gridE, round(ocpDeviation(P(isOCP), P{iNo}, ip), 2)}; %#ok<SAGROW>
+    end
+end
+writeSheet(longTable(rows, {'Participant', 'Pattern', 'Muscle', 'Thoracohumeral elevation (deg)', 'Deviation from No FES (% of peak)'}), ...
+           OUT_FILE, 'Fig5_EMG_deviation');
+sheets(end+1, :) = {'Fig5_EMG_deviation', ['Figure 5, fourth row. Absolute deviation of the EMG envelope from No FES, for Rehab ' ...
+    'and for the mean of the four optimised patterns (deviation of each pattern, then mean).']};
+
+writeSheet(emgStats(NC.emgDev, 'Deviation from No FES (% of peak)'), OUT_FILE, 'Fig5_EMG_stats');
+sheets(end+1, :) = {'Fig5_EMG_stats', ['Figure 5, fourth row (exploratory). For each muscle, deviation from No FES of Rehab vs ' ...
+    'mean of the optimised patterns. p-value of the curve, p-value after Holm-Bonferroni correction across the 4 muscles, ' ...
+    'elevation ranges that differ, and mean values over each range.']};
+
+% -------------------------------------------------------------------------
+% Thoracohumeral elevation (reported in the text)
+% -------------------------------------------------------------------------
+x = H.x(:);
+rows = {};
+for k = 1:numel(iShow)
+    Y = cat(1, H.patientMeans.(matlab.lang.makeValidName(CRAW{iShow(k)})){:});
+    for ip = 1:nPat
+        rows(end+1, :) = {PID{ip}, LAB{k}, x, round(Y(ip, :)', 2)}; %#ok<SAGROW>
+    end
+end
+writeSheet(longTable(rows, {'Participant', 'Condition', 'Cycle (%)', 'Elevation (deg)'}), OUT_FILE, 'TH_curves');
+sheets(end+1, :) = {'TH_curves', 'Text. Thoracohumeral elevation of each participant and condition over the movement cycle (mean of the 3 trials).'};
 
 T = table();
-for im = 1:numel(MUS)
-    sp = EL.spmPeak(im);
-    for c = 1:size(sp.anovaClusters, 1)
-        T = [T; {MUSCLE(MUS{im}), 'ANOVA (7 conditions)', "", "", round(sp.anovaClusters(c,1), 1), ...
-                 round(sp.anovaClusters(c,2), 1), NaN, NaN, NaN, NaN, fmtP(sp.anovaClusters(c,3))}]; %#ok<AGROW>
-    end
-    for kp = find(sp.pairSig(:))'
-        a = EL.ALL_PAIRS(kp, 1); b = EL.ALL_PAIRS(kp, 2);
-        C = sp.pairClusters{kp};
-        for c = 1:size(C, 1)
-            [ma, sa] = windowMean(EL.elevProf{im}{a}(keepE, :), gridE, C(c, 1:2));
-            [mb, sb] = windowMean(EL.elevProf{im}{b}(keepE, :), gridE, C(c, 1:2));
-            T = [T; {MUSCLE(MUS{im}), 'Paired t-test (Holm)', string(COND{a}), string(COND{b}), round(C(c,1), 1), ...
-                     round(C(c,2), 1), round(ma, 1), round(sa, 1), round(mb, 1), round(sb, 1), fmtP(C(c,3))}]; %#ok<AGROW>
-        end
-    end
-    if ~sp.anovaSig
-        T = [T; {MUSCLE(MUS{im}), 'ANOVA (7 conditions)', "", "", NaN, NaN, NaN, NaN, NaN, NaN, "Not significant"}]; %#ok<AGROW>
+for k = 1:numel(iShow)
+    for ip = 1:nPat
+        T = [T; {PID{ip}, string(LAB{k}), round(H.disc.peakElev(ip, iShow(k)), 1), round(H.disc.peakTime(ip, iShow(k)), 1), ...
+                 round(H.disc.planeMean2090(ip, iShow(k)), 1)}]; %#ok<AGROW>
     end
 end
-T.Properties.VariableNames = {'Muscle', 'Test', 'Condition A', 'Condition B', 'Start (deg elevation)', 'End (deg elevation)', ...
-    'Mean A (% of peak)', 'SD A', 'Mean B (% of peak)', 'SD B', 'p'};
-writeSheet(T, OUT_FILE, 'Fig2_EMG_SPM');
-noPair = '';
-if ~any(arrayfun(@(s) any(s.pairSig), EL.spmPeak)), noPair = ' No pair of conditions differs after correction.'; end
-sheets(end+1, :) = {'Fig2_EMG_SPM', ['Figure 2, second row. SPM1D results for each muscle: elevation ranges where the ANOVA is significant, ' ...
-    'and pairs of conditions that differ after Holm-Bonferroni correction, with the mean value of each condition over the range.' noPair]};
+for ip = 1:nPat
+    T = [T; {PID{ip}, string(OCP_LABEL), round(mean(H.disc.peakElev(ip, isOCP)), 1), round(mean(H.disc.peakTime(ip, isOCP)), 1), ...
+             round(mean(H.disc.planeMean2090(ip, isOCP)), 1)}]; %#ok<AGROW>
+end
+T.Properties.VariableNames = {'Participant', 'Condition', 'Peak elevation (deg)', 'Peak timing (% cycle)', ...
+    'Mean plane of elevation 20-90 deg (deg)'};
+writeSheet(T, OUT_FILE, 'TH_parameters');
+sheets(end+1, :) = {'TH_parameters', ['Text. Peak elevation, peak timing and mean plane of elevation between 20 and 90 deg of ' ...
+    'elevation (ascending phase) of each participant and condition, and their mean over the four optimised patterns. ' ...
+    'Plane of elevation: 0 deg = frontal plane, + = anterior.']};
+
+c = NC.htCurve;
+T = table("Elevation curve", "Rehab vs optimised (mean)", fmtP(c.pTest), "", rangeText(c, '%'), ...
+          'VariableNames', {'Outcome', 'Contrast', 'p', 'p (Holm)', 'Ranges that differ'});
+for k = 1:numel(NC.htDisc)
+    r = NC.htDisc(k);
+    vals = {r.ref, r.ocp; r.ref, r.nofes; r.ocp, r.nofes};
+    for q = 1:3
+        T = [T; {string(r.label), string(strrep(r.contrasts{q}, 'OCP', 'optimised (mean)')), fmtP(r.p(q)), fmtP(r.pHolm(q)), ...
+                 string(sprintf('%.1f ± %.1f vs %.1f ± %.1f', mean(vals{q,1}), std(vals{q,1}), mean(vals{q,2}), std(vals{q,2})))}]; %#ok<AGROW>
+    end
+end
+T.Properties.VariableNames{end} = 'Ranges that differ / mean ± SD (A vs B)';
+writeSheet(T, OUT_FILE, 'TH_stats');
+sheets(end+1, :) = {'TH_stats', ['Text. Elevation curve: Rehab vs mean of the optimised patterns (single test). Discrete parameters: ' ...
+    'three contrasts, p-values adjusted with Holm-Bonferroni across the 3 contrasts of each parameter.']};
 
 % -------------------------------------------------------------------------
 % README (first sheet)
 % -------------------------------------------------------------------------
 info = {
- 'Study',        'Effect of seven deltoid stimulation conditions on shoulder kinematics and scapular muscle activity during arm elevation in the scapular plane.';
+ 'Study',        'Effect of deltoid stimulation patterns on shoulder kinematics and scapular muscle activity during arm elevation in the scapular plane.';
  'Participants', sprintf('%d healthy participants (P01 to P%02d), 3 trials per condition. Each value is the mean of the 3 trials.', nPat, nPat);
- 'Conditions',   strjoin(COND, ', ');
+ 'Conditions',   [strjoin(LAB, ', ') '. Optimised (mean): mean of the four optimised patterns for each participant.'];
  'Muscles',      'Upper trapezius, middle trapezius, lower trapezius, serratus anterior.';
- 'Units',        'Angles and humerothoracic elevation in degrees. Time in % of the movement cycle (0 = start, 100 = end). EMG in % of the peak of each trial.';
- 'Statistics',   'Non-parametric repeated-measures ANOVA across the 7 conditions (10 000 permutations). If significant, paired t-tests on the 21 pairs of conditions with Holm-Bonferroni correction (alpha = 0.05). Curves were compared with SPM1D. The humerothoracic parameters were also compared across the 6 FES conditions only (same ANOVA).';
- 'Pairs',        'Condition A and Condition B give the two compared conditions. Mean and SD are given across participants.';
+ 'Units',        'Angles and thoracohumeral elevation in degrees. Time in % of the movement cycle (0 = start, 100 = end). EMG in % of the peak of each trial.';
+ 'Statistics',   ['Rehab compared with the mean of the four optimised patterns, and with No FES for the thoracohumeral parameters. ' ...
+                  'Paired, two-tailed tests with all sign permutations: SPM1D t-test for curves (one p-value per curve, from the ' ...
+                  'maximum |t|), t-test for discrete values. Holm-Bonferroni correction (alpha = 0.05) across the 3 angles, ' ...
+                  'across the 4 muscles, and across the 3 contrasts of each thoracohumeral parameter.'];
+ 'Values',       'Mean and SD are given across participants.';
  'Empty cells',  'Empty cells mean "not applicable".';
  '',             ''};
 T = cell2table([info; [{'Sheet'}, {'Content'}]; sheets], 'VariableNames', {'Item', 'Description'});
@@ -220,71 +232,49 @@ function T = longTable(rows, names)
     T = table(cols{:}, 'VariableNames', names);
 end
 
-function T = spmTable(res, curves, x, CRAW, COND, toUnit, startName, endName, valueName, keepP)
-    % ANOVA clusters and significant post-hoc pairs of one SPM1D result
-    if nargin < 10, keepP = true(size(curves{1}, 1), 1); end
+function T = curveStats(C, valueName)
+    % One line per significant range (or one line if none): curve p-values,
+    % range, mean values of Rehab and of the optimised patterns, signed
+    % differences with No FES
     T = table();
-    for c = 1:numel(res.anova_clusters)
-        ep = res.anova_clusters{c}.endpoints;
-        T = [T; {'ANOVA (7 conditions)', "", "", round(toUnit(max(ep(1), 0)), 1), round(toUnit(min(ep(2), numel(x) - 1)), 1), ...
-                 NaN, NaN, NaN, NaN, fmtP(res.anova_clusters{c}.P)}]; %#ok<AGROW>
-    end
-    if isstruct(res.posthoc)
-        f = fieldnames(res.posthoc);
-        for k = 1:numel(f)
-            ph = res.posthoc.(f{k});
-            if ~ph.sig, continue; end
-            a = find(strcmp(CRAW, ph.condA)); b = find(strcmp(CRAW, ph.condB));
-            for c = 1:numel(ph.clusters)
-                ep = ph.clusters{c}.endpoints;
-                w = [toUnit(max(ep(1), 0)), toUnit(min(ep(2), numel(x) - 1))];
-                [ma, sa] = windowMean(curves{a}(keepP, :), x, w);
-                [mb, sb] = windowMean(curves{b}(keepP, :), x, w);
-                T = [T; {'Paired t-test (Holm)', string(COND{a}), string(COND{b}), round(w(1), 1), round(w(2), 1), ...
-                         round(ma, 1), round(sa, 1), round(mb, 1), round(sb, 1), fmtP(ph.clusters{c}.P)}]; %#ok<AGROW>
-            end
+    for k = 1:numel(C)
+        c = C(k);
+        if ~c.sig || isempty(c.clusters)
+            T = [T; {string(c.label), fmtP(c.pTest), fmtP(c.pHolm), "No", NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN}]; %#ok<AGROW>
+            continue;
+        end
+        for r = 1:size(c.clusters, 1)
+            v = num2cell(round(c.clusters(r, :), 1));
+            T = [T; [{string(c.label), fmtP(c.pTest), fmtP(c.pHolm), "Yes"}, v]]; %#ok<AGROW>
         end
     end
     unit = regexp(valueName, '\(.*\)', 'match', 'once');
-    T.Properties.VariableNames = {'Test', 'Condition A', 'Condition B', startName, endName, ...
-        ['Mean A ' unit], 'SD A', ['Mean B ' unit], 'SD B', 'p'};
+    T.Properties.VariableNames = {'Curve', 'p', 'p (Holm)', 'Significant', 'Start (deg elevation)', 'End (deg elevation)', ...
+        ['Rehab, ' valueName], 'Rehab SD', ['Optimised, ' valueName], 'Optimised SD', ...
+        ['Rehab - No FES, signed ' unit], ['Optimised - No FES, signed ' unit]};
 end
 
-function [m, s] = windowMean(M, x, w)
-    % mean over the window for each participant, then mean and SD across participants
-    idx = x >= w(1) - 1e-9 & x <= w(2) + 1e-9;
-    if ~any(idx), [~, i] = min(abs(x - mean(w))); idx(i) = true; end
-    v = mean(M(:, idx), 2);
-    v = v(~isnan(v));
-    m = mean(v); s = std(v);
+function T = emgStats(C, outcome)
+    T = curveStats(C, 'value (% of peak)');
+    T = addvars(T, repmat(string(outcome), height(T), 1), 'Before', 1, 'NewVariableNames', 'Outcome');
+    T.Properties.VariableNames{2} = 'Muscle';
 end
 
-function T = discreteStats(Y, st, paramName, muscleName, pairA, pairB, COND)
-    % ANOVA line(s), then the 21 pairs if the ANOVA is significant
-    T = {muscleName, paramName, 'ANOVA (7 conditions)', "", "", NaN, NaN, NaN, NaN, fmtP(st.anova_p), "", yesNo(st.anova_sig)};
-    if isfield(st, 'anova_p_fes')
-        T = [T; {muscleName, paramName, 'ANOVA (6 FES conditions)', "", "", NaN, NaN, NaN, NaN, fmtP(st.anova_p_fes), "", yesNo(st.anova_sig_fes)}];
-    end
-    if st.anova_sig
-        for kp = 1:numel(pairA)
-            a = pairA(kp); b = pairB(kp);
-            T = [T; {muscleName, paramName, 'Paired t-test', string(COND{a}), string(COND{b}), ...
-                     round(mean(Y(:, a), 'omitnan'), 1), round(std(Y(:, a), 'omitnan'), 1), ...
-                     round(mean(Y(:, b), 'omitnan'), 1), round(std(Y(:, b), 'omitnan'), 1), ...
-                     fmtP(st.p(kp)), fmtP(st.pHolm(kp)), yesNo(st.sig(kp))}]; %#ok<AGROW>
-        end
-    end
-    T = cell2table(T, 'VariableNames', {'Muscle', 'Parameter', 'Test', 'Condition A', 'Condition B', ...
-        'Mean A', 'SD A', 'Mean B', 'SD B', 'p', 'p (Holm)', 'Significant'});
-    if isempty(muscleName), T.Muscle = []; end
+function d = ocpDeviation(Yocp, yNo, ip)
+    % Ecart absolu a No FES de chaque patron optimise, puis moyenne (colonne)
+    M = cell2mat(cellfun(@(y) y(ip, :), Yocp(:), 'UniformOutput', false));   % (nOCP, nGrid)
+    d = mean(abs(M - yNo(ip, :)), 1)';
+end
+
+function s = rangeText(c, unit)
+    if ~c.sig || isempty(c.clusters), s = "None"; return; end
+    s = strjoin(arrayfun(@(r) sprintf('%.1f-%.1f %s (Rehab %.1f ± %.1f vs optimised %.1f ± %.1f deg)', ...
+                c.clusters(r, 1), c.clusters(r, 2), unit, c.clusters(r, 3:6)), 1:size(c.clusters, 1), 'UniformOutput', false), '; ');
+    s = string(s);
 end
 
 function s = fmtP(p)
     if isnan(p), s = ""; elseif p < 0.001, s = "< 0.001"; else, s = string(sprintf('%.3f', p)); end
-end
-
-function s = yesNo(b)
-    if b, s = "Yes"; else, s = "No"; end
 end
 
 function writeSheet(T, file, name)

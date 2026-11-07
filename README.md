@@ -7,14 +7,14 @@
 
 This repository contains the data processing and analysis code of the **RELIEF** project, which investigates the effect of functional electrical stimulation (FES) of the deltoid on shoulder kinematics and scapular muscle activity in healthy participants.
 
-Ten participants performed repeated arm elevations in the scapular plane under seven conditions (No FES and six stimulation patterns), with three trials per condition (21 trials per participant).
+Ten participants performed repeated arm elevations in the scapular plane under seven conditions (No FES and six stimulation patterns), with three trials per condition (21 trials per participant). The article compares the rehabilitation-like pattern with the mean of the four optimised patterns.
 
 ## What this repository covers
 
-- **Thoracohumeral elevation** over the movement cycle (time course of the arm elevation)
-- **Scapulothoracic kinematics** as a function of thoracohumeral elevation (scapulohumeral rhythm)
+- **Thoracohumeral elevation** over the movement cycle (time course of the arm elevation) and its discrete parameters
+- **Scapulothoracic kinematics** as a function of thoracohumeral elevation, and its deviation from the no-stimulation condition
 - **Surface EMG** of the upper, middle and lower trapezius and the serratus anterior: stimulation-artefact removal, linear envelope normalised to its peak, as a function of thoracohumeral elevation
-- **Statistics**: one-dimensional Statistical Parametric Mapping (SPM1D) and discrete-parameter tests across the seven conditions, with Holm-Bonferroni correction
+- **Statistics**: paired permutation tests (one-dimensional Statistical Parametric Mapping, SPM1D, for curves) between the rehabilitation-like pattern and the optimised patterns, with Holm-Bonferroni correction
 
 ## Repository structure
 

@@ -1,4 +1,4 @@
-function exportFigure(fig, baseName, outDir)
+function exportFigure(fig, baseName, outDir, paperIn)
 % =========================================================================
 % exportFigure.m
 % =========================================================================
@@ -10,14 +10,16 @@ function exportFigure(fig, baseName, outDir)
 % Date        : October 2026
 % -------------------------------------------------------------------------
 % Description : High-resolution export of an article figure at a fixed paper
-%               size (18.75 x 9.375 in), so that the layout depends neither on
-%               the screen size nor on the MATLAB theme: PNG at 600 dpi
-%               (lossless, < 10 MB) and vector PDF, in the Figures subfolder of the
-%               data folder (helpers/dataDir.m) unless outDir is given.
+%               size (default 18.75 x 9.375 in), so that the layout depends
+%               neither on the screen size nor on the MATLAB theme: PNG at 600
+%               dpi (lossless, < 10 MB) and vector PDF, in the Figures subfolder
+%               of the data folder (helpers/dataDir.m) unless outDir is given.
 % -------------------------------------------------------------------------
 % Parameters  : fig      : figure handle
 %               baseName : file name without extension (e.g. 'Figure_5')
-%               outDir   : (optional) output folder
+%               outDir   : (optional) output folder, [] for the default
+%               paperIn  : (optional) [width height] in inches, figure size
+%                          in pixels / 96 (default [18.75 9.375])
 % Outputs     : <outDir>/<baseName>.png and .pdf
 % -------------------------------------------------------------------------
 % Dependencies: helpers/dataDir.m
@@ -26,7 +28,8 @@ function exportFigure(fig, baseName, outDir)
 PAPER_IN = [18.75 9.375];   % taille fixe (largeur, hauteur) en pouces = 1800 x 900 px a 96 dpi
 DPI = 600;
 
-if nargin < 3, outDir = fullfile(dataDir(), 'Figures'); end
+if nargin >= 4 && ~isempty(paperIn), PAPER_IN = paperIn; end
+if nargin < 3 || isempty(outDir), outDir = fullfile(dataDir(), 'Figures'); end
 if ~isfolder(outDir), mkdir(outDir); end
 
 if isprop(fig, 'Theme'), fig.Theme = 'light'; end   % pas de theme sombre (MATLAB R2025a+)

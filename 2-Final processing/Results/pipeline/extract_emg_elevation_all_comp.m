@@ -60,7 +60,7 @@ ALPHA_ANOVA = 0.05;
 ALPHA_FWER  = 0.05;
 N_ITER      = 10000;
 FORCE_RECOMPUTE = false;
-EXPORT_FIGURE   = true;    % export haute resolution (helpers/exportFigure.m)
+EXPORT_FIGURE   = false;   % figure secondaire (7 conditions), non exportee : figure de l'article par nested_comparison.m
 CACHE_FILE = fullfile(dataDir(), 'cache_emg_elevation_all_comp.mat');
 
 MUSCLE_DISPLAY = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...

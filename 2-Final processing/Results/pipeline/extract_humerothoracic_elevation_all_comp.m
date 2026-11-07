@@ -58,7 +58,7 @@ ALPHA_FWER          = 0.05;      % Holm-Bonferroni
 N_ITER              = 10000;     % permutations ANOVA RM non parametrique
 
 FORCE_RECOMPUTE = false;
-EXPORT_FIGURE   = true;    % export haute resolution (helpers/exportFigure.m)
+EXPORT_FIGURE   = false;   % figure secondaire (7 conditions), non exportee : resultats de l'article dans nested_comparison.m
 CACHE_FILE = fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat');
 
 x = 0:100;
