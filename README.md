@@ -13,7 +13,7 @@ Ten participants performed repeated arm elevations in the scapular plane under s
 
 - **Thoracohumeral elevation** over the movement cycle (time course of the arm elevation) and its discrete parameters
 - **Scapulothoracic kinematics** as a function of thoracohumeral elevation, and its deviation from the no-stimulation condition
-- **Surface EMG** of the upper, middle and lower trapezius and the serratus anterior: stimulation-artefact removal, linear envelope normalised to its peak, as a function of thoracohumeral elevation
+- **Surface EMG** of the upper, middle and lower trapezius and the serratus anterior: stimulation-artefact attenuation, linear envelope normalised to its peak, as a function of thoracohumeral elevation
 - **Statistics**: paired permutation tests (one-dimensional Statistical Parametric Mapping, SPM1D, for curves) between the rehabilitation-like pattern and the optimised patterns, with Holm-Bonferroni correction
 
 ## Repository structure
@@ -35,7 +35,7 @@ Participant data are not included in this repository. The scripts read the parti
 
 ## Dependencies
 
-- MATLAB R2024a (R2023a or later required), with the Signal Processing Toolbox
+- MATLAB R2026a (R2023a or later required), with the Signal Processing Toolbox
 - [spm1dmatlab](https://spm1d.org/), included in `2-Final processing/Results/spm1dmatlab-master/`: Pataky TC (2010). *Generalized n-dimensional biomechanical field analysis using statistical parametric mapping.* J Biomech 43:1976-1982.
 - [Biomechanical ToolKit (btk)](https://biomechanical-toolkit.github.io/), included in `0-Preprocessing/dependencies/btk/`, to read C3D files
 

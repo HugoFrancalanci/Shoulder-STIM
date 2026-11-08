@@ -16,7 +16,11 @@
 %                   (20 to 90 deg); the deviation of Rehab is compared with
 %                   the mean of the four OCP deviations.
 %                 - EMG (exploratory): for each muscle, absolute deviation of
-%                   the normalised envelope from No FES, compared as for H4.
+%                   the normalised envelope from No FES, compared as for H4,
+%                   and direct comparison of the envelopes, Rehab vs the mean
+%                   of the four OCP.
+%                 - Sensitivity: the deviation tests repeated on all
+%                   participants, over the elevation range common to all.
 %                 - Thoracohumeral elevation (no hypothesis): curve over the
 %                   cycle, Rehab vs the mean of the four OCP; discrete
 %                   parameters (peak elevation, peak timing, mean plane of
@@ -32,8 +36,8 @@
 %               threshold.
 %               Article Figure 5: scapulothoracic angles and their deviation
 %               from No FES (H4), EMG and its deviation from No FES, with the
-%               Rehab vs OCP bars on the deviation rows (thoracohumeral
-%               results reported in the text only).
+%               Rehab vs OCP bars (thoracohumeral results reported in the
+%               text only).
 % -------------------------------------------------------------------------
 % Parameters  : OCP_CONDS, REF_COND, NOFES_COND, ALPHA
 %               EXPORT_FIGURE : high-resolution export (PNG 600 dpi + PDF)
@@ -42,7 +46,9 @@
 %               Figures/Figure_5_scapulothoracic_EMG.png/.pdf
 % -------------------------------------------------------------------------
 % Dependencies: cache_humerothoracic_all_comp.mat,
+%               cache_scapulothoracic_all_comp.mat, cache_emg_all_comp.mat,
 %               cache_scapulohumeral_rhythm_all_comp.mat,
+%               helpers/crossingTimes.m,
 %               cache_emg_elevation_all_comp.mat, helpers/holmAdjust.m,
 %               helpers/conditionColors.m, helpers/exportFigure.m,
 %               plotting/plotScapulaEmgHypothesisFigure.m, spm1dmatlab-master/
@@ -68,6 +74,7 @@ OCP_CONDS  = {'Min_pulse_width','Min_force','Min_stress','Min_fatigue'};
 REF_COND   = 'Rehab';
 NOFES_COND = 'No FES';
 ALPHA      = 0.05;
+MAX_EXTRAP_DEG = 2.5;   % prolongation constante max sous le debut de montee (deg), comme les scripts 4 et 6
 EXPORT_FIGURE = true;   % export haute resolution (helpers/exportFigure.m)
 MUSCLE_DISPLAY = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...
     {'Upper trapezius', 'Middle trapezius', 'Lower trapezius', 'Serratus anterior'});
@@ -127,6 +134,77 @@ for jm = 1:nMus
 end
 emgDev = holmCurves([emgDev{:}], ALPHA);
 
+% EMG (exploratoire) : comparaison directe de l'enveloppe normalisee,
+% Rehab contre moyenne OCP
+emg = cell(1, nMus);
+for jm = 1:nMus
+    P = E.elevProf{jm};
+    yRef = P{iRef}; yOCP = mean(cat(3, P{isOCP}), 3);
+    emg{jm} = curveTest(yRef, yOCP, yRef - P{iNo}, yOCP - P{iNo}, GRID, MUSCLE_DISPLAY(E.EMG_LABELS{jm}));
+end
+emg = holmCurves([emg{:}], ALPHA);
+
+% -------------------------------------------------------------------------
+% SENSIBILITE : memes tests sur tous les participants, sur la plage
+% d'elevation commune (bornes hautes inchangees, debut plus eleve)
+% -------------------------------------------------------------------------
+SC = load(fullfile(dataDir(), 'cache_scapulothoracic_all_comp.mat'), 'patientMeans', 'x');
+EB = load(fullfile(dataDir(), 'cache_emg_all_comp.mat'), 'patientBlocks');
+usedConds = CONDS(iNo | iRef | isOCP);
+nPatAll = numel(H.PATIENT_IDS);
+sensStart = NaN;
+for g0 = GRID(1):GRID(end)   % premier debut de plage complet pour tous les participants
+    ok = true;
+    for ic = 1:numel(usedConds)
+        pm = H.patientMeans.(matlab.lang.makeValidName(usedConds{ic}));
+        for ip = 1:nPatAll
+            ok = ok && ~any(isnan(crossingTimes(pm{ip}, H.x, g0:GRID(end), MAX_EXTRAP_DEG)));
+        end
+    end
+    if ok, sensStart = g0; break; end
+end
+SENS_GRID = sensStart:GRID(end);
+sensT = NaN(nPatAll, numel(SENS_GRID), numel(CONDS));   % instants de lecture (% cycle)
+sensAng = NaN(nPatAll, numel(SENS_GRID), numel(CONDS), nDOF);
+sensEmg = NaN(nPatAll, numel(SENS_GRID), numel(CONDS), nMus);
+for ic = find(iNo | iRef | isOCP)
+    fld = matlab.lang.makeValidName(CONDS{ic});
+    for ip = 1:nPatAll
+        sensT(ip, :, ic) = crossingTimes(H.patientMeans.(fld){ip}, H.x, SENS_GRID, MAX_EXTRAP_DEG);
+        for id = 1:nDOF
+            sensAng(ip, :, ic, id) = interp1(SC.x, SC.patientMeans.(fld){ip}(id, :), sensT(ip, :, ic), 'linear');
+        end
+        for jm = 1:nMus
+            B = EB.patientBlocks.(fld).(E.EMG_LABELS{jm}){ip};
+            if isempty(B), continue; end
+            sensEmg(ip, :, ic, jm) = interp1(H.x, mean(100 * B ./ max(B, [], 2), 1), sensT(ip, :, ic), 'linear');
+        end
+    end
+end
+sensDev = @(A) deal(abs(A(:, :, iRef) - A(:, :, iNo)), mean(abs(A(:, :, isOCP) - A(:, :, iNo)), 3));
+sensH4 = cell(1, nDOF);
+for id = 1:nDOF
+    A = sensAng(:, :, :, id);
+    [dR, dO] = sensDev(A);
+    sensH4{id} = curveTest(dR, dO, A(:, :, iRef) - A(:, :, iNo), mean(A(:, :, isOCP), 3) - A(:, :, iNo), SENS_GRID, JST.DOF_LABELS{id});
+end
+sensH4 = holmCurves([sensH4{:}], ALPHA);
+sensEMG = cell(1, nMus);
+for jm = 1:nMus
+    A = sensEmg(:, :, :, jm);
+    [dR, dO] = sensDev(A);
+    sensEMG{jm} = curveTest(dR, dO, A(:, :, iRef) - A(:, :, iNo), mean(A(:, :, isOCP), 3) - A(:, :, iNo), SENS_GRID, ...
+                            MUSCLE_DISPLAY(E.EMG_LABELS{jm}));
+end
+sensEMG = holmCurves([sensEMG{:}], ALPHA);
+sensEMGdirect = cell(1, nMus);
+for jm = 1:nMus
+    A = sensEmg(:, :, :, jm);
+    yRef = A(:, :, iRef); yOCP = mean(A(:, :, isOCP), 3);
+    sensEMGdirect{jm} = curveTest(yRef, yOCP, yRef - A(:, :, iNo), yOCP - A(:, :, iNo), SENS_GRID, MUSCLE_DISPLAY(E.EMG_LABELS{jm}));
+end
+sensEMGdirect = holmCurves([sensEMGdirect{:}], ALPHA);
+
 % -------------------------------------------------------------------------
 % ELEVATION THORACOHUMERALE : courbe et parametres discrets
 % -------------------------------------------------------------------------
@@ -152,7 +230,7 @@ for k = 1:numel(DISC_PARAMS)
     htDisc(k) = r;
 end
 
-save(CACHE_FILE, 'h4', 'emgDev', 'htCurve', 'htDisc', 'OCP_CONDS', 'REF_COND', 'NOFES_COND', 'ALPHA', 'GRID');
+save(CACHE_FILE, 'h4', 'emgDev', 'emg', 'sensH4', 'sensEMG', 'sensEMGdirect', 'SENS_GRID', 'htCurve', 'htDisc', 'OCP_CONDS', 'REF_COND', 'NOFES_COND', 'ALPHA', 'GRID');
 fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
 
 % =========================================================================
@@ -163,6 +241,15 @@ fprintf('Valeurs dans chaque zone : ecart absolu (deg), puis difference signee m
 for id = 1:nDOF, printCurve(h4(id), 'deg', 'deg'); end
 fprintf('\n=== EMG (exploratoire) : ecart absolu a No FES, Rehab contre moyenne des 4 OCP (Holm sur %d muscles) ===\n', nMus);
 for jm = 1:nMus, printCurve(emgDev(jm), 'deg', '%'); end
+fprintf('\n=== EMG (exploratoire) : comparaison directe, Rehab contre moyenne des 4 OCP, %% du pic (Holm sur %d muscles) ===\n', nMus);
+fprintf('Valeurs dans chaque zone : enveloppe (%% du pic), puis difference signee moyenne avec No FES (%% du pic)\n');
+for jm = 1:nMus, printCurve(emg(jm), 'deg', '%'); end
+
+fprintf('\n=== Sensibilite : memes tests sur tous les participants, de %d a %d deg ===\n', SENS_GRID(1), SENS_GRID(end));
+for id = 1:nDOF, printCurve(sensH4(id), 'deg', 'deg'); end
+for jm = 1:nMus, printCurve(sensEMG(jm), 'deg', '%'); end
+fprintf('EMG, comparaison directe :\n');
+for jm = 1:nMus, printCurve(sensEMGdirect(jm), 'deg', '%'); end
 
 fprintf('\n=== Elevation thoracohumerale : Rehab contre moyenne des 4 OCP ===\n');
 fprintf('Courbe (test unique). Valeurs dans chaque zone : elevation (deg), puis difference signee avec No FES (deg)\n');
@@ -181,8 +268,8 @@ end
 
 % =========================================================================
 % FIGURE DE L'ARTICLE : angles scapulothoraciques et ecart a No FES (H4),
-% EMG et ecart a No FES ; barres du contraste Rehab / OCP sur les ecarts
-% (moitie haute : Rehab, moitie basse : couleur de la bande OCP)
+% EMG et ecart a No FES ; barres du contraste Rehab / OCP (moitie haute :
+% Rehab, moitie basse : couleur de la bande OCP)
 % =========================================================================
 COLORS = conditionColors(CONDS);
 colRef = COLORS(iRef, :); colOCP = COLORS(strcmp(CONDS, 'Min_stress'), :);
@@ -194,6 +281,7 @@ S6 = struct('grid', GRID, 'conds', {CONDS}, 'condLabels', {H.COND_LABELS}, 'colo
             'devOCP', {arrayfun(@(c) c.yB, h4, 'UniformOutput', false)}, ...
             'barsDev', {arrayfun(barsOf, h4, 'UniformOutput', false)}, ...
             'muscleNames', {arrayfun(@(c) c.label, emgDev, 'UniformOutput', false)}, 'emg', {E.elevProf}, ...
+            'barsEMG', {arrayfun(barsOf, emg, 'UniformOutput', false)}, ...
             'emgDevRef', {arrayfun(@(c) c.yA, emgDev, 'UniformOutput', false)}, ...
             'emgDevOCP', {arrayfun(@(c) c.yB, emgDev, 'UniformOutput', false)}, ...
             'barsEmgDev', {arrayfun(barsOf, emgDev, 'UniformOutput', false)});

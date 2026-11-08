@@ -19,7 +19,8 @@ function plotScapulaEmgHypothesisFigure(S)
 %                   Rehab and mean of the optimised patterns (mean +/- SD),
 %                   with the bars of the hypothesis test;
 %                 - row 3: EMG envelopes normalised to the peak of each
-%                   trial, as row 1;
+%                   trial, as row 1, with the bars of the exploratory direct
+%                   comparison;
 %                 - row 4: absolute deviation of the EMG envelopes from No
 %                   FES, as row 2, with the bars of the exploratory test
 %                   (common scale for the four muscles).
@@ -33,8 +34,8 @@ function plotScapulaEmgHypothesisFigure(S)
 %                   condition, (nPat, nGrid)), devRef / devOCP (cell per
 %                   angle, (nPat, nGrid)), barsDev (cell per angle of [start
 %                   end] rows, deg), muscleNames, emg (cell per muscle of
-%                   cell per condition), emgDevRef / emgDevOCP, barsEmgDev
-%                   (cell per muscle)
+%                   cell per condition), barsEMG, emgDevRef / emgDevOCP,
+%                   barsEmgDev (cell per muscle)
 % Outputs     : 1 figure (1800 x 1800 px)
 % -------------------------------------------------------------------------
 % Dependencies: none
@@ -85,10 +86,13 @@ for id = 1:nDof
 end
 
 % --- Rangee 3 : EMG normalisee au pic (echelle commune 0-100 %) ------------
+BAR_H = 6; BAR_TOP = -4 - BAR_H;   % en % du pic, sous les courbes
+yBottom = 0; if any(~cellfun(@isempty, S.barsEMG)), yBottom = BAR_TOP - 4; end
 for m = 1:nMus
     ax = axes('Position', axPos(3, m, col_emg)); hold(ax, 'on');
     drawBandsAndLines(S.emg{m}, grp, alphaG, colOf, S, isShown, [0 100]);
-    ylim(ax, [0 100]); yticks(ax, 0:20:100);
+    drawBars(S.barsEMG{m}, S.colRef, S.colOCP, BAR_TOP, BAR_H);
+    ylim(ax, [yBottom 100]); yticks(ax, 0:20:100);
     styleAxes(ax, FONT, S.muscleNames{m}, S.grid, FS_TICK, FS_TITLE);
     if m == 1
         ylabel(ax, 'EMG (% of peak)', 'FontName', FONT, 'FontSize', FS_LABEL);

@@ -32,7 +32,8 @@ disp('=========================================');
 HERE = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(HERE, 'helpers'));
 
-OUT_FILE = fullfile(dataDir(), 'Source_data_Figure5.xlsx');
+FINAL_FILE = fullfile(dataDir(), 'Source_data_Figure5.xlsx');
+OUT_FILE = fullfile(tempdir, 'Source_data_Figure5.xlsx');   % ecrit en local : la synchronisation OneDrive peut verrouiller le fichier
 if isfile(OUT_FILE), delete(OUT_FILE); end
 
 % -------------------------------------------------------------------------
@@ -42,7 +43,7 @@ H  = load(fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat'), 'patientMean
           'PATIENT_IDS', 'CONDITIONS_ORDERED', 'COND_LABELS');
 RH = load(fullfile(dataDir(), 'cache_scapulohumeral_rhythm_all_comp.mat'), 'joints', 'ELEV_GRID');
 EL = load(fullfile(dataDir(), 'cache_emg_elevation_all_comp.mat'), 'elevProf', 'ELEV_GRID', 'EMG_LABELS');
-NC = load(fullfile(dataDir(), 'cache_nested_comparison.mat'), 'h4', 'emgDev', 'htCurve', 'htDisc', ...
+NC = load(fullfile(dataDir(), 'cache_nested_comparison.mat'), 'h4', 'emgDev', 'emg', 'sensH4', 'sensEMG', 'sensEMGdirect', 'SENS_GRID', 'htCurve', 'htDisc', ...
           'OCP_CONDS', 'REF_COND', 'NOFES_COND');
 
 CRAW = H.CONDITIONS_ORDERED;
@@ -136,10 +137,19 @@ writeSheet(longTable(rows, {'Participant', 'Pattern', 'Muscle', 'Thoracohumeral 
 sheets(end+1, :) = {'Fig5_EMG_deviation', ['Figure 5, fourth row. Absolute deviation of the EMG envelope from No FES, for Rehab ' ...
     'and for the mean of the four optimised patterns (deviation of each pattern, then mean).']};
 
-writeSheet(emgStats(NC.emgDev, 'Deviation from No FES (% of peak)'), OUT_FILE, 'Fig5_EMG_stats');
-sheets(end+1, :) = {'Fig5_EMG_stats', ['Figure 5, fourth row (exploratory). For each muscle, deviation from No FES of Rehab vs ' ...
-    'mean of the optimised patterns. p-value of the curve, p-value after Holm-Bonferroni correction across the 4 muscles, ' ...
-    'elevation ranges that differ, and mean values over each range.']};
+writeSheet([emgStats(NC.emg, 'Envelope (% of peak)'); emgStats(NC.emgDev, 'Deviation from No FES (% of peak)')], OUT_FILE, 'Fig5_EMG_stats');
+sheets(end+1, :) = {'Fig5_EMG_stats', ['Figure 5, third and fourth rows (exploratory). For each muscle, Rehab vs mean of the ' ...
+    'optimised patterns, on the envelope and on its deviation from No FES. p-value of the curve, p-value after ' ...
+    'Holm-Bonferroni correction across the 4 muscles, elevation ranges that differ, and mean values over each range.']};
+
+T = [addvars(curveStats(NC.sensH4, 'Deviation from No FES (deg)'), repmat("Scapulothoracic angle", numel(NC.sensH4), 1), ...
+             'Before', 1, 'NewVariableNames', 'Outcome')];
+writeSheet(T, OUT_FILE, 'Fig5_ST_sensitivity');
+writeSheet([emgStats(NC.sensEMGdirect, 'Envelope (% of peak)'); emgStats(NC.sensEMG, 'Deviation from No FES (% of peak)')], OUT_FILE, 'Fig5_EMG_sensitivity');
+sheets(end+1, :) = {'Fig5_ST_sensitivity', sprintf(['Sensitivity analysis. Same test as Fig5_ST_stats on all %d participants, over the ' ...
+    'elevation range common to all of them (%d to %d deg).'], nPat, NC.SENS_GRID(1), NC.SENS_GRID(end))};
+sheets(end+1, :) = {'Fig5_EMG_sensitivity', sprintf(['Sensitivity analysis. Same test as Fig5_EMG_stats on all %d participants, over the ' ...
+    'elevation range common to all of them (%d to %d deg).'], nPat, NC.SENS_GRID(1), NC.SENS_GRID(end))};
 
 % -------------------------------------------------------------------------
 % Thoracohumeral elevation (reported in the text)
@@ -208,8 +218,9 @@ info = {
 T = cell2table([info; [{'Sheet'}, {'Content'}]; sheets], 'VariableNames', {'Item', 'Description'});
 writetable(T, OUT_FILE, 'Sheet', 'README');
 moveReadmeFirst(OUT_FILE);
+movefile(OUT_FILE, FINAL_FILE, 'f');
 
-fprintf('\nFichier ecrit : %s\n', OUT_FILE);
+fprintf('\nFichier ecrit : %s\n', FINAL_FILE);
 disp('Termine.');
 
 
