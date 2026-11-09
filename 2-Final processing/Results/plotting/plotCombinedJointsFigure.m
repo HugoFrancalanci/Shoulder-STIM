@@ -29,9 +29,9 @@ function plotCombinedJointsFigure(joints)
 % =========================================================================
 
 FONT = 'Times New Roman';
-FS_TICK = 22; FS_LABEL = 26; FS_TITLE = 26; FS_LEGEND = 26;   % tailles de police
+FS_TICK = 22; FS_LABEL = 26; FS_TITLE = 26; FS_LEGEND = 26;   % font sizes
 LEGEND_ORDER = {'No FES', 'Rehab', 'Random', 'Min PW', 'Min force', 'Min stress', 'Min fatigue'};
-% Groupes des bandes moyenne +/- ET (couleur de la 1re condition de chaque groupe)
+% Groups of the mean +/- SD bands (colour of the first condition of each group)
 GROUPS = {{'No FES'}, {'Rehab','Random'}, {'Min_stress','Min_pulse_width','Min_force','Min_fatigue'}};
 BAND_ALPHA = [0.13 0.13 0.18];
 
@@ -46,12 +46,12 @@ for r = 2:nRows
     end
 end
 
-% taille fixe et theme clair : rendu independant de l'ecran et du theme de MATLAB
+% fixed size and light theme: rendering independent of the screen and of the MATLAB theme
 fig = figure('Name', 'Final figure', 'Units', 'pixels', 'Position', [0 0 1800 900], 'Color', 'white');
 if isprop(fig, 'Theme'), fig.Theme = 'light'; end
 hasRowLabels  = any(cellfun(@(j) ~isempty(j.rowLabel), joints));
 TOP_MARGIN    = 0.05;
-BOTTOM_MARGIN = 0.17;   % libelle x + legende des conditions
+BOTTOM_MARGIN = 0.17;   % x label + legend of the conditions
 ROW_GAP       = 0.07;
 LEFT_MARGIN   = 0.075 + 0.02 * hasRowLabels;
 RIGHT_MARGIN  = 0.02;
@@ -68,7 +68,7 @@ for r = 1:nRows
         if isfield(J, 'EXCL_ZONE'), drawExclusionZone(ax, J.EXCL_ZONE); end
 
         y_min = Inf; y_max = -Inf;
-        for g = 1:numel(GROUPS)   % bandes par groupe de conditions, sous les courbes
+        for g = 1:numel(GROUPS)   % bands per group of conditions, under the curves
             stacks = cell(1, numel(GROUPS{g}));
             for q = 1:numel(GROUPS{g})
                 A = getStack(J.patientMeans, GROUPS{g}{q});
@@ -90,7 +90,7 @@ for r = 1:nRows
         if ~isfinite(y_min), y_min = 0; y_max = 1; end
         rngY = max(y_max - y_min, 0.01);
 
-        % paires significatives du panneau, rangees par type de comparaison
+        % significant pairs of the panel, ordered by type of comparison
         sig = {};
         for kp = 1:size(J.ALL_PAIRS, 1)
             fld = matlab.lang.makeValidName(sprintf('%s_vs_%s', J.ALL_PAIRS{kp,1}, J.ALL_PAIRS{kp,2}));
@@ -103,7 +103,7 @@ for r = 1:nRows
             sig = sig(ord, :);
         end
         bar_h = 0.06 * rngY; gap = 0.02 * rngY; y_top = y_min - 0.06 * rngY;
-        for k = 1:size(sig, 1)   % barre bicolore : condition A en haut, B en bas
+        for k = 1:size(sig, 1)   % bicoloured bar: condition A on top, B below
             y_row = y_top - (k-1) * (bar_h + gap);
             colA = J.COLORS(strcmp(J.CONDITIONS_ORDERED, sig{k,1}), :);
             colB = J.COLORS(strcmp(J.CONDITIONS_ORDERED, sig{k,2}), :);
@@ -129,7 +129,7 @@ for r = 1:nRows
     end
 end
 
-% Noms des rangees (gras, verticaux), si presents
+% Row names (bold, vertical), if any
 lab = axes('Position', [0 0 1 1], 'Visible', 'off'); hold(lab, 'on');
 for r = 1:nRows
     if isempty(joints{r}.rowLabel), continue; end
@@ -138,7 +138,7 @@ for r = 1:nRows
          'VerticalAlignment', 'middle', 'FontSize', FS_TITLE, 'FontName', FONT, 'FontWeight', 'bold');
 end
 
-% Legende des conditions (ordre LEGEND_ORDER) + zone d'exclusion eventuelle
+% Legend of the conditions (LEGEND_ORDER) + exclusion zone, if any
 exclZone = [];
 for r = 1:nRows
     if isfield(joints{r}, 'EXCL_ZONE') && ~isempty(joints{r}.EXCL_ZONE), exclZone = joints{r}.EXCL_ZONE; break; end
@@ -151,7 +151,7 @@ for k = 1:numel(legOrder)
     h(k) = plot(legAx, NaN, NaN, 'Color', ref.COLORS(ic,:), 'LineWidth', 3.5, 'DisplayName', ref.COND_LABELS{ic});
 end
 h = [h, drawExclusionZone(legAx, exclZone, 'legend')];
-% centree par MATLAB (Location) : reste centree quelle que soit la taille de rendu
+% centred by MATLAB (Location): stays centred whatever the rendering size
 legend(legAx, h, 'Orientation', 'horizontal', 'Box', 'off', 'FontSize', FS_LEGEND, ...
        'NumColumns', numel(h), 'FontName', FONT, 'Location', 'north');
 end
@@ -174,8 +174,8 @@ end
 
 
 function [mu, sd] = groupBand(stacks)
-    % Moyenne +/- ET entre participants d'un groupe de conditions. stacks : une
-    % matrice (N, nPts) par condition, moyennees d'abord pour chaque participant
+    % Mean +/- SD across participants of a group of conditions. stacks: one
+    % (N, nPts) matrix per condition, averaged first for each participant
     M = mean(cat(3, stacks{:}), 3);
     mu = mean(M, 1, 'omitnan'); sd = std(M, 0, 1, 'omitnan');
 end

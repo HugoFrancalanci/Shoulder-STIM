@@ -26,7 +26,7 @@ function plotScapulaEmgHypothesisFigure(S)
 %                   (common scale for the four muscles).
 %               Bars are bicoloured: upper half Rehab, lower half optimised
 %               patterns. One x label under the kinematic rows and one under
-%               the EMG rows, condition legend at the bottom.
+%               the EMG rows, framed legend table at the bottom.
 % -------------------------------------------------------------------------
 % Parameters  : S : struct with fields
 %                   grid, conds, condLabels, colors, showConds, colRef,
@@ -36,15 +36,16 @@ function plotScapulaEmgHypothesisFigure(S)
 %                   end] rows, deg), muscleNames, emg (cell per muscle of
 %                   cell per condition), barsEMG, emgDevRef / emgDevOCP,
 %                   barsEmgDev (cell per muscle)
-% Outputs     : 1 figure (1800 x 1800 px)
+% Outputs     : 1 figure (1800 x 2120 px)
 % -------------------------------------------------------------------------
 % Dependencies: none
 % =========================================================================
 
 FONT = 'Times New Roman';
-FS_TICK = 22; FS_LABEL = 26; FS_TITLE = 26; FS_LEGEND = 26;
-LEGEND_ORDER = {'No FES', 'Rehab', 'Random', 'Min PW', 'Min force', 'Min stress', 'Min fatigue'};
-% Groupes des bandes moyenne +/- ET (couleur de la 1re condition de chaque groupe)
+FS_TICK = 22; FS_LABEL = 26; FS_TITLE = 26;
+FIG_W = 1800; PLOTS_H = 1800; LEGEND_H = 320; FIG_H = PLOTS_H + LEGEND_H;   % pixels
+yMap = @(y) (LEGEND_H + y * PLOTS_H) / FIG_H;   % height in the plot area -> height in the figure
+% Groups of the mean +/- SD bands (colour of the first condition of each group)
 GROUPS = {{'No FES'}, {'Rehab','Random'}, {'Min_stress','Min_pulse_width','Min_force','Min_fatigue'}};
 BAND_ALPHA = [0.13 0.13 0.18];
 grp = cellfun(@(g) g(ismember(g, S.showConds)), GROUPS, 'UniformOutput', false);
@@ -53,20 +54,20 @@ colOf = @(c) S.colors(strcmp(S.conds, c), :);
 isShown = ismember(S.conds, S.showConds);
 nDof = numel(S.dofLabels); nMus = numel(S.muscleNames);
 
-% taille fixe et theme clair : rendu independant de l'ecran et du theme de MATLAB
+% fixed size and light theme: rendering independent of the screen and of the MATLAB theme
 fig = figure('Name', 'Manuscript figure -- scapulothoracic kinematics and EMG vs thoracohumeral elevation', ...
-             'Units', 'pixels', 'Position', [0 0 1800 1800], 'Color', 'white');
+             'Units', 'pixels', 'Position', [0 0 FIG_W FIG_H], 'Color', 'white');
 if isprop(fig, 'Theme'), fig.Theme = 'light'; end
 TOP = 0.026; BOTTOM = 0.085; LEFT = 0.095; RIGHT = 0.015; COLGAP = 0.045;
-ROWGAPS = [0.055 0.095 0.055];   % plus d'air sous la rangee 2 : label x de la partie cinematique
+ROWGAPS = [0.055 0.095 0.055];   % more space under row 2: x label of the kinematic part
 nRow = 4;
 row_h = (1 - TOP - BOTTOM - sum(ROWGAPS)) / nRow;
 rowBottom = 1 - TOP - (1:nRow)*row_h - [0 cumsum(ROWGAPS)];
 col_st  = (1 - LEFT - RIGHT - (nDof-1)*COLGAP) / nDof;
 col_emg = (1 - LEFT - RIGHT - (nMus-1)*COLGAP) / nMus;
-axPos = @(r, k, w) [LEFT + (k-1)*(w + COLGAP), rowBottom(r), w, row_h];
+axPos = @(r, k, w) [LEFT + (k-1)*(w + COLGAP), yMap(rowBottom(r)), w, row_h * PLOTS_H / FIG_H];
 
-% --- Rangee 1 : angles scapulothoraciques ---------------------------------
+% --- Row 1: scapulothoracic angles ---------------------------------
 for id = 1:nDof
     ax = axes('Position', axPos(1, id, col_st)); hold(ax, 'on');
     [y_min, y_max] = drawBandsAndLines(S.raw{id}, grp, alphaG, colOf, S, isShown);
@@ -76,7 +77,7 @@ for id = 1:nDof
     if id == 1, ylabel(ax, 'Angle (°)', 'FontName', FONT, 'FontSize', FS_LABEL); end
 end
 
-% --- Rangee 2 : ecart des angles a No FES (echelle propre a chaque angle) ----
+% --- Row 2: deviation of the angles from No FES (own scale for each angle) ----
 for id = 1:nDof
     ax = axes('Position', axPos(2, id, col_st)); hold(ax, 'on');
     y_max = drawDeviation(S.devRef{id}, S.devOCP{id}, S);
@@ -85,8 +86,8 @@ for id = 1:nDof
     if id == 1, ylabel(ax, 'Deviation (°)', 'FontName', FONT, 'FontSize', FS_LABEL); end
 end
 
-% --- Rangee 3 : EMG normalisee au pic (echelle commune 0-100 %) ------------
-BAR_H = 6; BAR_TOP = -4 - BAR_H;   % en % du pic, sous les courbes
+% --- Row 3: EMG normalised to the peak (common scale 0-100 %) ------------
+BAR_H = 6; BAR_TOP = -4 - BAR_H;   % in % of the peak, under the curves
 yBottom = 0; if any(~cellfun(@isempty, S.barsEMG)), yBottom = BAR_TOP - 4; end
 for m = 1:nMus
     ax = axes('Position', axPos(3, m, col_emg)); hold(ax, 'on');
@@ -97,13 +98,13 @@ for m = 1:nMus
     if m == 1
         ylabel(ax, 'EMG (% of peak)', 'FontName', FONT, 'FontSize', FS_LABEL);
     else
-        ax.YTickLabel = {};   % meme echelle que le premier panneau
+        ax.YTickLabel = {};   % same scale as the first panel
     end
 end
 
-% --- Rangee 4 : ecart de l'EMG a No FES (echelle commune aux muscles) -------
+% --- Row 4: deviation of the EMG from No FES (common scale for the muscles) -------
 yMaxEmg = 0;
-for m = 1:nMus   % echelle commune : maximum des bandes sur les 4 muscles
+for m = 1:nMus   % common scale: maximum of the bands over the 4 muscles
     yMaxEmg = max([yMaxEmg, bandMax(S.emgDevRef{m}), bandMax(S.emgDevOCP{m})]);
 end
 for m = 1:nMus
@@ -114,41 +115,74 @@ for m = 1:nMus
     if m == 1
         ylabel(ax, 'Deviation (% of peak)', 'FontName', FONT, 'FontSize', FS_LABEL);
     else
-        ax.YTickLabel = {};   % meme echelle que le premier panneau
+        ax.YTickLabel = {};   % same scale as the first panel
     end
 end
 
-% Noms des rangees (gras, verticaux) et label x unique
+% Row names (bold, vertical) and single x label
 lab = axes('Position', [0 0 1 1], 'Visible', 'off'); hold(lab, 'on');
 rowNames = {'Scapulothoracic', 'Deviation from No FES', 'Scapular muscles', 'Deviation from No FES'};
 for r = 1:nRow
-    text(lab, 0.014, rowBottom(r) + row_h/2, rowNames{r}, 'Rotation', 90, 'HorizontalAlignment', 'center', ...
+    text(lab, 0.014, yMap(rowBottom(r) + row_h/2), rowNames{r}, 'Rotation', 90, 'HorizontalAlignment', 'center', ...
          'VerticalAlignment', 'middle', 'FontName', FONT, 'FontSize', FS_TITLE, 'FontWeight', 'bold');
 end
-for r = [2 4]   % label x sous la partie cinematique (rangee 2) et sous l'EMG (rangee 4)
-    text(lab, LEFT + (1 - LEFT - RIGHT)/2, rowBottom(r) - 0.043, 'Thoracohumeral elevation (°)', ...
+for r = [2 4]   % x label under the kinematic part (row 2) and under the EMG (row 4)
+    text(lab, LEFT + (1 - LEFT - RIGHT)/2, yMap(rowBottom(r) - 0.043), 'Thoracohumeral elevation (°)', ...
          'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', 'FontName', FONT, 'FontSize', FS_LABEL);
 end
 
-% Legende : conditions tracees (ordre LEGEND_ORDER) + moyenne des patrons optimises
-legOrder = cellfun(@(l) find(strcmp(S.condLabels, l), 1), LEGEND_ORDER);
-legOrder = legOrder(isShown(legOrder));
-legAx = axes('Position', [0.02 0.004 0.96 0.028], 'Visible', 'off'); hold(legAx, 'on');
-h = gobjects(1, numel(legOrder) + 1);
-for k = 1:numel(legOrder)
-    ic = legOrder(k);
-    h(k) = plot(legAx, NaN, NaN, 'Color', S.colors(ic,:), 'LineWidth', 3.5, 'DisplayName', S.condLabels{ic});
+drawLegendTable(S, grp, alphaG, colOf, FONT, FIG_W, FIG_H);
 end
-h(end) = plot(legAx, NaN, NaN, '--', 'Color', S.colOCP, 'LineWidth', 3.5, 'DisplayName', 'Optimised (mean)');
-% centree par MATLAB (Location) : reste centree quelle que soit la taille de rendu
-legend(legAx, h, 'Orientation', 'horizontal', 'Box', 'off', 'FontName', FONT, 'FontSize', FS_LEGEND, ...
-       'NumColumns', numel(h), 'Location', 'north');
+
+
+function drawLegendTable(S, grp, alphaG, colOf, FONT, figW, figH)
+    % Framed legend table, in pixels from the top of the figure. Rows: what is
+    % drawn; columns: the three groups of conditions.
+    FS = 20.5; SW = 34; GAP = 8; LINE_W = 3.5;
+    ySwatch = 0.3 * FS * 96 / 72;           % height of a swatch above the text baseline
+    X0 = 129; C = [535.27 898.08 1303]; C4 = 1501.25;   % row names, three columns, second optimised column
+    yHead = 1818; yIndiv = [1870 1910]; yMean = 1966; ySD = 2020; yBars = 2074;
+    yIndivMid = mean(yIndiv);
+    ax = axes('Position', [0 0 1 1], 'Visible', 'off', 'XLim', [0 figW], 'YLim', [0 figH], 'YDir', 'reverse'); hold(ax, 'on');
+    rectangle(ax, 'Position', [99 1780 1602 318], 'EdgeColor', [0.15 0.15 0.15], 'LineWidth', 1.5);
+    label = @(x, y, s, weight) text(ax, x, y, s, 'FontName', FONT, 'FontSize', FS, 'FontWeight', weight, ...
+                                    'VerticalAlignment', 'baseline', 'Color', [0.13 0.13 0.13]);
+    entry = @(x, y, s, col, style) [plot(ax, [x x + SW], [y y] - ySwatch, style, 'Color', col, 'LineWidth', LINE_W), ...
+                                    label(x + SW + GAP, y, s, 'normal')];
+    condCol = @(lab) S.colors(strcmp(S.condLabels, lab), :);
+    heads = {'No-stimulation', 'Rehabilitation-like', 'Optimised FES'};
+    for k = 1:3, label(C(k), yHead, heads{k}, 'bold'); end
+    names = {'Individual patterns', 'Mean patterns', 'Standard deviation', 'Bicoloured bars'};
+    rowY = [yIndivMid yMean ySD yBars];
+    for k = 1:4, label(X0, rowY(k), names{k}, 'bold'); end
+    % individual patterns
+    entry(C(1), yIndivMid, 'No FES', condCol('No FES'), '-');
+    entry(C(2), yIndivMid, 'Rehab', condCol('Rehab'), '-');
+    entry(C(3), yIndiv(1), 'Min PW', condCol('Min PW'), '-');
+    entry(C4, yIndiv(1), 'Min force', condCol('Min force'), '-');
+    entry(C(3), yIndiv(2), 'Min stress', condCol('Min stress'), '-');
+    entry(C4, yIndiv(2), 'Min fatigue', condCol('Min fatigue'), '-');
+    % means of the two stimulation groups, as drawn on the deviation rows
+    entry(C(2), yMean, 'Rehab', S.colRef, '-');
+    entry(C(3), yMean, 'Mean of the four patterns', S.colOCP, '--');
+    % standard deviation bands
+    h = 18;
+    for g = 1:numel(grp)
+        x = C(g); y = ySD - ySwatch - h/2;
+        fill(ax, [x x + SW x + SW x], [y y y + h y + h], colOf(grp{g}{1}), 'FaceAlpha', alphaG(g), 'EdgeColor', 'none');
+    end
+    % bicoloured bars
+    h = 14; y = yBars - ySwatch - h/2;
+    rectangle(ax, 'Position', [C(1) y SW h/2], 'FaceColor', S.colRef, 'EdgeColor', 'none');
+    rectangle(ax, 'Position', [C(1) y + h/2 SW h/2], 'FaceColor', S.colOCP, 'EdgeColor', 'none');
+    rectangle(ax, 'Position', [C(1) y SW h], 'FaceColor', 'none', 'EdgeColor', 'k', 'LineWidth', 0.5);
+    label(C(1) + SW + GAP, yBars, 'Rehab vs optimised patterns (adjusted p < 0.05)', 'normal');
 end
 
 
 function [y_min, y_max] = drawBandsAndLines(Y, grp, alphaG, colOf, S, isShown, clip)
-    % Bandes moyenne +/- ET par groupe, puis courbes moyennes des conditions
-    % tracees. Y : cell par condition, (nPat, nGrid). clip : bornes des bandes.
+    % Mean +/- SD bands per group, then mean curves of the conditions
+    % drawn. Y: cell per condition, (nPat, nGrid). clip: limits of the bands.
     if nargin < 7, clip = [-Inf Inf]; end
     y_min = Inf; y_max = -Inf;
     for g = 1:numel(grp)
@@ -164,7 +198,7 @@ end
 
 
 function y_max = drawDeviation(devRef, devOCP, S)
-    % Ecart a No FES : Rehab (trait plein) et moyenne des OCP (tirets), +/- ET
+    % Deviation from No FES: Rehab (solid) and mean of the OCP (dashed), +/- SD
     curves = {devRef, devOCP}; cols = {S.colRef, S.colOCP}; styles = {'-', '--'}; alphas = [0.13 0.18];
     for q = 1:2
         mu = mean(curves{q}, 1, 'omitnan'); sd = std(curves{q}, 0, 1, 'omitnan');
@@ -178,7 +212,7 @@ end
 
 
 function setDeviationLimits(ax, bars, S, y_max)
-    % Barre du test sous les courbes, puis limites de l'axe y
+    % Bar of the test under the curves, then y axis limits
     barH = 0.06*y_max; yTop = -0.06*y_max - barH;
     drawBars(bars, S.colRef, S.colOCP, yTop, barH);
     ylim(ax, [yTop - 0.04*y_max, 1.08*y_max]);
@@ -191,15 +225,15 @@ end
 
 
 function [mu, sd] = groupBand(stacks)
-    % Moyenne +/- ET entre participants d'un groupe de conditions. stacks : une
-    % matrice (N, nPts) par condition, moyennees d'abord pour chaque participant
+    % Mean +/- SD across participants of a group of conditions. stacks: one
+    % (N, nPts) matrix per condition, averaged first for each participant
     M = mean(cat(3, stacks{:}), 3);
     mu = mean(M, 1, 'omitnan'); sd = std(M, 0, 1, 'omitnan');
 end
 
 
 function drawBars(E, colA, colB, yTop, barH)
-    % Une barre bicolore (A en haut, B en bas) ; E : [debut fin] par zone
+    % One bicoloured bar (A on top, B below); E: [start end] per range
     for c = 1:size(E, 1)
         w = max(E(c,2) - E(c,1), 0.5);
         rectangle('Position', [E(c,1), yTop + barH/2, w, barH/2], 'FaceColor', colA, 'EdgeColor', 'none');
@@ -214,13 +248,13 @@ function styleAxes(ax, FONT, ttl, xg, fsTick, fsTitle)
     if ~isempty(ttl), title(ax, ttl, 'FontName', FONT, 'FontSize', fsTitle, 'FontWeight', 'bold'); end
     ax.YAxis.Exponent = 0;
     xlim(ax, [xg(1) xg(end)]);
-    xticks(ax, 20:10:90); xtickangle(ax, 0);   % graduations droites, jusqu'a 90 sur chaque panneau
+    xticks(ax, 20:10:90); xtickangle(ax, 0);   % straight tick labels, up to 90 on each panel
     grid(ax, 'on'); box(ax, 'on');
 end
 
 
 function s = dofTitle(label)
-    % Titres des degres de liberte scapulothoraciques
+    % Titles of the scapulothoracic degrees of freedom
     lbl = strtrim(label);
     if strcmpi(lbl, 'Protraction (+) / retraction (-)')
         s = {'Retraction (-) / protraction (+)'};

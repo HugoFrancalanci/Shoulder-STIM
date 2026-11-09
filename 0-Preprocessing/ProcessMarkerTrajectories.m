@@ -344,8 +344,8 @@ if ~isempty(Static)
 if size(kmarker,2) >= 3
     X = [];
 
-    % Pour éviter une erreur si un marqueur est absent (non utilisé pour la
-    % cinématique)
+    % Avoids an error when a marker is missing (not used for the
+    % kinematics)
 % for k = 1:size(kmarker,2)
 %     traj = permute(Static.Marker(kmarker(k)).Trajectory.fill,[3,1,2]);
 %     if ~isempty(traj)

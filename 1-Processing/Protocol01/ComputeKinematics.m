@@ -23,7 +23,7 @@
 
 function Trial = ComputeKinematics(c3dFiles,Trial)
 
-disp('  - Calcul de la cinématique articulaire');
+disp('  - Computing the joint kinematics');
 n = fix(Trial.n1);
 
 % -------------------------------------------------------------------------

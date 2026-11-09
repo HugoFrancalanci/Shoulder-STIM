@@ -32,14 +32,14 @@ if nargin >= 4 && ~isempty(paperIn), PAPER_IN = paperIn; end
 if nargin < 3 || isempty(outDir), outDir = fullfile(dataDir(), 'Figures'); end
 if ~isfolder(outDir), mkdir(outDir); end
 
-if isprop(fig, 'Theme'), fig.Theme = 'light'; end   % pas de theme sombre (MATLAB R2025a+)
+if isprop(fig, 'Theme'), fig.Theme = 'light'; end   % no dark theme (MATLAB R2025a+)
 fig.PaperUnits = 'inches';
 fig.PaperSize = PAPER_IN;
 fig.PaperPositionMode = 'manual';
 fig.PaperPosition = [0 0 PAPER_IN];
-fig.InvertHardcopy = 'off';                           % garder le fond blanc tel quel
-% PNG (compresse sans perte) plutot que TIFF : < 10 Mo par fichier, limite du journal
+fig.InvertHardcopy = 'off';                           % keeps the white background as it is
+% PNG (lossless compression) rather than TIFF: < 10 MB per file, journal limit
 print(fig, fullfile(outDir, [baseName '.png']), '-dpng', sprintf('-r%d', DPI));
 print(fig, fullfile(outDir, [baseName '.pdf']), '-dpdf', '-vector');
-fprintf('Figure exportee : %s (.png %d dpi, .pdf vectoriel)\n', fullfile(outDir, baseName), DPI);
+fprintf('Figure exported: %s (.png %d dpi, vector .pdf)\n', fullfile(outDir, baseName), DPI);
 end

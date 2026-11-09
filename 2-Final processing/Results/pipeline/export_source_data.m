@@ -33,7 +33,7 @@ HERE = fileparts(fileparts(mfilename('fullpath')));
 addpath(fullfile(HERE, 'helpers'));
 
 FINAL_FILE = fullfile(dataDir(), 'Source_data_Figure5.xlsx');
-OUT_FILE = fullfile(tempdir, 'Source_data_Figure5.xlsx');   % ecrit en local : la synchronisation OneDrive peut verrouiller le fichier
+OUT_FILE = fullfile(tempdir, 'Source_data_Figure5.xlsx');   % written locally: file synchronisation can lock the file
 if isfile(OUT_FILE), delete(OUT_FILE); end
 
 % -------------------------------------------------------------------------
@@ -47,7 +47,7 @@ NC = load(fullfile(dataDir(), 'cache_nested_comparison.mat'), 'h4', 'emgDev', 'e
           'OCP_CONDS', 'REF_COND', 'NOFES_COND');
 
 CRAW = H.CONDITIONS_ORDERED;
-SHOW = [{NC.NOFES_COND, NC.REF_COND}, NC.OCP_CONDS];            % conditions de l'article (ordre de la legende)
+SHOW = [{NC.NOFES_COND, NC.REF_COND}, NC.OCP_CONDS];            % conditions of the article (order of the legend)
 iShow = cellfun(@(c) find(strcmp(CRAW, c)), SHOW);
 LAB  = H.COND_LABELS(iShow);
 iNo  = strcmp(CRAW, NC.NOFES_COND); iRef = strcmp(CRAW, NC.REF_COND); isOCP = ismember(CRAW, NC.OCP_CONDS);
@@ -72,7 +72,7 @@ for ic = 1:numel(CRAW)
         st{ic, id} = cell2mat(cellfun(@(r) r(id, :), R(:), 'UniformOutput', false));
     end
 end
-keepP = true(nPat, 1);   % courbes completes dans toutes les conditions de l'article
+keepP = true(nPat, 1);   % complete curves in all the conditions of the article
 for q = 1:numel(st(iShow, :))
     S = st(iShow, :); keepP = keepP & all(~isnan(S{q}), 2);
 end
@@ -121,7 +121,7 @@ end
 writeSheet(longTable(rows, {'Participant', 'Condition', 'Muscle', 'Thoracohumeral elevation (deg)', 'EMG (% of peak)'}), ...
            OUT_FILE, 'Fig5_EMG');
 sheets(end+1, :) = {'Fig5_EMG', ['Figure 5, third row. EMG envelope of each participant, condition and muscle, expressed as a ' ...
-    'percentage of the peak of each trial (mean of the 3 trials), at each thoracohumeral elevation from 20 to 90 deg ' ...
+    'percentage of the peak of each trial (mean of the trials), at each thoracohumeral elevation from 20 to 90 deg ' ...
     '(ascending phase).']};
 
 rows = {};
@@ -204,7 +204,9 @@ sheets(end+1, :) = {'TH_stats', ['Text. Elevation curve: Rehab vs mean of the op
 % -------------------------------------------------------------------------
 info = {
  'Study',        'Effect of deltoid stimulation patterns on shoulder kinematics and scapular muscle activity during arm elevation in the scapular plane.';
- 'Participants', sprintf('%d healthy participants (P01 to P%02d), 3 trials per condition. Each value is the mean of the 3 trials.', nPat, nPat);
+ 'Participants', sprintf(['%d healthy participants (P01 to P%02d), 3 trials per condition (one No FES trial not recorded for P07). Each value is ' ...
+                  'the mean of the available trials. Scapulothoracic and EMG sheets and the mean plane of elevation: nine participants, as ' ...
+                  'P05 did not reach elevation angles below approximately 30 deg during the trials; the sensitivity sheets include all of them.'], nPat, nPat);
  'Conditions',   [strjoin(LAB, ', ') '. Optimised (mean): mean of the four optimised patterns for each participant.'];
  'Muscles',      'Upper trapezius, middle trapezius, lower trapezius, serratus anterior.';
  'Units',        'Angles and thoracohumeral elevation in degrees. Time in % of the movement cycle (0 = start, 100 = end). EMG in % of the peak of each trial.';
@@ -220,8 +222,8 @@ writetable(T, OUT_FILE, 'Sheet', 'README');
 moveReadmeFirst(OUT_FILE);
 movefile(OUT_FILE, FINAL_FILE, 'f');
 
-fprintf('\nFichier ecrit : %s\n', FINAL_FILE);
-disp('Termine.');
+fprintf('\nFile written: %s\n', FINAL_FILE);
+disp('Done.');
 
 
 % =========================================================================
@@ -272,7 +274,7 @@ function T = emgStats(C, outcome)
 end
 
 function d = ocpDeviation(Yocp, yNo, ip)
-    % Ecart absolu a No FES de chaque patron optimise, puis moyenne (colonne)
+    % Absolute deviation from No FES of each optimised pattern, then mean (column)
     M = cell2mat(cellfun(@(y) y(ip, :), Yocp(:), 'UniformOutput', false));   % (nOCP, nGrid)
     d = mean(abs(M - yNo(ip, :)), 1)';
 end
@@ -290,7 +292,7 @@ end
 
 function writeSheet(T, file, name)
     writetable(T, file, 'Sheet', name);
-    fprintf('  %-24s %6d lignes\n', name, height(T));
+    fprintf('  %-24s %6d rows\n', name, height(T));
 end
 
 function moveReadmeFirst(file)
@@ -308,6 +310,6 @@ function moveReadmeFirst(file)
         end
         wb.Save; wb.Close; xl.Quit; delete(xl);
     catch
-        fprintf('  (Excel indisponible : README non deplace en premier)\n');
+        fprintf('  (Excel not available: README sheet not moved first)\n');
     end
 end

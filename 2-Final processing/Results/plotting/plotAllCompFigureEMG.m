@@ -35,9 +35,9 @@ set(groot, 'defaultAxesFontName', 'Times New Roman');
 set(groot, 'defaultTextFontName', 'Times New Roman');
 set(groot, 'defaultLegendFontName', 'Times New Roman');
 
-% Palette qualitative pour les paires significatives (10 couleurs
-% distinctes, style Tableau10 ; une paire garde la meme couleur sur tous
-% les muscles et sur les trois figures)
+% Qualitative palette for the significant pairs (10 distinct
+% colours, Tableau10 style; a pair keeps the same colour on all
+% the muscles and on the three figures)
 QUAL_PALETTE = [ ...
     0.121 0.466 0.705;
     1.000 0.498 0.055;
@@ -50,9 +50,9 @@ QUAL_PALETTE = [ ...
     0.737 0.741 0.133;
     0.090 0.745 0.812];
 
-% --- Recenser une seule fois toutes les paires significatives (au moins un
-% muscle), dans l'ordre de premiere rencontre, pour assigner une couleur
-% stable et construire la legende ---
+% --- Lists once all the significant pairs (at least one
+% muscle), in order of first appearance, to assign a
+% stable colour and build the legend ---
 sigPairFlds  = {};
 sigPairLabel = {};
 for im = 1:nMusc
@@ -75,13 +75,13 @@ else
     pairColorIdx = containers.Map();
 end
 
-% --- FIGURE 1 : moyenne de groupe + bande d'ecart-type ---
+% --- FIGURE 1: group mean + SD band ---
 drawFigure('sd', 'group');
 
-% --- FIGURE 2 : moyenne de groupe + courbes individuelles ---
+% --- FIGURE 2: group mean + individual curves ---
 drawFigure('individual', 'group');
 
-% --- FIGURE 3 : moyenne +- SD, barres groupe + individuelles etiquetees P# ---
+% --- FIGURE 3: mean +/- SD, group bars + individual bars labelled P# ---
 drawFigure('sd', 'labelled');
 
 
@@ -89,11 +89,11 @@ drawFigure('sd', 'labelled');
         if strcmp(curveMode, 'sd')
             curveSuffix = 'group mean +- SD';
         else
-            curveSuffix = 'group mean + individual patients';
+            curveSuffix = 'group mean + individual participants';
         end
         if strcmp(barMode, 'labelled')
-            figName     = sprintf('Final figure EMG -- All pairwise comparisons (%s, patient IDs)', curveSuffix);
-            titleSuffix = sprintf('(%s, patient IDs next to individual bars)', curveSuffix);
+            figName     = sprintf('Final figure EMG -- All pairwise comparisons (%s, participant IDs)', curveSuffix);
+            titleSuffix = sprintf('(%s, participant IDs next to individual bars)', curveSuffix);
         else
             figName     = sprintf('Final figure EMG -- All pairwise comparisons (%s)', curveSuffix);
             titleSuffix = sprintf('(%s)', curveSuffix);
@@ -159,7 +159,7 @@ end
             end
             xlabel('Cycle (%)', 'FontSize', 14);
             set(gca, 'FontSize', 9);
-            % pas de facteur "x10^4" (masque par le titre) : valeurs en clair
+            % no "x10^4" factor (hidden by the title): plain values
             ax = gca; ax.YAxis.Exponent = 0; ytickformat(ax, '%g');
             grid on; box on; hold off;
         end
@@ -209,7 +209,7 @@ end
 
             col = QUAL_PALETTE(mod(pairColorIdx(fld)-1, size(QUAL_PALETTE,1)) + 1, :);
 
-            % --- Barre groupe (pleine, opaque) ---
+            % --- Group bar (solid, opaque) ---
             rowIdx = rowIdx + 1;
             y_row  = y_bar_top - (rowIdx-1) * (bar_h + row_gap);
             for cl = 1:length(ph.clusters)
@@ -218,8 +218,8 @@ end
                           'FaceColor', col, 'EdgeColor', 'none', 'FaceAlpha', 0.9);
             end
 
-            % --- Barres individuelles (semi-transparentes) pour cette paire,
-            % une par patient significatif, etiquetees P# ---
+            % --- Individual bars (semi-transparent) for this pair,
+            % one per significant participant, labelled P# ---
             if ~isempty(indivSigClusters) && isfield(indivSigClusters{im}, fld)
                 patClusters = indivSigClusters{im}.(fld);
                 for ip = 1:min(length(PATIENT_IDS), length(patClusters))
@@ -234,9 +234,9 @@ end
                                   'FaceColor', col, 'EdgeColor', 'none', 'FaceAlpha', 0.5);
                     end
 
-                    % Etiquette P# juste a cote du premier cluster de ce
-                    % patient (bascule a gauche si trop pres du bord droit
-                    % ou si plusieurs clusters proches)
+                    % P# label just next to the first cluster of this
+                    % participant (moved to the left if too close to the right edge
+                    % or if several clusters are close)
                     patNum  = str2double(PATIENT_IDS{ip}(2:end));
                     epFirst = clusters_ip{1}.endpoints;
                     xStart  = epFirst(1) - 1;
@@ -267,11 +267,11 @@ end
 
 
     function drawLegend()
-        % Deux legendes empilees, chacune sur une seule ligne, pour que
-        % chacune se centre correctement (une legende qui passe a la ligne
-        % aligne sa derniere rangee incomplete a gauche, jamais au centre).
+        % Two stacked legends, each on a single line, so that
+        % each is centred correctly (a legend that wraps
+        % aligns its last incomplete row to the left, never to the centre).
 
-        % --- Ligne du haut : couleurs des conditions ---
+        % --- Top line: colours of the conditions ---
         legAx1 = axes('Position', [0.03 0.033 0.95 0.03], 'Visible', 'off');
         hold(legAx1, 'on');
         legHandles1 = gobjects(1, length(CONDITIONS_ORDERED));
@@ -287,7 +287,7 @@ end
         lgd1.Position(2) = 0.033;
         hold(legAx1, 'off');
 
-        % --- Ligne du bas : paires significatives (si il y en a) ---
+        % --- Bottom line: significant pairs (if any) ---
         if nSigPairs > 0
             legAx2 = axes('Position', [0.03 0.002 0.95 0.03], 'Visible', 'off');
             hold(legAx2, 'on');
@@ -310,9 +310,9 @@ end
 
 
     function lbl = condLabel(condRaw)
-        % Renvoie le libelle d'affichage standardise (COND_LABELS) pour une
-        % condition brute, plutot qu'un simple strrep('_',' ') qui ne
-        % respecte pas les abreviations (ex. "Min PW" et non "Min pulse width").
+        % Returns the standard display label (COND_LABELS) of a
+        % raw condition, rather than a plain strrep('_',' ') that does not
+        % respect the abbreviations (e.g. "Min PW", not "Min pulse width").
         idx = find(strcmp(CONDITIONS_ORDERED, condRaw), 1);
         if isempty(idx)
             lbl = strrep(condRaw, '_', ' ');

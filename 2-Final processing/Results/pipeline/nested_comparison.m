@@ -19,7 +19,10 @@
 %                   the normalised envelope from No FES, compared as for H4,
 %                   and direct comparison of the envelopes, Rehab vs the mean
 %                   of the four OCP.
-%                 - Sensitivity: the deviation tests repeated on all
+%                   Angles and EMG include nine participants: P05 did not
+%                   reach elevation angles below approximately 30 deg during
+%                   the trials, so its curves do not cover the range.
+%                 - Sensitivity: the angle and EMG tests repeated on all ten
 %                   participants, over the elevation range common to all.
 %                 - Thoracohumeral elevation (no hypothesis): curve over the
 %                   cycle, Rehab vs the mean of the four OCP; discrete
@@ -74,8 +77,8 @@ OCP_CONDS  = {'Min_pulse_width','Min_force','Min_stress','Min_fatigue'};
 REF_COND   = 'Rehab';
 NOFES_COND = 'No FES';
 ALPHA      = 0.05;
-MAX_EXTRAP_DEG = 2.5;   % prolongation constante max sous le debut de montee (deg), comme les scripts 4 et 6
-EXPORT_FIGURE = true;   % export haute resolution (helpers/exportFigure.m)
+MAX_EXTRAP_DEG = 2.5;   % maximum constant extension below the start of the rise (deg), as in scripts 4 and 6
+EXPORT_FIGURE = true;   % high-resolution export (helpers/exportFigure.m)
 MUSCLE_DISPLAY = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...
     {'Upper trapezius', 'Middle trapezius', 'Lower trapezius', 'Serratus anterior'});
 DISC_PARAMS = {'peakElev', 'peakTime', 'planeMean2090'};
@@ -83,7 +86,7 @@ DISC_LABELS = {'Peak elevation (deg)', 'Peak timing (% cycle)', 'Mean plane of e
 CACHE_FILE = fullfile(dataDir(), 'cache_nested_comparison.mat');
 
 % -------------------------------------------------------------------------
-% CHARGEMENT DES CACHES
+% LOADING THE CACHES
 % -------------------------------------------------------------------------
 H  = load(fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat'), 'patientMeans', 'x', 'disc', 'CONDITIONS_ORDERED', ...
           'COND_LABELS', 'DOF_LABELS', 'PATIENT_IDS');
@@ -91,7 +94,7 @@ RH = load(fullfile(dataDir(), 'cache_scapulohumeral_rhythm_all_comp.mat'), 'join
 E  = load(fullfile(dataDir(), 'cache_emg_elevation_all_comp.mat'), 'elevProf', 'ELEV_GRID', 'EMG_LABELS', 'CONDITIONS_ORDERED');
 if ~isequal(RH.ELEV_GRID, E.ELEV_GRID) || ~isequal(RH.CONDITIONS_ORDERED, E.CONDITIONS_ORDERED) ...
         || ~isequal(H.CONDITIONS_ORDERED, RH.CONDITIONS_ORDERED)
-    error('Grille d''elevation ou conditions differentes entre les caches.');
+    error('Elevation grid or conditions differ between the caches.');
 end
 CONDS = RH.CONDITIONS_ORDERED;
 GRID  = RH.ELEV_GRID;
@@ -100,19 +103,19 @@ iNo   = strcmp(CONDS, NOFES_COND);
 isOCP = ismember(CONDS, OCP_CONDS);
 
 % -------------------------------------------------------------------------
-% H4 : ecart absolu a No FES des angles scapulothoraciques
+% H4: absolute deviation of the scapulothoracic angles from No FES
 % -------------------------------------------------------------------------
 JST = RH.joints{cellfun(@(j) strcmp(j.name, 'Scapulothoracic'), RH.joints)};
 nDOF = numel(JST.DOF_LABELS);
 h4 = cell(1, nDOF); rawST = cell(1, nDOF);
 for id = 1:nDOF
-    Y = cell(1, numel(CONDS));   % (nPat, nGrid) par condition
+    Y = cell(1, numel(CONDS));   % (nPat, nGrid) per condition
     for ic = 1:numel(CONDS)
         Rs = JST.rhythmMeans.(matlab.lang.makeValidName(CONDS{ic}));
         Y{ic} = cell2mat(cellfun(@(r) r(id, :), Rs(:), 'UniformOutput', false));
     end
     devRef = abs(Y{iRef} - Y{iNo});
-    devOCP = mean(abs(cat(3, Y{isOCP}) - Y{iNo}), 3);          % ecart de chaque OCP, puis moyenne
+    devOCP = mean(abs(cat(3, Y{isOCP}) - Y{iNo}), 3);          % deviation of each OCP, then mean
     sgnRef = Y{iRef} - Y{iNo};
     sgnOCP = mean(cat(3, Y{isOCP}), 3) - Y{iNo};
     h4{id} = curveTest(devRef, devOCP, sgnRef, sgnOCP, GRID, JST.DOF_LABELS{id});
@@ -121,8 +124,8 @@ end
 h4 = holmCurves([h4{:}], ALPHA);
 
 % -------------------------------------------------------------------------
-% EMG (exploratoire) : ecart absolu a No FES de l'enveloppe normalisee,
-% comme pour H4
+% EMG (exploratory): absolute deviation of the normalised envelope from No FES,
+% as for H4
 % -------------------------------------------------------------------------
 nMus = numel(E.EMG_LABELS);
 emgDev = cell(1, nMus);
@@ -134,8 +137,8 @@ for jm = 1:nMus
 end
 emgDev = holmCurves([emgDev{:}], ALPHA);
 
-% EMG (exploratoire) : comparaison directe de l'enveloppe normalisee,
-% Rehab contre moyenne OCP
+% EMG (exploratory): direct comparison of the normalised envelope,
+% Rehab against the mean of the OCP
 emg = cell(1, nMus);
 for jm = 1:nMus
     P = E.elevProf{jm};
@@ -145,15 +148,15 @@ end
 emg = holmCurves([emg{:}], ALPHA);
 
 % -------------------------------------------------------------------------
-% SENSIBILITE : memes tests sur tous les participants, sur la plage
-% d'elevation commune (bornes hautes inchangees, debut plus eleve)
+% SENSITIVITY: same tests on all the participants, over the common
+% elevation range (upper limit unchanged, higher start)
 % -------------------------------------------------------------------------
 SC = load(fullfile(dataDir(), 'cache_scapulothoracic_all_comp.mat'), 'patientMeans', 'x');
 EB = load(fullfile(dataDir(), 'cache_emg_all_comp.mat'), 'patientBlocks');
 usedConds = CONDS(iNo | iRef | isOCP);
 nPatAll = numel(H.PATIENT_IDS);
 sensStart = NaN;
-for g0 = GRID(1):GRID(end)   % premier debut de plage complet pour tous les participants
+for g0 = GRID(1):GRID(end)   % first range start that is complete for all the participants
     ok = true;
     for ic = 1:numel(usedConds)
         pm = H.patientMeans.(matlab.lang.makeValidName(usedConds{ic}));
@@ -164,7 +167,7 @@ for g0 = GRID(1):GRID(end)   % premier debut de plage complet pour tous les part
     if ok, sensStart = g0; break; end
 end
 SENS_GRID = sensStart:GRID(end);
-sensT = NaN(nPatAll, numel(SENS_GRID), numel(CONDS));   % instants de lecture (% cycle)
+sensT = NaN(nPatAll, numel(SENS_GRID), numel(CONDS));   % reading times (% cycle)
 sensAng = NaN(nPatAll, numel(SENS_GRID), numel(CONDS), nDOF);
 sensEmg = NaN(nPatAll, numel(SENS_GRID), numel(CONDS), nMus);
 for ic = find(iNo | iRef | isOCP)
@@ -206,7 +209,7 @@ end
 sensEMGdirect = holmCurves([sensEMGdirect{:}], ALPHA);
 
 % -------------------------------------------------------------------------
-% ELEVATION THORACOHUMERALE : courbe et parametres discrets
+% THORACOHUMERAL ELEVATION: curve and discrete parameters
 % -------------------------------------------------------------------------
 Yht = cell(1, numel(CONDS));
 for ic = 1:numel(CONDS)
@@ -214,9 +217,9 @@ for ic = 1:numel(CONDS)
 end
 yRef = Yht{iRef}; yOCP = mean(cat(3, Yht{isOCP}), 3);
 htCurve = curveTest(yRef, yOCP, yRef - Yht{iNo}, yOCP - Yht{iNo}, H.x, 'Thoracohumeral elevation');
-htCurve = holmCurves(htCurve, ALPHA);   % test unique : seuil = ALPHA
+htCurve = holmCurves(htCurve, ALPHA);   % single test: threshold = ALPHA
 
-% Parametres discrets : 3 contrastes par parametre, Holm sur ces 3 contrastes
+% Discrete parameters: 3 contrasts per parameter, Holm on these 3 contrasts
 CONTRASTS = {'Rehab vs OCP', 'Rehab vs No FES', 'OCP vs No FES'};
 htDisc = struct('param', DISC_PARAMS, 'label', DISC_LABELS, 'nofes', [], 'ref', [], 'ocp', [], ...
                 'contrasts', {CONTRASTS}, 'p', NaN(1, 3), 'pHolm', NaN(1, 3));
@@ -231,49 +234,49 @@ for k = 1:numel(DISC_PARAMS)
 end
 
 save(CACHE_FILE, 'h4', 'emgDev', 'emg', 'sensH4', 'sensEMG', 'sensEMGdirect', 'SENS_GRID', 'htCurve', 'htDisc', 'OCP_CONDS', 'REF_COND', 'NOFES_COND', 'ALPHA', 'GRID');
-fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
+fprintf('Cache saved: %s\n', CACHE_FILE);
 
 % =========================================================================
 % CONSOLE
 % =========================================================================
-fprintf('\n=== H4 : ecart absolu a No FES, Rehab contre moyenne des 4 OCP (Holm sur %d angles) ===\n', nDOF);
-fprintf('Valeurs dans chaque zone : ecart absolu (deg), puis difference signee moyenne avec No FES (deg)\n');
+fprintf('\n=== H4: absolute deviation from No FES, Rehab vs mean of the 4 OCP (Holm on %d angles) ===\n', nDOF);
+fprintf('Values in each range: absolute deviation (deg), then mean signed difference with No FES (deg)\n');
 for id = 1:nDOF, printCurve(h4(id), 'deg', 'deg'); end
-fprintf('\n=== EMG (exploratoire) : ecart absolu a No FES, Rehab contre moyenne des 4 OCP (Holm sur %d muscles) ===\n', nMus);
+fprintf('\n=== EMG (exploratory): absolute deviation from No FES, Rehab vs mean of the 4 OCP (Holm on %d muscles) ===\n', nMus);
 for jm = 1:nMus, printCurve(emgDev(jm), 'deg', '%'); end
-fprintf('\n=== EMG (exploratoire) : comparaison directe, Rehab contre moyenne des 4 OCP, %% du pic (Holm sur %d muscles) ===\n', nMus);
-fprintf('Valeurs dans chaque zone : enveloppe (%% du pic), puis difference signee moyenne avec No FES (%% du pic)\n');
+fprintf('\n=== EMG (exploratory): direct comparison, Rehab vs mean of the 4 OCP, %% of peak (Holm on %d muscles) ===\n', nMus);
+fprintf('Values in each range: envelope (%% of peak), then mean signed difference with No FES (%% of peak)\n');
 for jm = 1:nMus, printCurve(emg(jm), 'deg', '%'); end
 
-fprintf('\n=== Sensibilite : memes tests sur tous les participants, de %d a %d deg ===\n', SENS_GRID(1), SENS_GRID(end));
+fprintf('\n=== Sensitivity: same tests on all the participants, from %d to %d deg ===\n', SENS_GRID(1), SENS_GRID(end));
 for id = 1:nDOF, printCurve(sensH4(id), 'deg', 'deg'); end
 for jm = 1:nMus, printCurve(sensEMG(jm), 'deg', '%'); end
-fprintf('EMG, comparaison directe :\n');
+fprintf('EMG, direct comparison:\n');
 for jm = 1:nMus, printCurve(sensEMGdirect(jm), 'deg', '%'); end
 
-fprintf('\n=== Elevation thoracohumerale : Rehab contre moyenne des 4 OCP ===\n');
-fprintf('Courbe (test unique). Valeurs dans chaque zone : elevation (deg), puis difference signee avec No FES (deg)\n');
+fprintf('\n=== Thoracohumeral elevation: Rehab vs mean of the 4 OCP ===\n');
+fprintf('Curve (single test). Values in each range: elevation (deg), then signed difference with No FES (deg)\n');
 printCurve(htCurve, '%', 'deg');
-fprintf('\n=== Elevation thoracohumerale : parametres discrets (Holm sur les 3 contrastes de chaque parametre) ===\n');
+fprintf('\n=== Thoracohumeral elevation: discrete parameters (Holm on the 3 contrasts of each parameter) ===\n');
 for k = 1:numel(htDisc)
     r = htDisc(k);
-    fprintf('%s : No FES %.1f ± %.1f ; Rehab %.1f ± %.1f ; OCP %.1f ± %.1f\n', r.label, mean(r.nofes), std(r.nofes), ...
+    fprintf('%s: No FES %.1f ± %.1f; Rehab %.1f ± %.1f; OCP %.1f ± %.1f\n', r.label, mean(r.nofes), std(r.nofes), ...
             mean(r.ref), std(r.ref), mean(r.ocp), std(r.ocp));
     dd = {r.ref - r.ocp, r.ref - r.nofes, r.ocp - r.nofes};
     for q = 1:3
-        fprintf('    %-16s diff %+.1f ± %.1f (%d/%d > 0) ; p = %s ; p Holm = %s\n', r.contrasts{q}, mean(dd{q}), std(dd{q}), ...
+        fprintf('    %-16s diff %+.1f ± %.1f (%d/%d > 0); p = %s; p Holm = %s\n', r.contrasts{q}, mean(dd{q}), std(dd{q}), ...
                 sum(dd{q} > 0), numel(dd{q}), fmtP(r.p(q)), fmtP(r.pHolm(q)));
     end
 end
 
 % =========================================================================
-% FIGURE DE L'ARTICLE : angles scapulothoraciques et ecart a No FES (H4),
-% EMG et ecart a No FES ; barres du contraste Rehab / OCP (moitie haute :
-% Rehab, moitie basse : couleur de la bande OCP)
+% ARTICLE FIGURE: scapulothoracic angles and deviation from No FES (H4),
+% EMG and deviation from No FES; bars of the Rehab / OCP contrast (upper half:
+% Rehab, lower half: colour of the OCP band)
 % =========================================================================
 COLORS = conditionColors(CONDS);
 colRef = COLORS(iRef, :); colOCP = COLORS(strcmp(CONDS, 'Min_stress'), :);
-barsOf = @(c) c.clusters(:, 1:2) .* c.sig;   % zones significatives, [] sinon
+barsOf = @(c) c.clusters(:, 1:2) .* c.sig;   % significant ranges, [] otherwise
 S6 = struct('grid', GRID, 'conds', {CONDS}, 'condLabels', {H.COND_LABELS}, 'colors', COLORS, ...
             'showConds', {[{NOFES_COND, REF_COND}, OCP_CONDS]}, 'colRef', colRef, 'colOCP', colOCP, ...
             'dofLabels', {JST.DOF_LABELS}, 'raw', {rawST}, ...
@@ -286,9 +289,9 @@ S6 = struct('grid', GRID, 'conds', {CONDS}, 'condLabels', {H.COND_LABELS}, 'colo
             'emgDevOCP', {arrayfun(@(c) c.yB, emgDev, 'UniformOutput', false)}, ...
             'barsEmgDev', {arrayfun(barsOf, emgDev, 'UniformOutput', false)});
 plotScapulaEmgHypothesisFigure(S6);
-if EXPORT_FIGURE, exportFigure(gcf, 'Figure_5_scapulothoracic_EMG', [], [18.75 18.75]); end   % 1800 x 1800 px
+if EXPORT_FIGURE, exportFigure(gcf, 'Figure_5_scapulothoracic_EMG', [], [18.75 2120/96]); end   % 1800 x 2120 px
 
-disp(' '); disp('Termine.');
+disp(' '); disp('Done.');
 
 
 % =========================================================================
@@ -296,8 +299,8 @@ disp(' '); disp('Termine.');
 % =========================================================================
 
 function c = curveTest(yA, yB, sA, sB, grid, label)
-    % yA, yB : courbes comparees (nPat, nGrid) ; sA, sB : differences signees
-    % avec No FES, pour la description. Courbes completes uniquement.
+    % yA, yB: compared curves (nPat, nGrid); sA, sB: signed differences
+    % with No FES, for the description. Complete curves only.
     keep = all(~isnan([yA yB]), 2);
     c = struct('label', label, 'grid', grid, 'yA', yA(keep, :), 'yB', yB(keep, :), ...
                'sA', sA(keep, :), 'sB', sB(keep, :), 'pTest', NaN, 'pHolm', NaN, ...
@@ -307,7 +310,7 @@ end
 
 
 function p = maxTPermutation(d)
-    % p bilateral du t maximal sur la courbe, toutes les inversions de signe
+    % two-tailed p of the maximal t over the curve, all sign flips
     n = size(d, 1);
     signs = 2 * (dec2bin(0:2^n - 1, n) - '0') - 1;
     tObs = max(abs(tField(d)));
@@ -320,9 +323,9 @@ end
 
 
 function p = signFlipP(d)
-    % p bilateral exact d'un t-test apparie par permutation (toutes les
-    % inversions de signe). La somme des carres restant fixe, |somme| est
-    % equivalent a |t|.
+    % exact two-tailed p of a paired permutation t-test (all sign
+    % flips). As the sum of squares stays fixed, |sum| is
+    % equivalent to |t|.
     d = d(:);
     n = numel(d);
     signs = 2 * (dec2bin(0:2^n - 1, n) - '0') - 1;
@@ -336,8 +339,8 @@ end
 
 
 function C = holmCurves(C, alpha)
-    % Holm sur la famille de courbes (p du t maximal), puis zones de chaque
-    % courbe calculees a son seuil de Holm
+    % Holm on the family of curves (p of the maximal t), then ranges of each
+    % curve computed at its Holm threshold
     m = numel(C);
     pAdj = holmAdjust([C.pTest], alpha);
     [~, ord] = sort([C.pTest]);
@@ -357,8 +360,8 @@ end
 
 
 function T = clusterTable(clusters, c)
-    % [debut fin moyA etA moyB etB] dans l'unite de la grille, puis
-    % differences signees moyennes avec No FES [sA sB] dans la zone
+    % [start end meanA sdA meanB sdB] in the unit of the grid, then
+    % mean signed differences with No FES [sA sB] in the range
     T = zeros(numel(clusters), 8);
     Q = numel(c.grid);
     for k = 1:numel(clusters)
@@ -372,14 +375,14 @@ end
 
 
 function printCurve(c, xUnit, unit)
-    % xUnit : unite du domaine ('deg' d'elevation ou '%' du cycle) ; unit :
-    % unite des valeurs
-    fprintf('%-34s p = %s ; p Holm = %s', c.label, fmtP(c.pTest), fmtP(c.pHolm));
-    if ~c.sig, fprintf(' ; n.s.\n'); return; end
+    % xUnit: unit of the domain ('deg' of elevation or '%' of the cycle); unit:
+    % unit of the values
+    fprintf('%-34s p = %s; p Holm = %s', c.label, fmtP(c.pTest), fmtP(c.pHolm));
+    if ~c.sig, fprintf('; n.s.\n'); return; end
     fprintf('\n');
     for k = 1:size(c.clusters, 1)
         T = c.clusters(k, :);
-        fprintf('    %.1f-%.1f %s : Rehab %.1f ± %.1f vs OCP %.1f ± %.1f %s ; signe Rehab %+.1f, OCP %+.1f\n', ...
+        fprintf('    %.1f-%.1f %s: Rehab %.1f ± %.1f vs OCP %.1f ± %.1f %s; signed Rehab %+.1f, OCP %+.1f\n', ...
                 T(1), T(2), xUnit, T(3), T(4), T(5), T(6), unit, T(7), T(8));
     end
 end

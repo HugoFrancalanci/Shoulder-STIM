@@ -52,30 +52,30 @@ addpath(fullfile(HERE, 'helpers'));
 % -------------------------------------------------------------------------
 % PARAMETRES
 % -------------------------------------------------------------------------
-% Meme grille et memes regles que extract_scapulohumeral_rhythm_all_comp.m
-ELEV_GRID      = 20:1:90;   % deg d'elevation humerothoracique
-MAX_EXTRAP_DEG = 2.5;       % prolongation constante max sous le debut de montee (deg)
+% Same grid and same rules as extract_scapulohumeral_rhythm_all_comp.m
+ELEV_GRID      = 20:1:90;   % deg of humerothoracic elevation
+MAX_EXTRAP_DEG = 2.5;       % maximum constant extension below the start of the rise (deg)
 
 ALPHA_ANOVA = 0.05;
 ALPHA_FWER  = 0.05;
 N_ITER      = 10000;
 FORCE_RECOMPUTE = false;
-EXPORT_FIGURE   = false;   % figure secondaire (7 conditions), non exportee : figure de l'article par nested_comparison.m
+EXPORT_FIGURE   = false;   % secondary figure (7 conditions), not exported: article figure by nested_comparison.m
 CACHE_FILE = fullfile(dataDir(), 'cache_emg_elevation_all_comp.mat');
 
 MUSCLE_DISPLAY = containers.Map({'TRAPS','TRAPM','TRAPI','SERRA'}, ...
     {'Upper trapezius', 'Middle trapezius', 'Lower trapezius', 'Serratus anterior'});
-SHOW_ELEV = [30 50 70 90];   % elevations auxquelles les valeurs moyennes sont affichees
+SHOW_ELEV = [30 50 70 90];   % elevations at which the mean values are displayed
 
 % -------------------------------------------------------------------------
-% CHARGEMENT DES CACHES
+% LOADING THE CACHES
 % -------------------------------------------------------------------------
 H = load(fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat'), 'patientMeans', 'x', ...
          'PATIENT_IDS', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS');
 E = load(fullfile(dataDir(), 'cache_emg_all_comp.mat'), 'patientBlocks', 'EMG_LABELS', ...
          'PATIENT_IDS', 'CONDITIONS_ORDERED');
 if ~isequal(H.PATIENT_IDS, E.PATIENT_IDS) || ~isequal(H.CONDITIONS_ORDERED, E.CONDITIONS_ORDERED)
-    error('Patients ou conditions differents entre les caches cinematique et EMG.');
+    error('Participants or conditions differ between the kinematic and EMG caches.');
 end
 CONDITIONS_ORDERED = H.CONDITIONS_ORDERED;
 COND_LABELS = H.COND_LABELS;
@@ -85,9 +85,9 @@ MUS   = E.EMG_LABELS;
 nMus  = numel(MUS);
 
 % -------------------------------------------------------------------------
-% ENVELOPPES NORMALISEES AU PIC EN FONCTION DE L'ELEVATION HT (montee)
-% elevProf{jm}{ic} = (nPat, nGrid) ; memes regles que les angles
-% scapulothoraciques (courbes completes sur la plage)
+% ENVELOPES NORMALISED TO THE PEAK AGAINST HT ELEVATION (rise)
+% elevProf{jm}{ic} = (nPat, nGrid); same rules as the scapulothoracic
+% angles (complete curves over the range)
 % -------------------------------------------------------------------------
 tE = cell(nPat, nCond);
 keepPat = true(nPat, 1);
@@ -111,20 +111,20 @@ for jm = 1:nMus
     end
 end
 excluded = H.PATIENT_IDS(~keepPat);
-fprintf('\nEMG en fonction de l''elevation HT (%d-%d deg, montee) : N = %d\n', ...
+fprintf('\nEMG against HT elevation (%d-%d deg, rise): N = %d\n', ...
         ELEV_GRID(1), ELEV_GRID(end), sum(keepPat));
 
 % -------------------------------------------------------------------------
-% SPM1D : domaine = elevation HT (tous les muscles)
+% SPM1D: domain = HT elevation (all the muscles)
 % -------------------------------------------------------------------------
-ALL_PAIRS = nchoosek(1:nCond, 2);      % meme ordre que les autres scripts
+ALL_PAIRS = nchoosek(1:nCond, 2);      % same order as the other scripts
 cacheValid = false;
 if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
     S_check = load(CACHE_FILE, 'ELEV_GRID', 'MAX_EXTRAP_DEG');
     cacheValid = isequal(S_check.ELEV_GRID, ELEV_GRID) && isequal(S_check.MAX_EXTRAP_DEG, MAX_EXTRAP_DEG);
 end
 if cacheValid
-    fprintf('Cache trouve : %s\n-> pas de recalcul\n', CACHE_FILE);
+    fprintf('Cache found: %s\n-> no recomputation\n', CACHE_FILE);
     load(CACHE_FILE, 'spmPeak');
 else
     rng(0);
@@ -137,18 +137,18 @@ else
     PATIENT_IDS = H.PATIENT_IDS; EMG_LABELS = MUS;
     save(CACHE_FILE, 'spmPeak', 'elevProf', 'excluded', 'ELEV_GRID', 'MAX_EXTRAP_DEG', 'ALL_PAIRS', ...
          'ALPHA_ANOVA', 'ALPHA_FWER', 'N_ITER', 'CONDITIONS_ORDERED', 'COND_LABELS', 'PATIENT_IDS', 'EMG_LABELS');
-    fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
+    fprintf('Cache saved: %s\n', CACHE_FILE);
 end
 printSpmPeak(spmPeak, ALL_PAIRS, COND_LABELS, MUSCLE_DISPLAY);
 
 % -------------------------------------------------------------------------
-% CONSOLE : valeurs moyennes par condition a quelques elevations
+% CONSOLE: mean values per condition at a few elevations
 % -------------------------------------------------------------------------
 emgMean = cell(1, nMus); emgSD = cell(1, nMus);
 for jm = 1:nMus
     emgMean{jm} = cell2mat(cellfun(@(y) mean(y, 1, 'omitnan'), elevProf{jm}(:), 'UniformOutput', false));
     emgSD{jm}   = cell2mat(cellfun(@(y) std(y, 0, 1, 'omitnan'), elevProf{jm}(:), 'UniformOutput', false));
-    fprintf('\n%s (%% du pic, moyenne ± ET)\n    %-12s', MUSCLE_DISPLAY(MUS{jm}), 'Condition');
+    fprintf('\n%s (%% of peak, mean ± SD)\n    %-12s', MUSCLE_DISPLAY(MUS{jm}), 'Condition');
     fprintf('  %11d deg', SHOW_ELEV); fprintf('\n');
     iShow = ismember(ELEV_GRID, SHOW_ELEV);
     for ic = 1:nCond
@@ -161,20 +161,20 @@ end
 % -------------------------------------------------------------------------
 % FIGURE
 % -------------------------------------------------------------------------
-% Figure 2 de l'article : angles scapulothoraciques (rangee 1, cache du
-% rythme scapulohumeral) et EMG (rangee 2)
+% Secondary figure: scapulothoracic angles (row 1, cache of the
+% scapulohumeral rhythm) and EMG (row 2)
 K = struct('x', ELEV_GRID, 'muscleNames', {cellfun(@(m) MUSCLE_DISPLAY(m), MUS, 'UniformOutput', false)}, ...
            'emgMean', {emgMean}, 'elevProf', {elevProf}, 'spm', spmPeak, 'ALL_PAIRS', ALL_PAIRS);
 RH = load(fullfile(dataDir(), 'cache_scapulohumeral_rhythm_all_comp.mat'), 'joints', 'ELEV_GRID', ...
           'CONDITIONS_ORDERED', 'ALL_PAIRS');
 if ~isequal(RH.ELEV_GRID, ELEV_GRID) || ~isequal(RH.CONDITIONS_ORDERED, CONDITIONS_ORDERED)
-    error('Grille d''elevation ou conditions differentes entre les caches rythme et EMG.');
+    error('Elevation grid or conditions differ between the rhythm and EMG caches.');
 end
 JST = RH.joints{cellfun(@(j) strcmp(j.name, 'Scapulothoracic'), RH.joints)};
 plotRhythmEmgFigure(JST, ELEV_GRID, CONDITIONS_ORDERED, COND_LABELS, conditionColors(CONDITIONS_ORDERED), RH.ALL_PAIRS, K);
 if EXPORT_FIGURE, exportFigure(gcf, 'Figure_6_scapulothoracic_EMG'); end
 
-disp(' '); disp('Termine.');
+disp(' '); disp('Done.');
 
 
 % =========================================================================
@@ -182,7 +182,7 @@ disp(' '); disp('Termine.');
 % =========================================================================
 
 function P = peakNormalisedPatients(patientBlocks, muscle, cond, nPat, nPts)
-    % (nPat, nPts) : chaque bloc rapporte a son propre pic, moyenne par patient
+    % (nPat, nPts): each block expressed relative to its own peak, mean per participant
     P = NaN(nPat, nPts);
     fld = matlab.lang.makeValidName(cond);
     for ip = 1:nPat
@@ -194,10 +194,10 @@ end
 
 
 function st = spmAllPairs(Yc, grid, ALL_PAIRS, alphaA, alphaF, nIter, st)
-    % ANOVA RM non parametrique (7 conditions) puis, si significative, SPM{t}
-    % apparie sur toutes les paires, Holm-Bonferroni (helpers/holmAlphaSPM1D.m).
-    % Bornes des clusters dans l'unite de grid (endpoints spm1d 0-based :
-    % grid(1) + ep * pas).
+    % Non-parametric RM ANOVA (7 conditions) then, if significant, paired SPM{t}
+    % on all the pairs, Holm-Bonferroni (helpers/holmAlphaSPM1D.m).
+    % Cluster limits in the unit of grid (0-based spm1d endpoints:
+    % grid(1) + ep * step).
     nCond = numel(Yc);
     Q = numel(grid);
     toUnit = @(ep) grid(1) + ep * (grid(2) - grid(1));
@@ -221,7 +221,7 @@ function st = spmAllPairs(Yc, grid, ALL_PAIRS, alphaA, alphaF, nIter, st)
         st.pairP(kp) = pHolm(kp);
         st.pairSig(kp) = ~isempty(ti.clusters);
         st.pairClusters{kp} = clusterTable(ti.clusters, toUnit);
-        if st.pairSig(kp)   % signe de la difference B - A dans le 1er cluster
+        if st.pairSig(kp)   % sign of the difference B - A in the first cluster
             ep = ti.clusters{1}.endpoints;
             idx = max(1, floor(ep(1)) + 1):min(Q, ceil(ep(2)) + 1);
             st.pairSign(kp) = sign(mean(mean(Y{ALL_PAIRS(kp,2)}(:, idx) - Y{ALL_PAIRS(kp,1)}(:, idx))));
@@ -231,7 +231,7 @@ end
 
 
 function T = clusterTable(clusters, toUnit)
-    % [debut fin p] par cluster, bornes dans l'unite du domaine
+    % [start end p] per cluster, limits in the unit of the domain
     T = zeros(numel(clusters), 3);
     for k = 1:numel(clusters)
         T(k, :) = [toUnit(clusters{k}.endpoints(:)') clusters{k}.P];
@@ -240,18 +240,18 @@ end
 
 
 function printSpmPeak(spmPeak, ALL_PAIRS, COND_LABELS, MUSCLE_DISPLAY)
-    fprintf('\n=== SPM1D sur les enveloppes normalisees au pic (%% du pic), domaine = elevation HT (deg) ===\n');
+    fprintf('\n=== SPM1D on the envelopes normalised to the peak (%% of peak), domain = HT elevation (deg) ===\n');
     for jm = 1:numel(spmPeak)
         st = spmPeak(jm);
-        fprintf('%-20s ANOVA : ', MUSCLE_DISPLAY(st.muscle));
+        fprintf('%-20s ANOVA: ', MUSCLE_DISPLAY(st.muscle));
         if ~st.anovaSig, fprintf('n.s.\n'); continue; end
         fprintf('%s\n', strjoin(arrayfun(@(k) sprintf('%.1f-%.1f deg (p = %s)', st.anovaClusters(k,1), ...
                 st.anovaClusters(k,2), fmtP(st.anovaClusters(k,3))), 1:size(st.anovaClusters,1), 'UniformOutput', false), ', '));
-        if ~any(st.pairSig), fprintf('    aucune paire significative apres Holm\n'); continue; end
+        if ~any(st.pairSig), fprintf('    no significant pair after Holm\n'); continue; end
         for kp = find(st.pairSig)'
             C = st.pairClusters{kp};
             sgn = '>'; if st.pairSign(kp) > 0, sgn = '<'; end
-            fprintf('    %-12s %s %-12s : %s (p Holm test = %.4f)\n', COND_LABELS{ALL_PAIRS(kp,1)}, sgn, ...
+            fprintf('    %-12s %s %-12s: %s (p Holm test = %.4f)\n', COND_LABELS{ALL_PAIRS(kp,1)}, sgn, ...
                     COND_LABELS{ALL_PAIRS(kp,2)}, strjoin(arrayfun(@(k) sprintf('%.1f-%.1f deg', C(k,1), C(k,2)), ...
                     1:size(C,1), 'UniformOutput', false), ', '), st.pairP(kp));
         end

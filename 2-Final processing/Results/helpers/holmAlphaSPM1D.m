@@ -41,7 +41,7 @@ for k = 1:nTests
         pTest(k) = 0;
     else
         p1 = spm1d.rft1d.t.sf_resels(zmax, s.df(2), s.resels, 'withBonf', true, 'nNodes', s.nNodes);
-        pTest(k) = min(1, 2 * p1);  % two-tailed (inference utilise alpha/2 par queue)
+        pTest(k) = min(1, 2 * p1);  % two-tailed (inference uses alpha/2 per tail)
     end
 end
 

@@ -46,11 +46,11 @@ addpath(fullfile(HERE, 'helpers'));
 % -------------------------------------------------------------------------
 % PARAMETRES
 % -------------------------------------------------------------------------
-ELEV_GRID      = 20:1:90;   % deg d'elevation humerothoracique (consigne article, <= 90)
-MAX_EXTRAP_DEG = 2.5;       % prolongation constante max sous le debut de montee (deg)
+ELEV_GRID      = 20:1:90;   % deg of humerothoracic elevation (article range, <= 90)
+MAX_EXTRAP_DEG = 2.5;       % maximum constant extension below the start of the rise (deg)
 N_ITER     = 10000;
 ALPHA_FWER = 0.05;
-MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % commandes optimales
+MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % optimal commands
 
 FORCE_RECOMPUTE = false;
 CACHE_FILE = fullfile(dataDir(), 'cache_scapulohumeral_rhythm_all_comp.mat');
@@ -64,7 +64,7 @@ if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
 end
 
 if cacheValid
-    fprintf('Cache trouve : %s\n-> pas de recalcul\n\n', CACHE_FILE);
+    fprintf('Cache found: %s\n-> no recomputation\n\n', CACHE_FILE);
     load(CACHE_FILE);
 else
     HT = load(fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat'), 'patientMeans', 'x');
@@ -78,7 +78,7 @@ else
         J = struct('name', JOINT_FILES{j,1}, 'DOF_LABELS', {S.DOF_LABELS}, 'rhythmMeans', struct());
         nDOF = numel(S.DOF_LABELS); nPat = numel(S.PATIENT_IDS); nCond = numel(S.CONDITIONS_ORDERED);
 
-        % --- angles articulaires en fonction de l'elevation HT (montee) ---
+        % --- joint angles against HT elevation (rise) ---
         for ic = 1:nCond
             fld = matlab.lang.makeValidName(S.CONDITIONS_ORDERED{ic});
             J.rhythmMeans.(fld) = cell(1, nPat);
@@ -92,8 +92,9 @@ else
                 J.rhythmMeans.(fld){ip} = R;
             end
         end
-        % courbes completes sur la plage dans toutes les conditions :
-        % meme N pour les stats, le contraste et la figure
+        % complete curves over the range in all the conditions (leaves out P05,
+        % which does not reach the start of the 20 to 90 deg range):
+        % same N for the statistics, the contrast and the figure
         keepPat = true(1, nPat);
         for ic = 1:nCond
             Rs = J.rhythmMeans.(matlab.lang.makeValidName(S.CONDITIONS_ORDERED{ic}));
@@ -107,7 +108,7 @@ else
         end
         J.excluded = S.PATIENT_IDS(~keepPat);
 
-        % --- SPM1D par DOF (domaine = elevation HT) ---
+        % --- SPM1D per DOF (domain = HT elevation) ---
         J.spmResults = struct('dof_label', {}, 'anova_sig', {}, 'anova_clusters', {}, 'posthoc', {}, 'n', {});
         for id = 1:nDOF
             Y = cell(1, nCond);
@@ -115,7 +116,7 @@ else
                 Rs = J.rhythmMeans.(matlab.lang.makeValidName(S.CONDITIONS_ORDERED{ic}));
                 Y{ic} = cell2mat(cellfun(@(r) r(id, :), Rs(:), 'UniformOutput', false));   % (nPat, nGrid)
             end
-            keep = all(~isnan(cat(2, Y{:})), 2);         % exclusion listwise si courbe incomplete
+            keep = all(~isnan(cat(2, Y{:})), 2);         % listwise exclusion if the curve is incomplete
             Y = cellfun(@(y) y(keep, :), Y, 'UniformOutput', false);
             n = sum(keep);
             res = struct('dof_label', S.DOF_LABELS{id}, 'anova_sig', false, 'anova_clusters', {{}}, 'posthoc', struct(), 'n', n);
@@ -146,33 +147,33 @@ else
     end
     save(CACHE_FILE, 'joints', 'ELEV_GRID', 'MAX_EXTRAP_DEG', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'ALL_PAIRS', ...
          'PATIENT_IDS', 'N_ITER', 'ALPHA_FWER');
-    fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
+    fprintf('Cache saved: %s\n', CACHE_FILE);
 end
 
 % =========================================================================
 % CONSOLE
 % =========================================================================
 isMin = ismember(CONDITIONS_ORDERED, MIN_CONDS);
-% endpoints spm1d = position 0-based du noeud (X = 0:Q-1 dans spm1d.geom.cluster_geom)
+% spm1d endpoints = 0-based node position (X = 0:Q-1 in spm1d.geom.cluster_geom)
 nodeToDeg = @(ep) ELEV_GRID(1) + ep * (ELEV_GRID(2) - ELEV_GRID(1));
-SHOW_ELEV = [50 70 90];   % elevations auxquelles les angles moyens sont affiches
+SHOW_ELEV = [50 70 90];   % elevations at which the mean angles are displayed
 for j = 1:numel(joints)
     J = joints{j};
-    fprintf('\n=== %s : angles en fonction de l''elevation humerothoracique (%d-%d deg, montee) ===\n', ...
+    fprintf('\n=== %s: angles against humerothoracic elevation (%d-%d deg, rise) ===\n', ...
             J.name, ELEV_GRID(1), ELEV_GRID(end));
     fprintf('    N = %d\n', numel(PATIENT_IDS) - numel(J.excluded));
     for id = 1:numel(J.DOF_LABELS)
         res = J.spmResults(id);
-        % contraste descriptif Min - autres, moyenne sur la grille, par patient
+        % descriptive contrast Min - others, mean over the grid, per participant
         M = NaN(numel(PATIENT_IDS), numel(CONDITIONS_ORDERED));
         for ic = 1:numel(CONDITIONS_ORDERED)
             Rs = J.rhythmMeans.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic}));
             M(:, ic) = cellfun(@(r) mean(r(id, :), 'omitnan'), Rs(:));
         end
         d = mean(M(:, isMin), 2) - mean(M(:, ~isMin), 2);
-        fprintf('%-40s  Min - autres = %+.1f ± %.1f deg (%d/%d patients < 0)\n', res.dof_label, ...
+        fprintf('%-40s  Min - others = %+.1f ± %.1f deg (%d/%d participants < 0)\n', res.dof_label, ...
                 mean(d, 'omitnan'), std(d, 'omitnan'), sum(d < 0), sum(~isnan(d)));
-        % angles moyens par condition a quelques elevations (sens des differences)
+        % mean angles per condition at a few elevations (direction of the differences)
         fprintf('    %-12s', 'Condition'); fprintf('  %5d deg', SHOW_ELEV); fprintf('\n');
         for ic = 1:numel(CONDITIONS_ORDERED)
             Rs = J.rhythmMeans.(matlab.lang.makeValidName(CONDITIONS_ORDERED{ic}));
@@ -180,12 +181,12 @@ for j = 1:numel(joints)
             fprintf('    %-12s', COND_LABELS{ic}); fprintf('  %8.1f', Mg(ismember(ELEV_GRID, SHOW_ELEV))); fprintf('\n');
         end
         if ~res.anova_sig
-            fprintf('    ANOVA : n.s.\n');
+            fprintf('    ANOVA: n.s.\n');
             continue;
         end
         for c = 1:numel(res.anova_clusters)
             ep = res.anova_clusters{c}.endpoints;
-            fprintf('    ANOVA : %.1f-%.1f deg d''elevation, p = %s\n', nodeToDeg(ep(1)), nodeToDeg(ep(2)), fmtP(res.anova_clusters{c}.P));
+            fprintf('    ANOVA: %.1f-%.1f deg of elevation, p = %s\n', nodeToDeg(ep(1)), nodeToDeg(ep(2)), fmtP(res.anova_clusters{c}.P));
         end
         anySig = false;
         for kp = 1:size(ALL_PAIRS, 1)
@@ -199,11 +200,11 @@ for j = 1:numel(joints)
                         COND_LABELS{strcmp(CONDITIONS_ORDERED, ph.condB)}, nodeToDeg(ep(1)), nodeToDeg(ep(2)), fmtP(ph.clusters{c}.P));
             end
         end
-        if ~anySig, fprintf('    (aucune paire significative apres Holm)\n'); end
+        if ~anySig, fprintf('    (no significant pair after Holm)\n'); end
     end
 end
 
-disp(' '); disp('Termine.');
+disp(' '); disp('Done.');
 
 
 % =========================================================================

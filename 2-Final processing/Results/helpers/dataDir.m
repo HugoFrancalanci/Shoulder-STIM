@@ -11,20 +11,20 @@ function d = dataDir()
 % -------------------------------------------------------------------------
 % Description : Returns the folder where the derived data (cache_*.mat files)
 %               are read and written. These files contain participant data and
-%               are kept outside the code repository. Edit DATA_DIR to move
-%               them.
+%               are kept outside the code repository. The folder is set in
+%               helpers/local_paths.m.
 % -------------------------------------------------------------------------
 % Parameters  : none
 % Outputs     : d : absolute path of the data folder (error if missing)
 % -------------------------------------------------------------------------
-% Dependencies: none
+% Dependencies: helpers/local_paths.m
 % =========================================================================
 
-DATA_DIR = 'C:\Users\franc\OneDrive - Université de Genève\PhD Hugo\04_Outputs\01_Publications\02_Collaborations\2026_Impact of optimised functional electrical stimulation\Data';
+[~, DATA_DIR] = local_paths();
 
 if ~isfolder(DATA_DIR)
-    error('dataDir:missing', ['Dossier des donnees privees introuvable :\n  %s\n' ...
-          'Modifier DATA_DIR dans helpers/dataDir.m.'], DATA_DIR);
+    error('dataDir:missing', ['Private data folder not found:\n  %s\n' ...
+          'Edit helpers/local_paths.m.'], DATA_DIR);
 end
 d = DATA_DIR;
 end

@@ -27,21 +27,21 @@ run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditio
 % PARAMETRES
 % -------------------------------------------------------------------------
 PATIENT_ID     = 'P001';
-FS             = 2200;          % Hz (verifie via check_fs.m)
-FS_KIN         = 100;           % Hz: frequence camera (pour Rcycle/Lcycle.range)
+FS             = 2200;          % Hz (checked with check_fs.m)
+FS_KIN         = 100;           % Hz: camera frequency (for Rcycle/Lcycle.range)
 
-N_CYCLES_DISPLAY = 3;           % nombre de cycles concatenes pour la figure
-                                % "signal complet" (au lieu du trial entier),
-                                % pour aligner No FES et FES sur une duree
-                                % comparable et faciliter la comparaison
+N_CYCLES_DISPLAY = 3;           % number of concatenated cycles for the figure
+                                % "full signal" (instead of the whole trial),
+                                % to align No FES and FES on a
+                                % comparable duration and ease the comparison
 
-BLANK_MS       = 8;             % ms a effacer autour de chaque pic
-MAD_FACTOR     = 6;             % seuil = MAD_FACTOR x MAD(signal)
-MIN_PERIOD_MS  = 15;            % espacement minimum entre deux pics (ms)
-                                % (< periode FES ~22ms pour garder tous les pics)
-MAX_BLANK_MS   = 20;            % si trou > MAX_BLANK_MS -> pas d'interpolation
+BLANK_MS       = 8;             % ms to erase around each peak
+MAD_FACTOR     = 6;             % threshold = MAD_FACTOR x MAD(signal)
+MIN_PERIOD_MS  = 15;            % minimum spacing between two peaks (ms)
+                                % (< FES period ~22 ms, to keep all the peaks)
+MAX_BLANK_MS   = 20;            % if gap > MAX_BLANK_MS -> no interpolation
 
-% Trial FES a verifier et trial No FES de reference
+% FES trial to check and No FES reference trial
 VERIFY_COND    = 'Rehab';
 VERIFY_BLOCK   = 1;
 NOFES_COND     = 'No FES';
@@ -55,25 +55,7 @@ pnum    = str2double(PATIENT_ID(2:end));
 matFile = fullfile(dataFolder, 'P1.mat');
 load(matFile, 'Trial');
 
-isA2 = false(1, length(Trial));
-for i = 1:length(Trial)
-    if isfield(Trial(i), 'task') && strcmp(Trial(i).task, 'ANALYTIC2')
-        isA2(i) = true;
-    end
-end
-allIdx = find(isA2);
-exc = []; skipFirst = 0; skipPos = [];
-if isfield(PATIENT_EXCEPTIONS, PATIENT_ID)
-    exc = PATIENT_EXCEPTIONS.(PATIENT_ID);
-    if isfield(exc, 'skipFirstN'),    skipFirst = exc.skipFirstN;    end
-    if isfield(exc, 'skipPositions'), skipPos   = exc.skipPositions; end
-end
-allIdx = allIdx(skipFirst+1:end);
-if ~isempty(skipPos)
-    keep = true(1, length(allIdx));
-    keep(skipPos(skipPos <= length(allIdx))) = false;
-    allIdx = allIdx(keep);
-end
+allIdx = filterAnalytic2(Trial);
 
 condList = PATIENT_COND.(PATIENT_ID);
 
@@ -86,15 +68,15 @@ if strcmp(side, 'L'), cycleKey = 'Lcycle'; end
 % -------------------------------------------------------------------------
 
 function [segCat, boundaries] = extractCycleConcat(sig, cyclesKin, fsEmg, fsKin, nWanted)
-    % Concatene les N premiers cycles (bruts, pleine resolution temporelle)
-    % d'un signal, a partir des indices Rcycle/Lcycle.range (frames camera).
-    % boundaries : indices (dans segCat) marquant la fin de chaque cycle.
+    % Concatenates the first N cycles (raw, full time resolution)
+    % of a signal, from the Rcycle/Lcycle.range indices (camera frames).
+    % boundaries: indices (in segCat) marking the end of each cycle.
     sig = sig(:);
     N   = length(sig);
     segCat = [];
     boundaries = [];
     if isempty(cyclesKin)
-        warning('extractCycleConcat: cyclesKin vide (mauvais cote/champ Rcycle-Lcycle ?) -> repli sur signal complet.');
+        warning('extractCycleConcat: empty cyclesKin (wrong side or Rcycle-Lcycle field?) -> falling back on the full signal.');
         segCat = sig;
         return;
     end
@@ -109,29 +91,29 @@ function [segCat, boundaries] = extractCycleConcat(sig, cyclesKin, fsEmg, fsKin,
         boundaries(end+1) = length(segCat); %#ok<AGROW>
     end
     if isempty(segCat)
-        warning('extractCycleConcat: aucun cycle valide trouve (mauvais cote/champ Rcycle-Lcycle ?) -> repli sur signal complet.');
-        segCat = sig;   % fallback : pas de cycles valides -> signal complet
+        warning('extractCycleConcat: no valid cycle found (wrong side or Rcycle-Lcycle field?) -> falling back on the full signal.');
+        segCat = sig;   % fallback: no valid cycles -> full signal
     end
 end
 
 function cleaned = removeFESArtifact(sig, fs, blank_ms, mad_factor, min_period_ms, max_blank_ms)
-    % Retourne le signal avec artefacts FES retires par blanking+spline.
+    % Returns the signal with the FES artefacts removed by blanking + spline.
     sig = sig(:);
     n   = length(sig);
     blank_s  = round(blank_ms / 1000 * fs);
     min_dist = round(min_period_ms / 1000 * fs);
     max_blank_s = round(max_blank_ms / 1000 * fs);
 
-    % Seuil adaptatif sur valeur absolue
+    % Adaptive threshold on the absolute value
     mad_val  = median(abs(sig - median(sig)));
     thresh   = mad_factor * mad_val;
 
-    % Detection des pics positifs ET negatifs (spike biphasique)
+    % Detection of positive AND negative peaks (biphasic spike)
     [~, locs_pos] = findpeaks( sig, 'MinPeakHeight', thresh, 'MinPeakDistance', min_dist);
     [~, locs_neg] = findpeaks(-sig, 'MinPeakHeight', thresh, 'MinPeakDistance', min_dist);
     locs = sort([locs_pos; locs_neg]);
 
-    % Fusionner les pics trop proches (meme spike biphasique)
+    % Merges peaks that are too close (same biphasic spike)
     if length(locs) > 1
         merged = locs(1);
         for k = 2:length(locs)
@@ -144,7 +126,7 @@ function cleaned = removeFESArtifact(sig, fs, blank_ms, mad_factor, min_period_m
         locs = merged(:);
     end
 
-    % Blanking : mettre NaN autour de chaque pic
+    % Blanking: NaN around each peak
     mask = true(n, 1);
     half = floor(blank_s / 2);
     for k = 1:length(locs)
@@ -153,22 +135,22 @@ function cleaned = removeFESArtifact(sig, fs, blank_ms, mad_factor, min_period_m
         mask(i1:i2) = false;
     end
 
-    % Interpolation cubique sur les trous <= max_blank_s
+    % Cubic interpolation on the gaps <= max_blank_s
     cleaned = sig;
     valid_idx = find(mask);
     if length(valid_idx) < 4, cleaned = sig; return; end
 
-    % Trouver les segments de NaN
+    % Finds the NaN segments
     invalid_idx = find(~mask);
     if isempty(invalid_idx), return; end
 
-    % Grouper les indices invalides en segments continus
+    % Groups the invalid indices into continuous segments
     breaks = [0; find(diff(invalid_idx) > 1); length(invalid_idx)];
     for b = 1:length(breaks)-1
         seg = invalid_idx(breaks(b)+1 : breaks(b+1));
-        if length(seg) > max_blank_s, continue; end  % trou trop large -> ne pas interpoler
+        if length(seg) > max_blank_s, continue; end  % gap too wide -> no interpolation
         i1 = seg(1); i2 = seg(end);
-        % Points d'ancrage : 3 points valides de chaque cote
+        % Anchor points: 3 valid points on each side
         left  = valid_idx(valid_idx < i1);
         right = valid_idx(valid_idx > i2);
         if length(left) < 2 || length(right) < 2, continue; end
@@ -182,11 +164,11 @@ function cleaned = removeFESArtifact(sig, fs, blank_ms, mad_factor, min_period_m
 end
 
 % -------------------------------------------------------------------------
-% CHARGEMENT No FES (reference commune)
+% LOADING No FES (common reference)
 % -------------------------------------------------------------------------
 seqN = find(strcmp(condList.condition, NOFES_COND) & condList.block == NOFES_BLOCK, 1);
 if isempty(seqN)
-    warning('Condition %s b%d introuvable pour %s - courbe de reference omise.', NOFES_COND, NOFES_BLOCK, PATIENT_ID);
+    warning('Condition %s b%d not found for %s - reference curve left out.', NOFES_COND, NOFES_BLOCK, PATIENT_ID);
     tN = [];
 else
     tN = Trial(allIdx(seqN));
@@ -199,7 +181,7 @@ if ~isempty(tN)
 end
 
 % -------------------------------------------------------------------------
-% BOUCLE SUR TOUTES LES CONDITIONS FES
+% LOOP ON ALL THE FES CONDITIONS
 % -------------------------------------------------------------------------
 ALL_FES_CONDS = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 ZOOM_V_START  = 7.0;
@@ -210,7 +192,7 @@ for ifc = 1:length(ALL_FES_CONDS)
 
     seqV = find(strcmp(condList.condition, cur_cond) & condList.block == VERIFY_BLOCK, 1);
     if isempty(seqV)
-        fprintf('  [SKIP] %s b%d introuvable\n', cur_cond, VERIFY_BLOCK);
+        fprintf('  [SKIP] %s b%d not found\n', cur_cond, VERIFY_BLOCK);
         continue;
     end
     tV     = Trial(allIdx(seqV));
@@ -219,8 +201,8 @@ for ifc = 1:length(ALL_FES_CONDS)
     cyclesV = [];
     if isfield(tV, cycleKey), cyclesV = tV.(cycleKey); end
 
-    % --- Figure signal complet (N_CYCLES_DISPLAY cycles concatenes) ---
-    figure('Name', sprintf('%s -- Retrait FES : %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
+    % --- Full signal figure (N_CYCLES_DISPLAY concatenated cycles) ---
+    figure('Name', sprintf('%s -- FES artefact removal: %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
            'units','normalized','outerposition',[0 0 1 1]);
 
     for ji = 1:nEmg
@@ -253,7 +235,7 @@ for ifc = 1:length(ALL_FES_CONDS)
         y_lim = max(abs(ref_vals)) * 1.4;
         if y_lim > 0, ylim([-y_lim, y_lim]); end
 
-        % Separateurs de cycles (pointilles gris)
+        % Cycle separators (grey dotted lines)
         for cb = cycBnd(1:end-1)
             xline(cb/FS, 'Color', [0.6 0.6 0.6], 'LineStyle', ':', 'LineWidth', 0.6, 'HandleVisibility','off');
         end
@@ -261,18 +243,18 @@ for ifc = 1:length(ALL_FES_CONDS)
         title(lbl, 'FontSize', 9); ylabel('V'); grid on;
         if ji == 1
             if ~isempty(tN)
-                legend({'No FES', 'Brut (FES)', 'Nettoye (FES)'}, 'Location','northeast');
+                legend({'No FES', 'Raw (FES)', 'Cleaned (FES)'}, 'Location','northeast');
             else
-                legend({'Brut', 'Nettoye'}, 'Location','northeast');
+                legend({'Raw', 'Cleaned'}, 'Location','northeast');
             end
         end
-        if ji == nEmg, xlabel(sprintf('Temps (s) - %d cycles concatenes', N_CYCLES_DISPLAY)); end
+        if ji == nEmg, xlabel(sprintf('Time (s) - %d concatenated cycles', N_CYCLES_DISPLAY)); end
     end
 
-    sgtitle(sprintf('%s  --  %s b%d  --  %d cycles concatenes  (noir=No FES, gris=brut, bleu=nettoye)', ...
+    sgtitle(sprintf('%s  --  %s b%d  --  %d concatenated cycles  (black = No FES, grey = raw, blue = cleaned)', ...
             PATIENT_ID, cur_cond, VERIFY_BLOCK, N_CYCLES_DISPLAY), 'FontSize', 11, 'FontWeight', 'bold');
 
-    % --- Figure zoom 300ms ---
+    % --- 300 ms zoom figure ---
     figure('Name', sprintf('%s -- Zoom : %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
            'units','normalized','outerposition',[0 0 1 1]);
 
@@ -305,12 +287,12 @@ for ifc = 1:length(ALL_FES_CONDS)
         title(lbl, 'FontSize', 9); ylabel('V'); grid on;
         if ji == 1
             if ~isempty(tN)
-                legend({'No FES', 'Brut (FES)', 'Nettoye (FES)'}, 'Location','northeast');
+                legend({'No FES', 'Raw (FES)', 'Cleaned (FES)'}, 'Location','northeast');
             else
-                legend({'Brut', 'Nettoye'}, 'Location','northeast');
+                legend({'Raw', 'Cleaned'}, 'Location','northeast');
             end
         end
-        if ji == nEmg, xlabel('Temps (ms)'); end
+        if ji == nEmg, xlabel('Time (ms)'); end
     end
 
     sgtitle(sprintf('%s  --  Zoom 300ms  --  %s b%d', PATIENT_ID, cur_cond, VERIFY_BLOCK), ...
@@ -318,10 +300,10 @@ for ifc = 1:length(ALL_FES_CONDS)
 
 end % ifc
 
-fprintf('\n--- Parametres utilises ---\n');
+fprintf('\n--- Parameters used ---\n');
 fprintf('  Blanking     : %d ms (%d samples)\n', BLANK_MS, round(BLANK_MS/1000*FS));
-fprintf('  Seuil        : %.0f x MAD\n', MAD_FACTOR);
-fprintf('  Dist. min    : %d ms entre pics\n', MIN_PERIOD_MS);
-fprintf('  Max trou     : %d ms (au-dela = pas d''interpolation)\n', MAX_BLANK_MS);
-fprintf('\nSi trop de signal efface : diminuer MAD_FACTOR ou augmenter MIN_PERIOD_MS.\n');
-fprintf('Si des spikes restent     : diminuer MAD_FACTOR ou augmenter BLANK_MS.\n');
+fprintf('  Threshold    : %.0f x MAD\n', MAD_FACTOR);
+fprintf('  Min. spacing : %d ms between peaks\n', MIN_PERIOD_MS);
+fprintf('  Max. gap     : %d ms (above = no interpolation)\n', MAX_BLANK_MS);
+fprintf('\nIf too much signal is erased: lower MAD_FACTOR or raise MIN_PERIOD_MS.\n');
+fprintf('If spikes remain        : lower MAD_FACTOR or raise BLANK_MS.\n');

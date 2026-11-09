@@ -51,32 +51,32 @@ addpath(fullfile(HERE, 'helpers'));
 % -------------------------------------------------------------------------
 % PARAMETRES
 % -------------------------------------------------------------------------
-WINDOW              = [28 38];   % % cycle, fenetre d'interet (recap descriptif)
-EXCL_ELEV_THRESHOLD = 90;        % deg, zone grisee sur les figures
-RISE_FRACTION       = 0.5;       % temps de montee : 1er passage a min + 50 % (pic - min)
+WINDOW              = [28 38];   % % cycle, window of interest (descriptive summary)
+EXCL_ELEV_THRESHOLD = 90;        % deg, grey zone on the figures
+RISE_FRACTION       = 0.5;       % rise time: first crossing of min + 50 % (peak - min)
 ALPHA_FWER          = 0.05;      % Holm-Bonferroni
-N_ITER              = 10000;     % permutations ANOVA RM non parametrique
+N_ITER              = 10000;     % permutations of the non-parametric RM ANOVA
 
 FORCE_RECOMPUTE = false;
-EXPORT_FIGURE   = false;   % figure secondaire (7 conditions), non exportee : resultats de l'article dans nested_comparison.m
+EXPORT_FIGURE   = false;   % secondary figure (7 conditions), not exported: article results in nested_comparison.m
 CACHE_FILE = fullfile(dataDir(), 'cache_humerothoracic_all_comp.mat');
 
 x = 0:100;
 CONDITIONS_ORDERED = {'No FES','Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 COND_LABELS = {'No FES','Min fatigue','Min stress','Random','Min PW','Rehab','Min force'};
-COLORS = conditionColors(CONDITIONS_ORDERED);   % couleurs par groupe (helpers/conditionColors.m)
+COLORS = conditionColors(CONDITIONS_ORDERED);   % colours per group (helpers/conditionColors.m)
 DOF_LABELS = {'Humerothoracic elevation (+)'};
-MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % commandes optimales
-% Nouveau parametre : toujours en dernier (ordre des permutations inchange
-% pour les parametres precedents)
+MIN_CONDS  = {'Min_fatigue','Min_stress','Min_pulse_width','Min_force'};   % optimal commands
+% New parameter: always last (order of the permutations unchanged
+% for the previous parameters)
 DISC_PARAMS = {'peakElev', 'peakTime', 'riseTime', 'planeAtPeak', 'planeMean2090'};
 DISC_LABELS = {'Peak elevation (deg)', 'Peak timing (% cycle)', ...
                sprintf('Rise time to %g%% of range (%% cycle)', 100*RISE_FRACTION), ...
                'Plane of elevation at peak (deg)', 'Mean plane of elevation 20-90 deg (deg)'};
-% Plan d'elevation moyen sur la montee : meme grille et memes regles que
+% Mean plane of elevation over the rise: same grid and same rules as
 % extract_scapulohumeral_rhythm_all_comp.m
-PLANE_GRID     = 20:1:90;   % deg d'elevation humerothoracique
-MAX_EXTRAP_DEG = 2.5;       % prolongation constante max sous le debut de montee (deg)
+PLANE_GRID     = 20:1:90;   % deg of humerothoracic elevation
+MAX_EXTRAP_DEG = 2.5;       % maximum constant extension below the start of the rise (deg)
 
 ALL_PAIRS = {};
 for a = 1:numel(CONDITIONS_ORDERED)-1
@@ -88,12 +88,12 @@ N_PAIRS = size(ALL_PAIRS, 1);
 
 cacheValid = false;
 if isfile(CACHE_FILE) && ~FORCE_RECOMPUTE
-    S_check = load(CACHE_FILE, 'disc');   % cache sans le dernier parametre -> recalcul
+    S_check = load(CACHE_FILE, 'disc');   % cache without the last parameter -> recomputation
     cacheValid = isfield(S_check, 'disc') && isfield(S_check.disc, DISC_PARAMS{end});
     clear S_check
 end
 if cacheValid
-    fprintf('Cache trouve : %s\n-> pas de recalcul (FORCE_RECOMPUTE=true pour tout refaire)\n\n', CACHE_FILE);
+    fprintf('Cache found: %s\n-> no recomputation (FORCE_RECOMPUTE=true to redo everything)\n\n', CACHE_FILE);
     load(CACHE_FILE);
 else
     run(fullfile(HERE, 'usercommands_conditions.m'));
@@ -101,9 +101,9 @@ else
     warnings = {};
 
     % ---------------------------------------------------------------------
-    % EXTRACTION : patientMeans.(cond){ip} = (1,101) ; patientBlocks idem par bloc
+    % EXTRACTION: patientMeans.(cond){ip} = (1,101); patientBlocks likewise per block
     % ---------------------------------------------------------------------
-    % planeBlocks : plan d'elevation (1,101) de chaque bloc, memes lignes que patientBlocks
+    % planeBlocks: plane of elevation (1,101) of each block, same rows as patientBlocks
     patientMeans = struct(); patientBlocks = struct(); planeBlocks = struct();
     for ic = 1:numel(CONDITIONS_ORDERED)
         fld = matlab.lang.makeValidName(CONDITIONS_ORDERED{ic});
@@ -116,11 +116,11 @@ else
         cycleKey  = 'rcycle';
         if strcmp(side, 'L'), cycleKey = 'lcycle'; end
         matFile = fullfile(dataFolder, ['P' num2str(str2double(patientID(2:end))) '.mat']);
-        if ~isfile(matFile), error('Fichier introuvable : %s', matFile); end
-        fprintf('Traitement %s (cote %s)...\n', patientID, side);
+        if ~isfile(matFile), error('File not found: %s', matFile); end
+        fprintf('Processing %s (side %s)...\n', patientID, side);
         load(matFile, 'Trial');
 
-        analyticTrials = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS);
+        analyticTrials = filterAnalytic2(Trial);
         nTrials  = numel(analyticTrials);
         condList = PATIENT_COND.(patientID);
         missingCondPos = [];
@@ -140,14 +140,14 @@ else
             if trialIdx > nTrials, break; end
             ht = extractHTElevation(Trial(analyticTrials(trialIdx)), jht, cycleKey);
             if isempty(ht)
-                warnings{end+1} = sprintf('[WARNING] %s cond %d (%s) : elevation HT absente', patientID, iseq, cond); %#ok<SAGROW>
+                warnings{end+1} = sprintf('[WARNING] %s cond %d (%s): HT elevation missing', patientID, iseq, cond); %#ok<SAGROW>
                 continue;
             end
             fld = matlab.lang.makeValidName(cond);
             blocks.(fld)(end+1, :) = ht;
             pl = extractHTPlane(Trial(analyticTrials(trialIdx)), jht, cycleKey);
             if isempty(pl)
-                warnings{end+1} = sprintf('[WARNING] %s cond %d (%s) : plan d''elevation absent', patientID, iseq, cond); %#ok<SAGROW>
+                warnings{end+1} = sprintf('[WARNING] %s cond %d (%s): plane of elevation missing', patientID, iseq, cond); %#ok<SAGROW>
                 pl = NaN(1, 101);
             end
             pblocks.(fld)(end+1, :) = pl;
@@ -165,7 +165,7 @@ else
     end
 
     % ---------------------------------------------------------------------
-    % (1) SPM1D : ANOVA RM non parametrique + post-hoc Holm (21 paires)
+    % (1) SPM1D: non-parametric RM ANOVA + Holm post-hoc (21 pairs)
     % ---------------------------------------------------------------------
     Y = cell(1, numel(CONDITIONS_ORDERED));
     for ic = 1:numel(CONDITIONS_ORDERED)
@@ -193,7 +193,7 @@ else
     end
 
     % ---------------------------------------------------------------------
-    % (2) PARAMETRES DISCRETS par bloc -> moyenne par patient + stats 0D
+    % (2) DISCRETE PARAMETERS per block -> mean per participant + 0D statistics
     % ---------------------------------------------------------------------
     disc = struct();
     for k = 1:numel(DISC_PARAMS), disc.(DISC_PARAMS{k}) = NaN(nPat, numel(CONDITIONS_ORDERED)); end
@@ -206,17 +206,17 @@ else
             for kb = 1:size(B,1)
                 v(kb, 1:3) = htParams(B(kb,:), x, RISE_FRACTION);
                 [~, ipk] = max(B(kb,:));
-                v(kb, 4) = P(kb, ipk);              % plan d'elevation au pic d'elevation
+                v(kb, 4) = P(kb, ipk);              % plane of elevation at peak elevation
             end
             v = mean(v, 1, 'omitnan');
             for k = 1:4, disc.(DISC_PARAMS{k})(ip, ic) = v(k); end
-            % plan moyen 20-90 deg : courbes moyennes du patient (elevation et
-            % plan), lues a chaque degre d'elevation pendant la montee
+            % mean plane 20-90 deg: mean curves of the participant (elevation and
+            % plane), read at each degree of elevation during the rise
             tE = crossingTimes(patientMeans.(fld){ip}, x, PLANE_GRID, MAX_EXTRAP_DEG);
-            disc.planeMean2090(ip, ic) = mean(interp1(x, mean(P, 1, 'omitnan'), tE, 'linear'));   % NaN si plage incomplete
+            disc.planeMean2090(ip, ic) = mean(interp1(x, mean(P, 1, 'omitnan'), tE, 'linear'));   % NaN if the range is incomplete
         end
     end
-    % courbes completes dans toutes les conditions (memes regles que la figure 2)
+    % complete curves in all the conditions (same rules as the scapulothoracic figure)
     disc.planeMean2090(any(isnan(disc.planeMean2090), 2), :) = NaN;
     discStats = struct();
     for k = 1:numel(DISC_PARAMS)
@@ -244,14 +244,14 @@ else
     save(CACHE_FILE, 'patientMeans', 'patientBlocks', 'planeBlocks', 'CONDITIONS_ORDERED', 'COND_LABELS', 'COLORS', 'DOF_LABELS', ...
          'x', 'spmResults', 'ALL_PAIRS', 'PATIENT_IDS', 'disc', 'discStats', 'EXCL_ZONE', 'htGroupMean', ...
          'RISE_FRACTION', 'N_ITER', 'ALPHA_FWER');
-    fprintf('Cache sauvegarde : %s\n', CACHE_FILE);
+    fprintf('Cache saved: %s\n', CACHE_FILE);
     for i = 1:numel(warnings), disp(warnings{i}); end
 end
 
 % -------------------------------------------------------------------------
-% Parametres discrets : ANOVA sur les 6 conditions FES seules (meme methode).
-% Calculee a part (graine propre par parametre) pour ne pas modifier les
-% permutations des tests precedents ; ajoutee au cache si absente.
+% Discrete parameters: ANOVA on the 6 FES conditions only (same method).
+% Computed separately (own seed per parameter) so as not to change the
+% permutations of the previous tests; added to the cache if missing.
 % -------------------------------------------------------------------------
 if ~isfield(discStats.(DISC_PARAMS{1}), 'anova_p_fes')
     iFES = ~strcmp(CONDITIONS_ORDERED, 'No FES');
@@ -265,7 +265,7 @@ if ~isfield(discStats.(DISC_PARAMS{1}), 'anova_p_fes')
         discStats.(DISC_PARAMS{k}).anova_sig_fes = Fd.p < 0.05;
     end
     save(CACHE_FILE, 'discStats', '-append');
-    fprintf('ANOVA FES seules ajoutee au cache : %s\n', CACHE_FILE);
+    fprintf('ANOVA on the FES conditions only added to the cache: %s\n', CACHE_FILE);
 end
 
 % =========================================================================
@@ -273,8 +273,8 @@ end
 % =========================================================================
 nCond = numel(CONDITIONS_ORDERED);
 w = (x >= WINDOW(1)) & (x <= WINDOW(2));
-fprintf('\n=== Elevation humerothoracique (+ = elevation), N = %d ===\n', numel(PATIENT_IDS));
-fprintf('%-12s  %-20s', 'Condition', sprintf('Fenetre %d-%d %% (deg)', WINDOW));
+fprintf('\n=== Humerothoracic elevation (+ = elevation), N = %d ===\n', numel(PATIENT_IDS));
+fprintf('%-12s  %-20s', 'Condition', sprintf('Window %d-%d %% (deg)', WINDOW));
 fprintf('  %-18s', DISC_PARAMS{:}); fprintf('\n');
 winVals = NaN(numel(PATIENT_IDS), nCond);
 for ic = 1:nCond
@@ -288,21 +288,21 @@ end
 
 isMin = ismember(CONDITIONS_ORDERED, MIN_CONDS);
 dMin = mean(winVals(:, isMin), 2) - mean(winVals(:, ~isMin), 2);
-fprintf('\nContraste par patient, fenetre %d-%d %% : commandes Min - {No FES, Random, Rehab}\n', WINDOW);
-fprintf('  %+.1f ± %.1f deg ; %d/%d patients avec moins d''elevation en Min (descriptif)\n', ...
+fprintf('\nContrast per participant, window %d-%d %%: Min commands - {No FES, Random, Rehab}\n', WINDOW);
+fprintf('  %+.1f ± %.1f deg; %d/%d participants with less elevation in Min (descriptive)\n', ...
         mean(dMin), std(dMin), sum(dMin < 0), numel(dMin));
 for k = 1:numel(DISC_PARAMS)
     dk = mean(disc.(DISC_PARAMS{k})(:, isMin), 2) - mean(disc.(DISC_PARAMS{k})(:, ~isMin), 2);
     fprintf('  %-12s : %+.1f ± %.1f\n', DISC_PARAMS{k}, mean(dk, 'omitnan'), std(dk, 'omitnan'));
 end
 
-fprintf('\n=== SPM1D (cycle complet) : ANOVA RM non parametrique + post-hoc Holm ===\n');
+fprintf('\n=== SPM1D (full cycle): non-parametric RM ANOVA + Holm post-hoc ===\n');
 if ~spmResults.anova_sig
-    fprintf('  ANOVA : n.s.\n');
+    fprintf('  ANOVA: n.s.\n');
 else
     for c = 1:numel(spmResults.anova_clusters)
         ep = spmResults.anova_clusters{c}.endpoints;   % 0-based = % cycle
-        fprintf('  ANOVA : %.1f-%.1f %% du cycle, p = %s\n', max(ep(1),0), min(ep(2),100), fmtP(spmResults.anova_clusters{c}.P));
+        fprintf('  ANOVA: %.1f-%.1f %% of the cycle, p = %s\n', max(ep(1),0), min(ep(2),100), fmtP(spmResults.anova_clusters{c}.P));
     end
     anySig = false;
     for kp = 1:N_PAIRS
@@ -312,41 +312,41 @@ else
         anySig = true;
         for c = 1:numel(ph.clusters)
             ep = ph.clusters{c}.endpoints;   % 0-based = % cycle
-            fprintf('  %-12s vs %-12s : %.1f-%.1f %% du cycle, p = %s\n', COND_LABELS{strcmp(CONDITIONS_ORDERED, ph.condA)}, ...
+            fprintf('  %-12s vs %-12s: %.1f-%.1f %% of the cycle, p = %s\n', COND_LABELS{strcmp(CONDITIONS_ORDERED, ph.condA)}, ...
                     COND_LABELS{strcmp(CONDITIONS_ORDERED, ph.condB)}, max(ep(1),0), min(ep(2),100), fmtP(ph.clusters{c}.P));
         end
     end
-    if ~anySig, fprintf('  (aucune paire significative apres Holm)\n'); end
+    if ~anySig, fprintf('  (no significant pair after Holm)\n'); end
 end
 
-fprintf('\n=== Parametres discrets : ANOVA RM (permutation) + post-hoc Holm ===\n');
+fprintf('\n=== Discrete parameters: RM ANOVA (permutation) + Holm post-hoc ===\n');
 for k = 1:numel(DISC_PARAMS)
     st = discStats.(DISC_PARAMS{k});
-    fprintf('%-40s ANOVA p = %s ; FES seules p = %s', DISC_LABELS{k}, fmtP(st.anova_p), fmtP(st.anova_p_fes));
+    fprintf('%-40s ANOVA p = %s; FES only p = %s', DISC_LABELS{k}, fmtP(st.anova_p), fmtP(st.anova_p_fes));
     if ~st.anova_sig, fprintf('  -> n.s.\n'); continue; end
-    if ~any(st.sig), fprintf('  -> aucune paire sig. apres Holm\n'); continue; end
+    if ~any(st.sig), fprintf('  -> no significant pair after Holm\n'); continue; end
     fprintf('\n');
     for kp = find(st.sig)'
-        fprintf('    %-12s vs %-12s : diff B-A = %+.1f ± %.1f ; p Holm = %s\n', ...
+        fprintf('    %-12s vs %-12s: diff B-A = %+.1f ± %.1f; p Holm = %s\n', ...
                 COND_LABELS{strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,1})}, COND_LABELS{strcmp(CONDITIONS_ORDERED, ALL_PAIRS{kp,2})}, ...
                 st.meanDiff(kp), st.sdDiff(kp), fmtP(st.pHolm(kp)));
     end
 end
 
 % =========================================================================
-% FIGURES (meme mise en page que les autres articulations). Pas de zone
-% grisee ici : c'est cette courbe qui la definit pour GH / ST, l'elevation
-% humerothoracique elle-meme reste interpretable au-dela de 90 deg.
+% FIGURES (same layout as the other joints). No grey
+% zone here: this curve defines it for GH / ST, the humerothoracic
+% elevation itself remains interpretable above 90 deg.
 % =========================================================================
-COLORS = conditionColors(CONDITIONS_ORDERED);   % palette actuelle, meme si le cache en contient une ancienne
+COLORS = conditionColors(CONDITIONS_ORDERED);   % current palette, even if the cache holds an older one
 J = struct('patientMeans', patientMeans, 'CONDITIONS_ORDERED', {CONDITIONS_ORDERED}, 'COND_LABELS', {COND_LABELS}, ...
            'COLORS', COLORS, 'DOF_LABELS', {DOF_LABELS}, 'rowLabel', '', 'x', x, ...
            'spmResults', spmResults, 'ALL_PAIRS', {ALL_PAIRS}, 'PATIENT_IDS', {PATIENT_IDS}, ...
-           'panelTitles', {{'Thoracohumeral elevation'}}, 'titleWeight', 'bold');   % titre en haut, pas de label de rangee
+           'panelTitles', {{'Thoracohumeral elevation'}}, 'titleWeight', 'bold');   % title at the top, no row label
 plotCombinedJointsFigure({J});
 if EXPORT_FIGURE, exportFigure(gcf, 'Figure_5_humerothoracic_elevation'); end
 
-disp(' '); disp('Termine.');
+disp(' '); disp('Done.');
 
 
 % =========================================================================
@@ -354,7 +354,7 @@ disp(' '); disp('Termine.');
 % =========================================================================
 
 function v = htParams(c, x, frac)
-    % [pic (deg), instant du pic (% cycle), temps de montee a min + frac (pic - min)]
+    % [peak (deg), peak timing (% cycle), rise time to min + frac (peak - min)]
     v = NaN(1, 3);
     if all(isnan(c)), return; end
     [pk, ipk] = max(c); mn = min(c(1:ipk));
@@ -365,7 +365,7 @@ function v = htParams(c, x, frac)
     if k == 1
         v(3) = x(1);
     else
-        v(3) = x(k-1) + (thr - c(k-1)) / (c(k) - c(k-1)) * (x(k) - x(k-1));  % interpolation lineaire
+        v(3) = x(k-1) + (thr - c(k-1)) / (c(k) - c(k-1)) * (x(k) - x(k-1));  % linear interpolation
     end
 end
 
@@ -380,25 +380,3 @@ function s = fmtP(p)
 end
 
 
-function analyticIdx = filterAnalytic2(Trial, patientID, PATIENT_EXCEPTIONS)
-    isAnalytic = false(1, length(Trial));
-    for i = 1:length(Trial)
-        if isfield(Trial(i), 'task') && strcmp(Trial(i).task, 'ANALYTIC2')
-            isAnalytic(i) = true;
-        end
-    end
-    allIdx = find(isAnalytic);
-    skipFirst = 0; skipPos = [];
-    if isfield(PATIENT_EXCEPTIONS, patientID)
-        exc = PATIENT_EXCEPTIONS.(patientID);
-        if isfield(exc, 'skipFirstN'),    skipFirst = exc.skipFirstN;    end
-        if isfield(exc, 'skipPositions'), skipPos   = exc.skipPositions; end
-    end
-    allIdx = allIdx(skipFirst+1:end);
-    if ~isempty(skipPos)
-        keep = true(1, length(allIdx));
-        keep(skipPos(skipPos <= length(allIdx))) = false;
-        allIdx = allIdx(keep);
-    end
-    analyticIdx = allIdx;
-end

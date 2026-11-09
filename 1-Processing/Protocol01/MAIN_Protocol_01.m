@@ -17,7 +17,7 @@
 % Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 % -------------------------------------------------------------------------
 
-% Note : Change patient ID (deux endroits)
+% Note: change the participant ID (two places)
 
 % -------------------------------------------------------------------------
 % INIT WORKSPACE
@@ -31,15 +31,15 @@ disp('------------------------------------------------------------------');
 disp('KLAB_UpperLimb_toolbox_Kevin_Dev');
 disp('------------------------------------------------------------------');
 disp(' ');
-disp('Lire le README pour voir les changements effectués et le procédé à suivre');
+disp('See the README for the changes made and the procedure to follow');
 disp('------------------------------------------------------------------');
 disp(' ');
 
 % -------------------------------------------------------------------------
 % SET FOLDERS
 % -------------------------------------------------------------------------
-disp('Définition des répertoires de travail');
-MainFolder           = 'C:\Users\franc\Desktop\Programming\02_Collaborations\C01_STIM_KC\Stim_Dev\';
+disp('Setting the working folders');
+MainFolder           = [fileparts(fileparts(fileparts(mfilename('fullpath')))), filesep];
 Folder.preprocessing = [MainFolder,'0-Preprocessing\'];
 Folder.toolbox       = [MainFolder,'1-Processing\Protocol01\'];
 Folder.data          = uigetdir(); % Patient folder defined by GUI
@@ -54,7 +54,7 @@ disp(' ');
 % - EMG: zeroing (mean), filtering (btw bandpass 4th order 30-450 Hz)
 % - Force: smoothing (btw lowpass 2nd order 10 Hz)
 % -------------------------------------------------------------------------
-disp('Pré-traitement des données');
+disp('Preprocessing the data');
 % if ~isfolder('Processed')
     addpath(Folder.preprocessing);
     MAIN_Preprocessing_toolbox('P9','S1','20260612','PROTOCOL01',Folder.preprocessing,[Folder.data,'\Raw\']);
@@ -93,7 +93,7 @@ for itype = 1:length(trialOrder)
 end
 orderedIdx = orderedIdx(1:nIdx);
 
-side = input('Côté découpage cycle (R/L) : ', 's');
+side = input('Side used to cut the cycles (R/L): ', 's');
 threshold = []; 
 
 for i = orderedIdx
@@ -114,7 +114,7 @@ for i = orderedIdx
             Trial(k).n1          = btkGetLastFrame(Trial(k).btk)-Trial(k).n0+1;
             Trial(k).fmarker     = btkGetPointFrequency(Trial(k).btk);
             Trial(k).fanalog     = btkGetAnalogFrequency(Trial(k).btk);       
-            disp(['Chargement du fichier : ',Trial(k).task]);
+            disp(['Loading file: ',Trial(k).task]);
             % Set units
             Units                = SetUnits(Trial);
             % Import events

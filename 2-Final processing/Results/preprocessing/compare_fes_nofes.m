@@ -24,19 +24,19 @@ clear; clc; close all;
 run(fullfile(fileparts(fileparts(mfilename('fullpath'))), 'usercommands_conditions.m'));
 
 % -------------------------------------------------------------------------
-% CONFIGURATION -- ajuster selon le patient et la condition a inspecter
+% CONFIGURATION: adjust to the participant and the condition to inspect
 % -------------------------------------------------------------------------
 PATIENT_ID = 'P001';
-FES_COND   = 'Rehab';   % condition FES a comparer
+FES_COND   = 'Rehab';   % FES condition to compare
 BLOCK      = 1;
 FS         = 2200;
 
-% Fenetres de zoom (secondes) -- ajuster pour cibler un burst de mouvement
-% Fig 2 : vue large du burst
+% Zoom windows (seconds): adjust to target a movement burst
+% Fig 2: wide view of the burst
 ZOOM1_START = 6.0;
 ZOOM1_DUR   = 5.0;
 
-% Fig 3 : zoom fin pour voir les pulses individuels (~200ms)
+% Fig 3: fine zoom to see the individual pulses (~200 ms)
 ZOOM2_START = 7.0;
 ZOOM2_DUR   = 5.0;
 
@@ -47,23 +47,7 @@ pnum    = str2double(PATIENT_ID(2:end));
 matFile = fullfile(dataFolder, ['P' num2str(pnum) '.mat']);
 load(matFile, 'Trial');
 
-isA2 = false(1, length(Trial));
-for i = 1:length(Trial)
-    if isfield(Trial(i), 'task') && strcmp(Trial(i).task, 'ANALYTIC2'), isA2(i) = true; end
-end
-allIdx = find(isA2);
-exc = []; skipFirst = 0; skipPos = [];
-if isfield(PATIENT_EXCEPTIONS, PATIENT_ID)
-    exc = PATIENT_EXCEPTIONS.(PATIENT_ID);
-    if isfield(exc, 'skipFirstN'),    skipFirst = exc.skipFirstN;    end
-    if isfield(exc, 'skipPositions'), skipPos   = exc.skipPositions; end
-end
-allIdx = allIdx(skipFirst+1:end);
-if ~isempty(skipPos)
-    keep = true(1, length(allIdx));
-    keep(skipPos(skipPos <= length(allIdx))) = false;
-    allIdx = allIdx(keep);
-end
+allIdx = filterAnalytic2(Trial);
 
 condList  = PATIENT_COND.(PATIENT_ID);
 noFesSeq  = find(strcmp(condList.condition, 'No FES') & condList.block == BLOCK, 1);
@@ -74,18 +58,18 @@ tFES      = Trial(allIdx(fesSeq));
 fprintf('No FES : seq %d\n', noFesSeq);
 fprintf('FES    : seq %d  (%s b%d)\n', fesSeq, FES_COND, BLOCK);
 
-% Canaux EMG hors SYNCHRO
+% EMG channels except SYNCHRO
 emgIdx = find(~strcmp({tFES.Emg.label}, 'SYNCHRO'));
 nEmg   = length(emgIdx);
 
-% Couleurs
-COL_NOFES = [0.00 0.00 0.00];   % noir  = No FES
-COL_FES   = [0.85 0.20 0.10];   % rouge = FES
+% Colours
+COL_NOFES = [0.00 0.00 0.00];   % black = No FES
+COL_FES   = [0.85 0.20 0.10];   % red   = FES
 
 % =========================================================================
-% FIGURE 1 : Signal complet -- No FES (noir) vs FES (rouge)
+% FIGURE 1: full signal, No FES (black) vs FES (red)
 % =========================================================================
-figure('Name', sprintf('%s -- Signal complet No FES vs %s', PATIENT_ID, FES_COND), ...
+figure('Name', sprintf('%s -- Full signal No FES vs %s', PATIENT_ID, FES_COND), ...
        'units','normalized','outerposition',[0 0 1 1]);
 
 for ji = 1:nEmg
@@ -104,13 +88,13 @@ for ji = 1:nEmg
         legend({'No FES', sprintf('FES (%s b%d)', FES_COND, BLOCK)}, ...
                'Location','northeast');
     end
-    if ji == nEmg, xlabel('Temps (s)'); end
+    if ji == nEmg, xlabel('Time (s)'); end
 end
-sgtitle(sprintf('%s  --  Signal complet  --  No FES vs %s b%d', ...
+sgtitle(sprintf('%s  --  Full signal  --  No FES vs %s b%d', ...
         PATIENT_ID, FES_COND, BLOCK), 'FontSize', 12, 'FontWeight', 'bold');
 
 % =========================================================================
-% FIGURE 2 : Zoom burst de mouvement (ZOOM1)
+% FIGURE 2: zoom on the movement burst (ZOOM1)
 % =========================================================================
 figure('Name', sprintf('%s -- Zoom burst %.1f-%.1fs', PATIENT_ID, ZOOM1_START, ZOOM1_START+ZOOM1_DUR), ...
        'units','normalized','outerposition',[0 0 1 1]);
@@ -133,16 +117,16 @@ for ji = 1:nEmg
     if ji == 1
         legend({'No FES', sprintf('FES (%s b%d)', FES_COND, BLOCK)}, 'Location','northeast');
     end
-    if ji == nEmg, xlabel(sprintf('Temps relatif (s)  [signal original a %.1fs]', ZOOM1_START)); end
+    if ji == nEmg, xlabel(sprintf('Relative time (s)  [original signal at %.1fs]', ZOOM1_START)); end
 end
 sgtitle(sprintf('%s  --  Zoom %.1f-%.1fs  --  No FES vs %s b%d', ...
         PATIENT_ID, ZOOM1_START, ZOOM1_START+ZOOM1_DUR, FES_COND, BLOCK), ...
         'FontSize', 12, 'FontWeight', 'bold');
 
 % =========================================================================
-% FIGURE 3 : Zoom fin (~200ms) pour voir les pulses individuels
+% FIGURE 3: fine zoom (~200 ms) to see the individual pulses
 % =========================================================================
-figure('Name', sprintf('%s -- Zoom fin %.1f-%.1fs', PATIENT_ID, ZOOM2_START, ZOOM2_START+ZOOM2_DUR), ...
+figure('Name', sprintf('%s -- Fine zoom %.1f-%.1fs', PATIENT_ID, ZOOM2_START, ZOOM2_START+ZOOM2_DUR), ...
        'units','normalized','outerposition',[0 0 1 1]);
 
 z1b = max(1, round(ZOOM2_START*FS));
@@ -163,36 +147,36 @@ for ji = 1:nEmg
     if ji == 1
         legend({'No FES', sprintf('FES (%s b%d)', FES_COND, BLOCK)}, 'Location','northeast');
     end
-    if ji == nEmg, xlabel('Temps (ms)'); end
+    if ji == nEmg, xlabel('Time (ms)'); end
 end
-sgtitle(sprintf('%s  --  Zoom fin %.0fms  --  No FES vs %s b%d  (chercher spikes periodiques en rouge)', ...
+sgtitle(sprintf('%s  --  Fine zoom %.0fms  --  No FES vs %s b%d  (look for periodic red spikes)', ...
         PATIENT_ID, ZOOM2_DUR*1000, FES_COND, BLOCK), ...
         'FontSize', 12, 'FontWeight', 'bold');
 
-fprintf('\nAjuster ZOOM1_START et ZOOM2_START pour cibler le burst de mouvement.\n');
-fprintf('Fig 3 : si spikes rouges periodiques visibles -> artefact FES detectable.\n');
-fprintf('        si signaux identiques -> pas d''artefact sur ce canal.\n');
+fprintf('\nAdjust ZOOM1_START and ZOOM2_START to target the movement burst.\n');
+fprintf('Fig 3: if periodic red spikes are visible -> FES artefact detectable.\n');
+fprintf('        if the signals are identical -> no artefact on this channel.\n');
 
 % =========================================================================
-% FIGURE 4 : Zoom fin 300ms pour TOUTES les conditions FES (canal TRAPS)
-%            Objectif : verifier si la frequence d'artefact est constante
+% FIGURE 4: fine 300 ms zoom for ALL the FES conditions (TRAPS channel)
+%            Aim: check whether the artefact frequency is constant
 % =========================================================================
 ALL_FES_COND = {'Min_fatigue','Min_stress','Random','Min_pulse_width','Rehab','Min_force'};
 
-% Canal de reference : TRAPS (le plus contamine)
+% Reference channel: TRAPS (the most contaminated)
 refLabel = 'TRAPS';
 noFesChIdx = find(strcmp({tNoFES.Emg.label}, refLabel), 1);
 if isempty(noFesChIdx)
-    % fallback : premier canal non-SYNCHRO
+    % fallback: first non-SYNCHRO channel
     noFesChIdx = emgIdx(1);
     refLabel = tNoFES.Emg(noFesChIdx).label;
 end
 s_nofes_ref = double(tNoFES.Emg(noFesChIdx).Signal.full(:));
 
 nCond = length(ALL_FES_COND);
-cols_cond = lines(nCond);  % couleurs distinctes par condition
+cols_cond = lines(nCond);  % distinct colours per condition
 
-figure('Name', sprintf('%s -- Zoom fin toutes conditions FES -- %s', PATIENT_ID, refLabel), ...
+figure('Name', sprintf('%s -- Fine zoom, all FES conditions -- %s', PATIENT_ID, refLabel), ...
        'units','normalized','outerposition',[0 0 1 1]);
 
 z1c = max(1, round(ZOOM2_START*FS));
@@ -204,18 +188,18 @@ for ci = 1:nCond
 
     subplot(nCond, 1, ci);
 
-    % Reference No FES (gris)
+    % No FES reference (grey)
     nSamples = min(length(s_nofes_ref) - z1c + 1, length(t_zc));
     plot(t_zc(1:nSamples), s_nofes_ref(z1c:z1c+nSamples-1), ...
          'Color', [0.6 0.6 0.6], 'LineWidth', 0.8); hold on;
 
     if isempty(seq)
-        title(sprintf('%s b%d  [ABSENT]', cond, BLOCK), 'FontSize', 8, 'Color', [0.5 0.5 0.5]);
+        title(sprintf('%s b%d  [MISSING]', cond, BLOCK), 'FontSize', 8, 'Color', [0.5 0.5 0.5]);
     else
         tFES_ci   = Trial(allIdx(seq));
         chIdx_ci  = find(strcmp({tFES_ci.Emg.label}, refLabel), 1);
         if isempty(chIdx_ci)
-            title(sprintf('%s b%d  [canal absent]', cond, BLOCK), 'FontSize', 8);
+            title(sprintf('%s b%d  [channel missing]', cond, BLOCK), 'FontSize', 8);
         else
             s_fes_ci = double(tFES_ci.Emg(chIdx_ci).Signal.full(:));
             nS2 = min(length(s_fes_ci) - z1c + 1, length(t_zc));
@@ -229,29 +213,29 @@ for ci = 1:nCond
     if ci == 1
         legend({'No FES (ref)', cond}, 'Location','northeast', 'FontSize', 7);
     end
-    if ci == nCond, xlabel('Temps (ms)'); end
+    if ci == nCond, xlabel('Time (ms)'); end
     set(gca, 'FontSize', 7);
 end
 
-sgtitle(sprintf('%s  --  Zoom fin %.0fms  --  Toutes conditions FES  --  Canal: %s', ...
+sgtitle(sprintf('%s  --  Fine zoom %.0f ms  --  All FES conditions  --  Channel: %s', ...
         PATIENT_ID, ZOOM2_DUR*1000, refLabel), ...
         'FontSize', 12, 'FontWeight', 'bold');
 
-fprintf('Fig 4 : comparer la periode des spikes entre conditions (doit etre ~constante si meme frequence FES).\n');
+fprintf('Fig 4: compare the spike period between conditions (should be ~constant for the same FES frequency).\n');
 
 % =========================================================================
-% FIGURE 5 : Zoom ultra-fin (~50ms) sur un seul pulse FES
-%            Objectif : mesurer la largeur exacte du spike pour choisir
-%            la duree du blanking dans l'algorithme de retrait
+% FIGURE 5: very fine zoom (~50 ms) on a single FES pulse
+%            Aim: measure the exact width of the spike to choose
+%            the blanking duration in the removal algorithm
 % =========================================================================
-% Parametres : ajuster PULSE_START pour centrer sur un spike visible
-PULSE_START = 7.05;   % secondes -- pointer juste avant un spike de Rehab
+% Parameters: adjust PULSE_START to centre on a visible spike
+PULSE_START = 7.05;   % seconds: point just before a Rehab spike
 PULSE_DUR   = 0.05;   % 50ms
 
-% Utiliser la condition Rehab (la plus contaminee) comme reference
+% Uses the Rehab condition (the most contaminated) as the reference
 seqRehab = find(strcmp(condList.condition, 'Rehab') & condList.block == BLOCK, 1);
 if isempty(seqRehab)
-    % fallback sur la premiere condition FES disponible
+    % fallback on the first available FES condition
     for ci = 1:length(ALL_FES_COND)
         seqRehab = find(strcmp(condList.condition, ALL_FES_COND{ci}) & condList.block == BLOCK, 1);
         if ~isempty(seqRehab), break; end
@@ -263,7 +247,7 @@ z1p = max(1, round(PULSE_START * FS));
 z2p = min(round((PULSE_START + PULSE_DUR) * FS), length(double(tRef.Emg(1).Signal.full(:))));
 t_p = (0:z2p-z1p) / FS * 1000;  % en ms
 
-figure('Name', sprintf('%s -- Pulse unique %.3f-%.3fs (Rehab)', PATIENT_ID, PULSE_START, PULSE_START+PULSE_DUR), ...
+figure('Name', sprintf('%s -- Single pulse %.3f-%.3fs (Rehab)', PATIENT_ID, PULSE_START, PULSE_START+PULSE_DUR), ...
        'units','normalized','outerposition',[0 0 1 1]);
 
 for ji = 1:nEmg
@@ -277,18 +261,18 @@ for ji = 1:nEmg
     plot(t_p(1:nS), s0(z1p:z1p+nS-1), 'Color', [0.6 0.6 0.6], 'LineWidth', 1.2); hold on;
     plot(t_p(1:nS), sig(z1p:z1p+nS-1), 'Color', COL_FES, 'LineWidth', 1.5);
 
-    % Marquer le zero-crossing pour estimer la largeur visuellement
+    % Marks the zero crossing to estimate the width visually
     yline(0, '--k', 'LineWidth', 0.5);
     title(lbl, 'FontSize', 9); ylabel('V'); grid on;
     if ji == 1
         legend({'No FES (ref)', 'FES Rehab'}, 'Location','northeast');
     end
-    if ji == nEmg, xlabel('Temps (ms)'); end
+    if ji == nEmg, xlabel('Time (ms)'); end
 end
 
-sgtitle(sprintf('%s  --  Zoom pulse unique %.0fms  --  Rehab b%d  (mesurer largeur spike -> duree blanking)', ...
+sgtitle(sprintf('%s  --  Single pulse zoom %.0f ms  --  Rehab b%d  (measure spike width -> blanking duration)', ...
         PATIENT_ID, PULSE_DUR*1000, BLOCK), 'FontSize', 12, 'FontWeight', 'bold');
 
-fprintf('Fig 5 : mesurer la largeur du spike (debut du pic positif -> retour a zero).\n');
-fprintf('        Cette duree = duree du blanking a appliquer dans l''algorithme de retrait.\n');
-fprintf('        Ajuster PULSE_START pour centrer sur un spike net.\n');
+fprintf('Fig 5: measure the spike width (start of the positive peak -> return to zero).\n');
+fprintf('        This duration = blanking duration to apply in the removal algorithm.\n');
+fprintf('        Adjust PULSE_START to centre on a clean spike.\n');
